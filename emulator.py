@@ -297,7 +297,6 @@ class Emulator(QtWidgets.QMainWindow, QThread):
         TODO: Сделать вывод числа ошибок и dataframe с ошибками
         TODO: Вывод в лог каким алгоритмом считалось
         Returns:
-        
         """
         dict_electron_tmp = self.get_value_particle(self.ELECTRON)
         dict_proton_tmp = self.get_value_particle(self.PROTON)

@@ -79,16 +79,16 @@ class Engine(QtWidgets.QMainWindow, QThread):
     lineEdit_Bauderate_2: QtWidgets.QLineEdit
     lineEdit_IDmpp_2: QtWidgets.QLineEdit
     lineEdit_level_pips: QtWidgets.QLineEdit
-    pushButton_single_pips: QtWidgets.QPushButton
-    pushButton_auto_pips: QtWidgets.QPushButton
+    # pushButton_single_pips: QtWidgets.QPushButton
+    # pushButton_auto_pips: QtWidgets.QPushButton
     pushButton_trapezoid: QtWidgets.QPushButton
     checkBox_writeLog_pips: QtWidgets.QLineEdit
     lineEdit_level_sipm: QtWidgets.QLineEdit
-    pushButton_single_sipm: QtWidgets.QPushButton
-    pushButton_auto_sipm: QtWidgets.QPushButton
+    # pushButton_single_sipm: QtWidgets.QPushButton
+    # pushButton_auto_sipm: QtWidgets.QPushButton
     checkBox_writeLog_sipm: QtWidgets.QLineEdit
     pushButton_single_all: QtWidgets.QPushButton
-    pushButton_auto_all: QtWidgets.QPushButton
+    # pushButton_auto_all: QtWidgets.QPushButton
     label_state_2: QtWidgets.QLabel
     widget_led_2: QtWidgets.QWidget
     tabWidget_measure_2: QtWidgets.QTabWidget
@@ -175,10 +175,43 @@ class Engine(QtWidgets.QMainWindow, QThread):
     lineEdit_proton_E_x_60: QtWidgets.QLineEdit
     lineEdit_electron_dE: QtWidgets.QLineEdit
     lineEdit_electron_E: QtWidgets.QLineEdit
-
     lineEdit_comparator: QtWidgets.QLineEdit
-
     pushButton_reload: QtWidgets.QPushButton
+
+    ######### Измерение ##############
+    lineEdit_triger: QtWidgets.QLineEdit
+    spinBox_level_pips: QtWidgets.QSpinBox
+    spinBox_level_sipm: QtWidgets.QSpinBox
+    lineEdit_point_pips: QtWidgets.QLineEdit
+    lineEdit_point_sipm: QtWidgets.QLineEdit
+    lineEdit_ACQ1: QtWidgets.QLineEdit
+    lineEdit_ACQ2: QtWidgets.QLineEdit
+    lineEdit_01_hh_l: QtWidgets.QLineEdit
+    lineEdit_05_hh_l: QtWidgets.QLineEdit
+    lineEdit_08_hh_l: QtWidgets.QLineEdit
+    lineEdit_1_6_hh_l: QtWidgets.QLineEdit
+    lineEdit_3_hh_l: QtWidgets.QLineEdit
+    lineEdit_5_hh_l: QtWidgets.QLineEdit
+    lineEdit_10_hh_l: QtWidgets.QLineEdit
+    lineEdit_30_hh_l: QtWidgets.QLineEdit
+    lineEdit_60_hh_l: QtWidgets.QLineEdit
+    lineEdit_01_hh: QtWidgets.QLineEdit
+    lineEdit_05_hh: QtWidgets.QLineEdit
+    lineEdit_08_hh: QtWidgets.QLineEdit
+    lineEdit_1_6_hh: QtWidgets.QLineEdit
+    lineEdit_3_hh: QtWidgets.QLineEdit
+    lineEdit_5_hh: QtWidgets.QLineEdit
+    lineEdit_10_hh: QtWidgets.QLineEdit
+    lineEdit_30_hh: QtWidgets.QLineEdit
+    lineEdit_60_hh: QtWidgets.QLineEdit
+    lineEdit_hvip_pips: QtWidgets.QLineEdit
+    lineEdit_hvip_sipm: QtWidgets.QLineEdit
+    lineEdit_hvip_ch: QtWidgets.QLineEdit
+    radioButton_db_mode: QtWidgets.QRadioButton
+    radioButton_cmbt_mode: QtWidgets.QRadioButton
+    radioButton_slnt_mode: QtWidgets.QRadioButton
+    radioButton_const_mode: QtWidgets.QRadioButton
+
 
     ########### var #################
     f_comand_read = 3
@@ -192,15 +225,21 @@ class Engine(QtWidgets.QMainWindow, QThread):
     SIPM = 1
     PIPS = 2
 
+    CM_DBG_CMD_CONNECT = 0
     CSA_TEST_ENABLE = 5
     HVIP_PIPS_VOLTAGE = 6
     HVIP_PIPS_READ_VOLTAGE = 7
-    
+
+    CM_ID = 1
+    MB_F_CODE_16 = 0x10
+    MB_F_CODE_3 = 0x03
+    MB_F_CODE_6 = 0x01
+    REG_COMAND = 0
 
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(os.path.join(os.path.dirname(__file__),  'style/MainWindow3.ui'), self)
+        loadUi(os.path.join(os.path.dirname(__file__),  'style/MainWindow4.ui'), self)
         # Создаем конфиг файл
         self.config = configparser.ConfigParser()
         #####################
@@ -292,12 +331,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
                                                                             self.v_line_sipm, self.hoverPen_sipm,
                                                                             self.pen_sipm, 1))
         self.pushButton_connect_2.clicked.connect(self.pushButtonConnect_clicked)
-        self.pushButton_single_pips.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.PIPS))
-        self.pushButton_auto_pips.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.PIPS))
-        self.pushButton_single_sipm.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.SIPM))
-        self.pushButton_auto_sipm.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.SIPM))
+        # self.pushButton_single_pips.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.PIPS))
+        # self.pushButton_auto_pips.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.PIPS))
+        # self.pushButton_single_sipm.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.SIPM))
+        # self.pushButton_auto_sipm.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.SIPM))
         self.pushButton_single_all.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.ALL))
-        self.pushButton_auto_all.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.ALL))
+        # self.pushButton_auto_all.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.ALL))
         self.pushButton_trapezoid.clicked.connect(self.pushButton_trapezoid_clicked_handler)
         self.menu_action_HVIP.triggered.connect(self.menu_action_HVIP_triggered)
         self.menu_action_parser.triggered.connect(self.menu_action_parser_triggered)
@@ -405,8 +444,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         4. Команда выдачи ответа мпп
         Если отет есть, значит устройство подключено
 
-        Parameters:
-        self (Engine instance): The current instance of the Engine class
         Returns:
         None
         """
@@ -431,7 +468,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 t_pips_single = threading.Thread(target=self.thread_readWaveform_adcA, daemon = True)
                 t_pips_single.start()
                 # t_pips_single.join()
-                # self.qt_plotter(self.data_pips, self.v_line_pips, self.plot_pips, color = self.color_pips) # раскомменитировать
+                # self.qt_plotter(self.data_pips, self.v_line_pips, self.plot_pips, color = self.color_pips) # раскомментировать
 
             case self.SIPM:
                 t_sipm_single = threading.Thread(target=self.thread_readWaveform_adcB, daemon = True)
@@ -759,6 +796,13 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
             if state_serial == 1:
                 try:
+                    # две команды на подключение: 1-ЦМ, 2-МПП
+                    self.send_comand_Modbus(dev_id = self.CM_ID,
+                                        f_code = self.MB_F_CODE_16, 
+                                        comand = self.REG_COMAND, 
+                                        reg_cnt = self.CM_DBG_CMD_CONNECT)
+                    rec_data = self.get_transaction_Modbus(num_bite =104)
+                    self.logger.debug("CM recive data: " + str(rec_data))
                     connect_comand: int = (id << 40) + (f_comand << 32) + (data << 0)
                     num_bytes, connect_comand_crc = self.sendModbus(connect_comand)
                     answer_hex: str = self.reciveModbus(num_bytes*2)
@@ -821,7 +865,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             data (int): The data to be sent over Modbus.
 
         Returns:
-            tuple: A tuple containing the number of bytes sent and the data sent over Modbus.
+            tuple: A tuple containing the number of bytes sent and CRC.
 
         Raises:
             SerialException: If there is an error while communicating with the serial port.
@@ -861,7 +905,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def get_transaction_Modbus(self, num_bite: int) -> str:
         """
             Получение транзакции модбас
-            Обрезаем эхо и прочую служебную информацию
+            Обрезаем эхо, CRC, заголовок модбас
             Returns:
 
         """
