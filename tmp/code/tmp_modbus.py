@@ -25,10 +25,10 @@ client = ModbusClient.ModbusSerialClient(
             stopbits=1,
             handle_local_echo=True,
         )
-# log = logging.getLogger()
-# log.setLevel(logging.DEBUG)
+log = logging.getLogger()
+log.setLevel(logging.DEBUG)
 if client.connect():
 # data= [0]
-    result: ModbusResponse = client.write_registers(1, [0], slave=1)
+    result: ModbusResponse = client.read_holding_registers(0x0014, 0x0012, slave=15)
 # result = client.read_coils(1,10)
-    print(result)
+    print(result.registers)

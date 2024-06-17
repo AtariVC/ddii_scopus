@@ -62,6 +62,8 @@ import csv
 import pandas as pd 
 import numpy as np
 import configparser
+import src.parsers as parser
+import time
 
 # from firstblood.all import *
 
@@ -236,12 +238,18 @@ class Engine(QtWidgets.QMainWindow, QThread):
     MB_F_CODE_6 = 0x01
     REG_COMAND = 0
 
+    DEBUG_MODE = 1
+    COMBAT_MODE = 2
+    CONSTANT_MODE = 3
+    SILENT_MODE = 4
+
 
     def __init__(self) -> None:
         super().__init__()
         loadUi(os.path.join(os.path.dirname(__file__),  'style/MainWindow4.ui'), self)
         # Создаем конфиг файл
         self.config = configparser.ConfigParser()
+        self.parser = parser
         #####################
         self.dialog_trapezoid_settings = MainTrapezoidDialog(self)
         self.plot_pips = pg.PlotWidget()
@@ -344,7 +352,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_stateChanged)
         self.start_accumulation_wave_start_action.triggered.connect(self.start_accumulation_wave_start_action_toolbar_triggered)
         self.stop_accumulation_wave_stop_action.triggered.connect(self.stop_accumulation_wave_stop_action_toolbar_triggered)
-        
+        self.radioButton_db_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.DEBUG_MODE))
+
         # Обновление файлов в потоке
         self.timer = QTimer()
         self.timer.timeout.connect(self.queue_qt_plot)
@@ -433,6 +442,19 @@ class Engine(QtWidgets.QMainWindow, QThread):
         """
         v_line.setPen(pen)
 
+    def radioButton_mode_toggled(self, mode):
+        match (mode):
+            case self.DEBUG_MODE:
+                pass
+            case self.SILENT_MODE:
+                pass
+            case self.COMBAT_MODE:
+                pass
+            case self.CONSTANT_MODE:
+                pass
+
+
+
     ############ handler button ##############
     def pushButtonConnect_clicked(self) -> None:
         """
@@ -450,7 +472,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         baudrate = int(self.lineEdit_Bauderate_2.text())
         self.mpp_id = int(self.lineEdit_IDmpp_2.text())
 
-        self.serialConnect_mpp(self.mpp_id, baudrate, self.f_comand_write, self.start_measure)
+        self.serialConnect(self.mpp_id, baudrate, self.f_comand_write, self.start_measure)
 
     def pushButton_single_measure_clicked(self, chanal: int) -> None:
         """
@@ -752,7 +774,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.comboBox_comm.addItem(portname)
 
     ############ function connect mpp ##############
-    def serialConnect_mpp(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
+    def serialConnect(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
         """
         Для успешного подключения необходимы следующие значения:
         1. Идентификатор MPP
@@ -760,9 +782,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
         3. Команда записи в Modbus
         4. Команда чтения из Modbus
 
-        Если порт открыт, это означает, что устройство подключено.
-
-        Чтобы подключится к ЦМ нужно выбрать ID 0.
+        Подключение происходит одновременно к ЦМ и МПП. Для подключение к МПП
+        нужно задать првельный ID. 
+        При успешном подключении ЦМ выдаст структуру ddii_mpp_data.
 
         Parameters:
         self (экземпляр Engine): текущий экземпляр класса Engine.
@@ -793,16 +815,24 @@ class Engine(QtWidgets.QMainWindow, QThread):
             except Exception as e:
                 self.label_state_2.setText("State: COM-порт занят. Попробуйте переподключиться")
                 self.logger.error("Общая ошибка последовательного порта: " + str(e))
+                state_serial = 0
 
             if state_serial == 1:
                 try:
                     # две команды на подключение: 1-ЦМ, 2-МПП
+                    # CM 01 10 0000 0000 C0 09
+                    # MPP 0F 06 0000 0051 49 18
+                    
+                    #CM
                     self.send_comand_Modbus(dev_id = self.CM_ID,
                                         f_code = self.MB_F_CODE_16, 
                                         comand = self.REG_COMAND, 
                                         reg_cnt = self.CM_DBG_CMD_CONNECT)
-                    rec_data = self.get_transaction_Modbus(num_bite =104)
+                    rec_data = self.write_modbus_timeout(dev_id = self.CM_ID, num_bite = 104, timeout = 10)
                     self.logger.debug("CM recive data: " + str(rec_data))
+                    
+                        
+                    self.parser.parser_cm_data(rec_data)
                     connect_comand: int = (id << 40) + (f_comand << 32) + (data << 0)
                     num_bytes, connect_comand_crc = self.sendModbus(connect_comand)
                     answer_hex: str = self.reciveModbus(num_bytes*2)
@@ -907,9 +937,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             Получение транзакции модбас
             Обрезаем эхо, CRC, заголовок модбас
             Returns:
-
         """
-        
         # self.logger.debug("Buffer input = " + str(self.ser.in_waiting))
         # transaction: bytes = self.ser.readall()
         # self.ser.reset_input_buffer()
@@ -921,6 +949,35 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.logger.debug(tr[::-1])
         return tr[::-1]
     
+    def write_modbus_timeout(self, dev_id:int, data:str, num_bite:int, timeout:int) -> str:
+        """F CODE 16
+        Отправляет команду и ждет ответ
+        Args:
+            dev_id (_type_): ID
+            num_bite (_type_): Колдичество байт для приема
+            timeout (_type_): Время одидания ответа
+
+        Returns:
+            str: _description_
+        """
+        self.send_comand_Modbus(dev_id = dev_id,
+                                        f_code = self.MB_F_CODE_16, 
+                                        comand = self.REG_COMAND, 
+                                        reg_cnt = self.CM_DBG_CMD_CONNECT)
+                                        
+        time_start = time.time_ns() // 1_000_000
+        time_now = time_start
+        while timeout > time_now - time_start:
+            time_now = time.time_ns() // 1_000_000
+            transaction = self.reciveModbus(0)[::-1]
+            tr = transaction[4:num_bite*2+4]
+            # self.logger.debug(tr[::-1])
+            self.logger.debug(tr[:2])
+            self.logger.debug("Timeout:" + str(time.time_ns() // 1_000_000 - time_start))
+            if tr[:2] == dev_id:
+                return tr[::-1]
+        return "^_^"
+
     def reciveModbus(self, amount_bytes: int) -> str:
         """
         TODO: Проверка CRC
