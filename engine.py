@@ -47,6 +47,7 @@ from src.py_toggle import pyToggle
 # from serial.serialutil import SerialException
 # from src.py_toggle import pyToggle
 from src.log_config import log_init, log_s
+import logging
 from src.customComboBox_COMport import CustomComboBox_COMport
 import copy as cp
 # import time
@@ -64,11 +65,32 @@ import numpy as np
 import configparser
 import src.parsers as parser
 import time
-
+import pymodbus.client as ModbusClient
+from pymodbus.pdu import ModbusResponse
+from pymodbus.payload import BinaryPayloadDecoder
+from pymodbus.constants import Endian
+import colorlog
 # from firstblood.all import *
 
+# Создание фильтра для pymodbus
+class SendFilter(logging.Filter):
+    def filter(self, record):
+        # message = record.getMessage()
+        return False #'SEND:' in message or 'RECV:' in message
+    
+# Создание обработчика для pymodbus
+class SendHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.mess = []
 
-
+    def emit(self, record):
+        message = self.format(record)
+        # print(message)
+        if 'SEND:' in message:
+            self.mess.append(message)
+        if 'RECV:' in message:
+            self.mess.append(message)
 
 class Engine(QtWidgets.QMainWindow, QThread):
     my_button: QtWidgets.QPushButton
@@ -179,6 +201,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     lineEdit_electron_E: QtWidgets.QLineEdit
     lineEdit_comparator: QtWidgets.QLineEdit
     pushButton_reload: QtWidgets.QPushButton
+    pushButton_clear_hist: QtWidgets.QPushButton
 
     ######### Измерение ##############
     lineEdit_triger: QtWidgets.QLineEdit
@@ -213,9 +236,11 @@ class Engine(QtWidgets.QMainWindow, QThread):
     radioButton_cmbt_mode: QtWidgets.QRadioButton
     radioButton_slnt_mode: QtWidgets.QRadioButton
     radioButton_const_mode: QtWidgets.QRadioButton
+    
 
 
     ########### var #################
+    state_serial = 0
     f_comand_read = 3
     f_comand_write = 6
     start_measure = 81
@@ -235,14 +260,18 @@ class Engine(QtWidgets.QMainWindow, QThread):
     CM_ID = 1
     MB_F_CODE_16 = 0x10
     MB_F_CODE_3 = 0x03
-    MB_F_CODE_6 = 0x01
+    MB_F_CODE_6 = 0x06
     REG_COMAND = 0
 
-    DEBUG_MODE = 1
-    COMBAT_MODE = 2
-    CONSTANT_MODE = 3
-    SILENT_MODE = 4
+    DEBUG_MODE = 0x0C
+    COMBAT_MODE = 0x0E
+    CONSTANT_MODE = 0x0F
+    SILENT_MODE = 0x0D
 
+    DDII_SWITCH_MODE = 0x0001
+
+    CMD_TEST_ENABLE = 0x0004
+    
 
     def __init__(self) -> None:
         super().__init__()
@@ -353,6 +382,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.start_accumulation_wave_start_action.triggered.connect(self.start_accumulation_wave_start_action_toolbar_triggered)
         self.stop_accumulation_wave_stop_action.triggered.connect(self.stop_accumulation_wave_stop_action_toolbar_triggered)
         self.radioButton_db_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.DEBUG_MODE))
+        self.radioButton_slnt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.SILENT_MODE))
+        self.radioButton_cmbt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.COMBAT_MODE))
+        self.radioButton_const_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.CONSTANT_MODE))
+        self.pushButton_clear_hist.clicked.connect(self.pushButton_clear_hist_clicked_handler)
 
         # Обновление файлов в потоке
         self.timer = QTimer()
@@ -445,17 +478,36 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def radioButton_mode_toggled(self, mode):
         match (mode):
             case self.DEBUG_MODE:
-                pass
+                cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
+                                                                            self.DEBUG_MODE, 
+                                                                            self.CM_ID), 
+                                                                            daemon = True)        
+                cmd.start()
             case self.SILENT_MODE:
-                pass
+                cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
+                                                                            self.SILENT_MODE, 
+                                                                            self.CM_ID), 
+                                                                            daemon = True)        
+                cmd.start()
             case self.COMBAT_MODE:
-                pass
+                cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
+                                                                            self.COMBAT_MODE, 
+                                                                            self.CM_ID), 
+                                                                            daemon = True)        
+                cmd.start()
             case self.CONSTANT_MODE:
-                pass
-
-
+                cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
+                                                                            self.CONSTANT_MODE, 
+                                                                            self.CM_ID), 
+                                                                            daemon = True)        
+                cmd.start()
 
     ############ handler button ##############
+
+    def pushButton_clear_hist_clicked_handler(self):
+        self.client.write_registers(address = 0x0014, values = [0x0000 for i in range(18)], slave = self.mpp_id)
+        log_s(self.send_handler.mess)
+
     def pushButtonConnect_clicked(self) -> None:
         """
         Эта функция вызывается при нажатии кнопки подключение.
@@ -533,8 +585,16 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def pushButton_trapezoid_clicked_handler(self) -> None:
         self.dialog_trap.show()
 
-    def checkBox_enable_test_csa_stateChanged(self) -> None:
-        self.send_comand_Modbus(dev_id= 1, f_code= 16, reg_cnt= 5, comand= 0)
+    def checkBox_enable_test_csa_stateChanged(self, state) -> None:
+        if state == 2:
+            st = 1
+        else:
+            st = 0
+        t_flow_auto = threading.Thread(target=self.thread_write_reg_not_answer(self.CMD_TEST_ENABLE, 
+                                                                            st, 
+                                                                            self.CM_ID), 
+                                                                            daemon = True)        
+        t_flow_auto.start()
 
     ############ Triggered Menu Action ##############
     def menu_action_HVIP_triggered(self) -> None:
@@ -591,6 +651,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
 
     ############ Потоки ##############
+    def thread_write_reg_not_answer(self, adr, val, slv):
+        self.client.write_registers(address = adr, values = val, slave = slv)
+        log_s(self.send_handler.mess)
+
 
     def thread_readWaveform_adcA(self) -> None:
 
@@ -772,18 +836,34 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def init_COMports_comboBox_comport_list(self):
         for n, (portname, desc, hwid) in enumerate(sorted(serial.tools.list_ports.comports())):
             self.comboBox_comm.addItem(portname)
+    
+    def get_telemetria(self):
+        result: ModbusResponse = self.client.read_holding_registers(0x0000, 62, slave=1)
+        log_s(self.send_handler.mess)
+        return result
+    
+    def pars_telemetria(self, tel: ModbusResponse) -> None:
+        ## endian is wrong
+        tel = tel.encode()
+        tel_b = int(tel[1:2].hex(), 16)
+        if tel_b == self.DEBUG_MODE:
+            self.radioButton_db_mode.setChecked(True)
+        elif tel_b == self.COMBAT_MODE:
+            self.radioButton_slnt_mode.setChecked(True)
+        elif tel_b == self.CONSTANT_MODE:
+            self.radioButton_cmbt_mode.setChecked(True)
+        elif tel_b == self.SILENT_MODE:
+            self.radioButton_const_mode.setChecked(True)
+        tel_b = int(tel[1:2].hex(), 16)
+        print(tel[2:2])
+        print(tel_b)
+        self.lineEdit_triger.setText("")
 
     ############ function connect mpp ##############
     def serialConnect(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
-        """
-        Для успешного подключения необходимы следующие значения:
-        1. Идентификатор MPP
-        2. Скорость передачи данных для последовательной связи.
-        3. Команда записи в Modbus
-        4. Команда чтения из Modbus
-
-        Подключение происходит одновременно к ЦМ и МПП. Для подключение к МПП
-        нужно задать првельный ID. 
+        """Подключкние к ДДИИ
+        Подключение происходит одновременно к ЦМ и МПП. 
+        Для подключение к МПП нужно задать првельный ID. 
         При успешном подключении ЦМ выдаст структуру ddii_mpp_data.
 
         Parameters:
@@ -796,75 +876,91 @@ class Engine(QtWidgets.QMainWindow, QThread):
         Returns:
         None
         """
-        state_serial = 0
+        # logging.basicConfig()
+        log = logging.getLogger('pymodbus')
+        log.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        handler.addFilter(SendFilter())
+        log.addHandler(handler)
+        self.send_handler = SendHandler()
+        log.addHandler(self.send_handler)
+        status_CM = 0
+        self.status_MPP = 0
+        self.state_serial = 0
+        tmp_res = []
         if self.pushButton_connect_flag == 0:
-            # if port != 'COM1':
             port = self.comboBox_comm.currentText()
-            try:
-                self.ser = serial.Serial(port,\
-                                        baudrate,\
-                                        parity=serial.PARITY_NONE, \
-                                        stopbits=serial.STOPBITS_ONE,\
-                                        bytesize=serial.EIGHTBITS,\
-                                        timeout = 0.1)
-                state_serial = 1
-                self.logger.debug(str(self.ser.port)+", Baudrate = "+str(self.ser.baudrate)+
-                                ", Parity = "+str(self.ser.parity)+
-                                ", Stopbits = "+str(self.ser.stopbits)+
-                                ", Bytesize = "+str(self.ser.bytesize))
-            except Exception as e:
+            self.client = ModbusClient.ModbusSerialClient(
+                port,
+                timeout=1,
+                baudrate=baudrate,
+                bytesize=8,
+                parity="N",
+                stopbits=1,
+                handle_local_echo=True,
+                )
+            if self.client.connect():
+                self.state_serial = 1
+                self.logger.debug(port + " ,Baudrate = " + str(baudrate) +
+                                ", Parity = "+"None"+
+                                ", Stopbits = "+ "1" +
+                                ", Bytesize = " + str(self.client.comm_params.bytesize))
+            else:
                 self.label_state_2.setText("State: COM-порт занят. Попробуйте переподключиться")
-                self.logger.error("Общая ошибка последовательного порта: " + str(e))
-                state_serial = 0
+                self.state_serial = 0
 
-            if state_serial == 1:
+            if self.state_serial == 1:
+                # две команды на подключение: 1-ЦМ, 2-МПП
+                # CM 01 10 0000 0000 C0 09
+                # MPP 0F 06 0000 0051 49 18
+                ######## CM #######     
+                self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
+                # print(self.send_handler.mess)
+                log_s(self.send_handler.mess)
+                result = self.get_telemetria()
+                log_s(self.send_handler.mess)
                 try:
-                    # две команды на подключение: 1-ЦМ, 2-МПП
-                    # CM 01 10 0000 0000 C0 09
-                    # MPP 0F 06 0000 0051 49 18
-                    
-                    #CM
-                    self.send_comand_Modbus(dev_id = self.CM_ID,
-                                        f_code = self.MB_F_CODE_16, 
-                                        comand = self.REG_COMAND, 
-                                        reg_cnt = self.CM_DBG_CMD_CONNECT)
-                    rec_data = self.write_modbus_timeout(dev_id = self.CM_ID, num_bite = 104, timeout = 10)
-                    self.logger.debug("CM recive data: " + str(rec_data))
-                    
-                        
-                    self.parser.parser_cm_data(rec_data)
-                    connect_comand: int = (id << 40) + (f_comand << 32) + (data << 0)
-                    num_bytes, connect_comand_crc = self.sendModbus(connect_comand)
-                    answer_hex: str = self.reciveModbus(num_bytes*2)
-                    # print(hex(answer))
-                    answer = int(answer_hex, 16)
-                    if answer == (connect_comand_crc << num_bytes * 8) + connect_comand_crc:
-                        self.widget_led_2.setStyleSheet(style.widget_led_on())
-                        self.label_state_2.setText(f"State: подключено к МПП {id}")
-                        self.pushButton_connect_flag = 1
-                        self.pushButton_connect_2.setText("Отключить")
-                    if id == 0:
-                        self.widget_led_2.setStyleSheet(style.widget_led_on())
-                        self.label_state_2.setText("State: подключено к ДДИИ")
-                        self.pushButton_connect_flag = 1
-                        self.pushButton_connect_2.setText("Отключить")
-                    elif answer != (connect_comand_crc << num_bytes * 8) + connect_comand_crc:
-                        self.label_state_2.setText("State: ошибка подключения. Проверьте COM-порт/id/бодрейт/питание")
-                        if self.ser.is_open:
-                            self.ser.close()
-                    # else:
-                    #     self.label_state.setText("State: устройство не подключено к COM-порту")
-                except Exception as e:
-                    self.logger.error("Общая ошибка последовательного порта: " + str(e))
-                    self.label_state_2.setText("State: Не удалось подключиться")
+                    tmp_res = result.registers
+                except Exception:
+                    self.logger.debug("Modbus Error CM")
+                if not tmp_res:
+                    self.logger.debug("Соединение c ЦМ не установлено")
+                else:
+                    status_CM = 1
+                    self.widget_led_2.setStyleSheet(style.widget_led_on())
+                    self.pars_telemetria(result)
+                ######## MPP #######  
+                slv = int(self.lineEdit_IDmpp_2.text())
+                result: ModbusResponse = self.client.read_holding_registers(0x0000, 4, slave=slv)
+                log_s(self.send_handler.mess)
+                try:
+                    tmp_res = result.registers
+                except Exception:
+                    self.logger.debug("Modbus Error MPP")
+                    self.status_MPP = 0
+                    self.logger.debug("Соединение c МПП не установлено")
+                    if status_CM == 0:
+                        self.label_state_2.setText("State: CM - None, MPP - None")
+                        self.widget_led_2.setStyleSheet(style.widget_led_off())
+                        self.client.close()
+                    else:
+                        self.label_state_2.setText("State: CM - OK, MPP - None")
+                else:
+                    self.status_MPP = 1
+                    if status_CM == 1:
+                        self.label_state_2.setText("State: CM - OK, MPP - OK")
+                    else:
+                        self.label_state_2.setText("State: CM - None, MPP - OK")
+                self.pushButton_connect_2.setText("Отключить")
+                self.pushButton_connect_flag = 1
         else:
-            if self.ser.is_open:
-                self.ser.close()
+            self.pushButton_connect_2.setText("Подключить")
+            self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
             self.pushButton_connect_flag = 0
             self.widget_led_2.setStyleSheet(style.widget_led_off())
-            self.label_state_2.setText("State:")
-            self.pushButton_connect_2.setText("Подключить")
-
+            self.client.close()
+            self.label_state_2.setText("State: ")
     ############ Function MODBUS ################
     def sendModbus(self, data):
         """
@@ -964,7 +1060,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
                                         f_code = self.MB_F_CODE_16, 
                                         comand = self.REG_COMAND, 
                                         reg_cnt = self.CM_DBG_CMD_CONNECT)
-                                        
         time_start = time.time_ns() // 1_000_000
         time_now = time_start
         while timeout > time_now - time_start:

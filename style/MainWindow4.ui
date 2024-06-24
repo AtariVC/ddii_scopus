@@ -810,9 +810,9 @@
                     <property name="geometry">
                      <rect>
                       <x>0</x>
-                      <y>-277</y>
+                      <y>-457</y>
                       <width>311</width>
-                      <height>995</height>
+                      <height>1023</height>
                      </rect>
                     </property>
                     <layout class="QVBoxLayout" name="verticalLayout_10">
@@ -1759,6 +1759,13 @@
                                 </widget>
                                </item>
                               </layout>
+                             </item>
+                             <item row="6" column="0">
+                              <widget class="QPushButton" name="pushButton_clear_hist">
+                               <property name="text">
+                                <string>Очистить гистограммы</string>
+                               </property>
+                              </widget>
                              </item>
                             </layout>
                            </widget>

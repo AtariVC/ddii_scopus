@@ -66,16 +66,31 @@ def rx_filter(record):
 def debug_filter(record):
     return record["level"].name == "DEBUG"
 
-def log_s(mode, massage):
-    mass = str(massage)
-    mass = re.findall(r"\w\w", mass)
-    new_mass = ""
-    for i in range(0, len(mass)):
-        new_mass = new_mass + mass[i] + " "
-    if mode == "RX":
-        logger.log("RX", new_mass.upper())
-    elif mode == "TX":
-        logger.log("TX", new_mass.upper())
+def log_s(message: list):
+    mess = ''
+    for item in message:
+        try:
+            if item[:4] == "SEND":
+                mess = item[6:].replace("0x", "")
+                mode = "TX"
+            if item[:4] == "RECV":
+                mode = "RX"
+                mess = item[6:].replace("0x", "")
+        except IndexError as e:
+            logger.debug("Нет ответа от устройства")
+            logger.debug("pymodus.send_handler.mass: IndexError")
+            return 0
+        mess = re.findall(r"[a-f0-9]{1,2}", mess)
+        new_mess = ""
+        for i in range(0, len(mess)):
+            if len(mess[i]) == 1:
+                mess[i] = "0" + mess[i]
+            new_mess = new_mess + mess[i] + " "
+        if mode == "RX":
+            logger.log("RX", new_mess.upper())
+        elif mode == "TX":
+            logger.log("TX", new_mess.upper())
+    message.clear()
 
 
 

@@ -880,7 +880,7 @@ class Emulator(QtWidgets.QMainWindow, QThread):
     def initThreshold(self):
         path = "./config/config.ini"
         self.config.read(path)
-        self.parent.radioButton_MeV.setChecked(1)
+        self.parent.radioButton_MeV.setChecked(True)
         # self.parent.radioButton_lsb.setChecked(int(self.config.get("Emulator", "radiobutton_lsb")))
         # self.parent.radioButton_mV.setChecked(int(self.config.get("Emulator", "radiobutton_mv")))
 
