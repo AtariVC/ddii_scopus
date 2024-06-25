@@ -381,7 +381,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_stateChanged)
         self.start_accumulation_wave_start_action.triggered.connect(self.start_accumulation_wave_start_action_toolbar_triggered)
         self.stop_accumulation_wave_stop_action.triggered.connect(self.stop_accumulation_wave_stop_action_toolbar_triggered)
-        self.radioButton_db_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.DEBUG_MODE))
+        # self.radioButton_db_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.DEBUG_MODE))
         self.radioButton_slnt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.SILENT_MODE))
         self.radioButton_cmbt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.COMBAT_MODE))
         self.radioButton_const_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.CONSTANT_MODE))
@@ -477,12 +477,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def radioButton_mode_toggled(self, mode):
         match (mode):
-            case self.DEBUG_MODE:
-                cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
-                                                                            self.DEBUG_MODE, 
-                                                                            self.CM_ID), 
-                                                                            daemon = True)        
-                cmd.start()
+            # case self.DEBUG_MODE:
+            #     cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
+            #                                                                 self.DEBUG_MODE, 
+            #                                                                 self.CM_ID), 
+            #                                                                 daemon = True)        
+            #     cmd.start()
             case self.SILENT_MODE:
                 cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
                                                                             self.SILENT_MODE, 
@@ -838,26 +838,62 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.comboBox_comm.addItem(portname)
     
     def get_telemetria(self):
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
         result: ModbusResponse = self.client.read_holding_registers(0x0000, 62, slave=1)
         log_s(self.send_handler.mess)
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
         return result
     
     def pars_telemetria(self, tel: ModbusResponse) -> None:
         ## endian is wrong
         tel = tel.encode()
+        print(tel)
         tel_b = int(tel[1:2].hex(), 16)
-        if tel_b == self.DEBUG_MODE:
-            self.radioButton_db_mode.setChecked(True)
-        elif tel_b == self.COMBAT_MODE:
+        # if tel_b == self.DEBUG_MODE:
+        #     self.radioButton_db_mode.setChecked(True)
+        if tel_b == self.COMBAT_MODE and tel_b == self.DEBUG_MODE:
             self.radioButton_slnt_mode.setChecked(True)
         elif tel_b == self.CONSTANT_MODE:
             self.radioButton_cmbt_mode.setChecked(True)
         elif tel_b == self.SILENT_MODE:
             self.radioButton_const_mode.setChecked(True)
-        tel_b = int(tel[1:2].hex(), 16)
-        print(tel[2:2])
-        print(tel_b)
-        self.lineEdit_triger.setText("")
+
+        tel_b = int(self.swap_bytes(tel[3:5]).hex(), 16)
+        self.lineEdit_01_hh_l.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[5:7]).hex(), 16)
+        self.lineEdit_05_hh_l.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[7:9]).hex(), 16)
+        self.lineEdit_08_hh_l.setText(str(tel_b))
+        print(tel[7:9])
+
+        tel_b = int(self.swap_bytes(tel[9:11]).hex(), 16)
+        self.lineEdit_1_6_hh_l.setText(str(tel_b))
+        print(tel[9:11])
+
+        tel_b = int(self.swap_bytes(tel[11:13]).hex(), 16)
+        self.lineEdit_3_hh_l.setText(str(tel_b))
+        print(tel[11:13])
+
+        tel_b = int(self.swap_bytes(tel[13:15]).hex(), 16)
+        self.lineEdit_5_hh_l.setText(str(tel_b))
+        print(tel[13:15])
+        # print(tel[9:12])
+        # print(tel_b)
+        # tel_b = int(tel[13:16].hex(), 16)
+        # self.lineEdit_08_hh_l.setText(str(tel_b))
+        # print(tel[13:16])
+        # print(tel_b)
+        # tel_b = int(tel[17:20].hex(), 16)
+        # self.lineEdit_01_hh_l.setText(str(tel_b))
+        # print(tel[17:20])
+        # print(tel_b)
+        # self.lineEdit_triger.setText("")
+
+    def swap_bytes(self, byte_str) -> bytes:
+    # Поменяем местами первый и второй байты
+        return byte_str[1:] + byte_str[:1]
 
     ############ function connect mpp ##############
     def serialConnect(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
@@ -915,7 +951,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 # CM 01 10 0000 0000 C0 09
                 # MPP 0F 06 0000 0051 49 18
                 ######## CM #######     
-                self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
+                
                 # print(self.send_handler.mess)
                 log_s(self.send_handler.mess)
                 result = self.get_telemetria()
@@ -956,7 +992,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 self.pushButton_connect_flag = 1
         else:
             self.pushButton_connect_2.setText("Подключить")
-            self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
+            # self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
             self.pushButton_connect_flag = 0
             self.widget_led_2.setStyleSheet(style.widget_led_off())
             self.client.close()
