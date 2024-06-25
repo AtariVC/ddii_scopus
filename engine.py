@@ -69,7 +69,7 @@ import pymodbus.client as ModbusClient
 from pymodbus.pdu import ModbusResponse
 from pymodbus.payload import BinaryPayloadDecoder
 from pymodbus.constants import Endian
-import colorlog
+# import colorlog
 # from firstblood.all import *
 
 # Создание фильтра для pymodbus
@@ -746,8 +746,15 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.pushButton_auto_flag = 1
 
     def thread_readWaveform_adc_flowl(self) -> None:
+        try:
+            trg = int(self.lineEdit_triger.text())
+        except Exception:
+            self.logger.debug("Пустая строка или не число")
+            trg = 100
+        self.ddii_set_triger(trg)
         while 1:
-            self.start_measurement_func()
+            data_osc = self.ddii_get_osc()
+            # self.start_measurement_func()
             waveformA = self.readWaveform_adcA()
             self.data_pips = waveformA
             self.queue.put((waveformA, self.v_line_pips, self.plot_pips, self.color_pips))
@@ -759,6 +766,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.pushButton_auto_flag = 1
 
     ############ function service ##############
+    def ddii_get_osc(self):
+        pass
+
+    def ddii_set_triger(self, lvl):
+        self.client.write_register(0x0001, lvl, self.mpp_id)
+
 
     def trapezoid_calculater(self, x, y, T_decay: int, T_rise: int, T_top: int, invert = 0):
         """
@@ -1163,6 +1176,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
         return waveform_list
 
     def start_measurement_func(self):
+        """Устанавливает триггер, считывает осциллограммы МПП, записавет масимумы
+        """
         start_measure_comand: int = (self.mpp_id << 40) + (self.f_comand_write << 32) + (self.start_measure << 0)
         num_bytes, data_crc = self.sendModbus(start_measure_comand)
         self.reciveModbus(num_bytes*2)
