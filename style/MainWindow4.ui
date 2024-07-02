@@ -810,7 +810,7 @@
                     <property name="geometry">
                      <rect>
                       <x>0</x>
-                      <y>-29</y>
+                      <y>-423</y>
                       <width>311</width>
                       <height>1023</height>
                      </rect>
@@ -1752,6 +1752,9 @@
                                </item>
                                <item row="2" column="2">
                                 <widget class="QLineEdit" name="lineEdit_30_hh_l">
+                                 <property name="alignment">
+                                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                                 </property>
                                  <property name="readOnly">
                                   <bool>true</bool>
                                  </property>

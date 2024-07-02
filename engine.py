@@ -69,6 +69,7 @@ import pymodbus.client as ModbusClient
 from pymodbus.pdu import ModbusResponse
 from pymodbus.payload import BinaryPayloadDecoder
 from pymodbus.constants import Endian
+import struct
 # import colorlog
 # from firstblood.all import *
 
@@ -246,6 +247,21 @@ class Engine(QtWidgets.QMainWindow, QThread):
     start_measure = 81
     connect_to_mpp = 81
     pushButton_connect_flag = 0
+    hvip_pwm_pips = 0
+    hvip_pwm_sipm = 0
+    hvip_pwm_ch = 0
+    hvip_pips = 0
+    hvip_sipm = 0
+    hvip_ch = 0
+    hvip_current_pips = 0
+    hvip_current_sipm = 0
+    hvip_current_ch = 0
+    hvip_mode_pips = 0
+    hvip_mode_sipm = 0
+    hvip_mode_ch = 0
+
+
+
     modulename = ["emulator"] # подключаемые модули, обязательно для заполения
 
     ALL = 0
@@ -254,8 +270,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     CM_DBG_CMD_CONNECT = 0
     CSA_TEST_ENABLE = 5
-    HVIP_PIPS_VOLTAGE = 6
-    HVIP_PIPS_READ_VOLTAGE = 7
+    # HVIP_PIPS_VOLTAGE = 6
+    # HVIP_PIPS_READ_VOLTAGE = 7
 
     CM_ID = 1
     MB_F_CODE_16 = 0x10
@@ -864,34 +880,83 @@ class Engine(QtWidgets.QMainWindow, QThread):
         tel_b = int(tel[1:2].hex(), 16)
         # if tel_b == self.DEBUG_MODE:
         #     self.radioButton_db_mode.setChecked(True)
-        if tel_b == self.COMBAT_MODE and tel_b == self.DEBUG_MODE:
+        if tel_b == self.COMBAT_MODE:
             self.radioButton_slnt_mode.setChecked(True)
         elif tel_b == self.CONSTANT_MODE:
             self.radioButton_cmbt_mode.setChecked(True)
         elif tel_b == self.SILENT_MODE:
             self.radioButton_const_mode.setChecked(True)
 
-        tel_b = int(self.swap_bytes(tel[3:5]).hex(), 16)
+        tel_b = int(self.swap_bytes(tel[19:21]).hex(), 16)
+
         self.lineEdit_01_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[5:7]).hex(), 16)
+        tel_b = int(self.swap_bytes(tel[3:5]).hex(), 16)
         self.lineEdit_05_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[7:9]).hex(), 16)
+        tel_b = int(self.swap_bytes(tel[5:7]).hex(), 16)
         self.lineEdit_08_hh_l.setText(str(tel_b))
-        print(tel[7:9])
+
+        tel_b = int(self.swap_bytes(tel[7:9]).hex(), 16)
+        self.lineEdit_1_6_hh_l.setText(str(tel_b))
 
         tel_b = int(self.swap_bytes(tel[9:11]).hex(), 16)
-        self.lineEdit_1_6_hh_l.setText(str(tel_b))
-        print(tel[9:11])
+        self.lineEdit_3_hh_l.setText(str(tel_b))
+
 
         tel_b = int(self.swap_bytes(tel[11:13]).hex(), 16)
-        self.lineEdit_3_hh_l.setText(str(tel_b))
-        print(tel[11:13])
+        self.lineEdit_5_hh_l.setText(str(tel_b))
 
         tel_b = int(self.swap_bytes(tel[13:15]).hex(), 16)
-        self.lineEdit_5_hh_l.setText(str(tel_b))
-        print(tel[13:15])
+        self.lineEdit_10_hh_l.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[15:17]).hex(), 16)
+        self.lineEdit_30_hh_l.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[17:19]).hex(), 16)
+        self.lineEdit_60_hh_l.setText(str(tel_b))
+        #############
+        float_t = self.byte_to_float(tel[21:25])
+        self.hvip_pips = float_t
+        self.lineEdit_hvip_pips.setText("{:.2f}".format(float_t))
+
+        float_t = self.byte_to_float(tel[25:29])
+        self.hvip_pwm_pips = float_t
+
+        float_t = self.byte_to_float(tel[29:33])
+        self.hvip_current_pips = float_t
+
+        self.hvip_mode_pips = int(tel[33:34].hex(), 16)
+        ###############
+        float_t = self.byte_to_float(tel[35:39])
+        self.lineEdit_hvip_sipm.setText("{:.2f}".format(float_t))
+        
+
+        float_t = self.byte_to_float(tel[39:43])
+        self.hvip_pwm_sipm = float_t
+
+        float_t = self.byte_to_float(tel[43:47])
+        self.hvip_current_sipm = float_t
+
+        self.hvip_mode_sipm = int(tel[47:48].hex(), 16)
+        print(self.hvip_mode_sipm)
+        ###############
+        float_t = self.byte_to_float(tel[49:53])
+        self.lineEdit_hvip_ch.setText("{:.2f}".format(float_t))
+        self.hvip_ch = float_t
+
+        float_t = self.byte_to_float(tel[53:57])
+        self.hvip_pwm_ch = float_t
+
+        float_t = self.byte_to_float(tel[57:61])
+        self.hvip_current_ch = float_t
+
+        self.hvip_mode_ch = int(tel[61:62].hex(), 16)
+        print(self.hvip_mode_ch)
+
+        ##############
+        tel_b = int(self.swap_bytes(tel[62:63]).hex(), 16)
+        self.checkBox_enable_test_csa.setText(str(tel_b))
         # print(tel[9:12])
         # print(tel_b)
         # tel_b = int(tel[13:16].hex(), 16)
@@ -907,6 +972,17 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def swap_bytes(self, byte_str) -> bytes:
     # Поменяем местами первый и второй байты
         return byte_str[1:] + byte_str[:1]
+    
+    def byte_to_float(self, byte_str) -> float:
+    # Байты в float
+        n0 = self.swap_bytes(byte_str[:2])
+        n1 = self.swap_bytes(byte_str[2:4])
+        n = n1 + n0
+        n_i = int(n.hex(), 16)
+        # print(n.hex())
+        n_b : bytes = n_i.to_bytes(4, byteorder='big')
+        float_t: float = struct.unpack('!f', n_b)[0]
+        return float_t
 
     ############ function connect mpp ##############
     def serialConnect(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
