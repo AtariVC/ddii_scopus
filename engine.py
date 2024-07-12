@@ -55,6 +55,7 @@ import threading
 from main_trapezoid_dialog import MainTrapezoidDialog
 from main_hvip_dialog import MainHvipDialog
 from main_mpp_dialog import MainMppControlDialog
+from main_config_dialog import MainConfigDialog
 from queue import Queue
 import numpy as np
 import os
@@ -70,6 +71,7 @@ from pymodbus.pdu import ModbusResponse
 from pymodbus.payload import BinaryPayloadDecoder
 from pymodbus.constants import Endian
 import struct
+import copy
 # import colorlog
 # from firstblood.all import *
 
@@ -127,9 +129,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
     graph_widget: QtWidgets.QWidget
     measure_widget: QtWidgets.QWidget
     radioButton_auto_traprzoid: QtWidgets.QRadioButton
-    menu_action_HVIP: QAction
+    menu_action_HVIP_2: QAction
     menu_action_parser: QAction
-    menu_action_MPP_cntrl: QAction
+    menu_action_MPP_cntrl_2: QAction
+    menu_action_ddii_config: QAction
     checkBox_enable_test_csa: QtWidgets.QCheckBox
     toolBar: QtWidgets.QToolBar
     # pushButton_setting_trapezoid: QtWidgets.QPushButton
@@ -203,6 +206,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     lineEdit_comparator: QtWidgets.QLineEdit
     pushButton_reload: QtWidgets.QPushButton
     pushButton_clear_hist: QtWidgets.QPushButton
+    pushButton_update_data: QtWidgets.QPushButton
 
     ######### Измерение ##############
     lineEdit_triger: QtWidgets.QLineEdit
@@ -237,10 +241,18 @@ class Engine(QtWidgets.QMainWindow, QThread):
     radioButton_cmbt_mode: QtWidgets.QRadioButton
     radioButton_slnt_mode: QtWidgets.QRadioButton
     radioButton_const_mode: QtWidgets.QRadioButton
+    lineEdit_HCP_1: QtWidgets.QLineEdit
+    lineEdit_HCP_5: QtWidgets.QLineEdit
+    lineEdit_HCP_10: QtWidgets.QLineEdit
+    lineEdit_HCP_20: QtWidgets.QLineEdit
+    lineEdit_HCP_45: QtWidgets.QLineEdit
+
     
 
 
     ########### var #################
+    max_adc_histA = []
+    max_adc_histB = []
     state_serial = 0
     f_comand_read = 3
     f_comand_write = 6
@@ -259,7 +271,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     hvip_mode_pips = 0
     hvip_mode_sipm = 0
     hvip_mode_ch = 0
-
+    ddii_interval_measure = 0
 
 
     modulename = ["emulator"] # подключаемые модули, обязательно для заполения
@@ -278,6 +290,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     MB_F_CODE_3 = 0x03
     MB_F_CODE_6 = 0x06
     REG_COMAND = 0
+    CMD_DBG_GET_DATA_MPP = 2
 
     DEBUG_MODE = 0x0C
     COMBAT_MODE = 0x0E
@@ -352,7 +365,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.dialog_trap: MainTrapezoidDialog =  MainTrapezoidDialog(self)
         self.munu_action_HVIP: MainHvipDialog =  MainHvipDialog(self)
         self.menu_action_MPP_cntrl_dialog: MainMppControlDialog =  MainMppControlDialog(self)
-        
+        self.menu_action_ddii_config_dialog:  MainConfigDialog =  MainConfigDialog(self)
 
         ############## Tool Bar #############
         self.start_accumulation_wave_start_action = QAction(QIcon("./icon/start.svg"), None, self) # color #949494
@@ -391,9 +404,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.pushButton_single_all.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.ALL))
         # self.pushButton_auto_all.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.ALL))
         self.pushButton_trapezoid.clicked.connect(self.pushButton_trapezoid_clicked_handler)
-        self.menu_action_HVIP.triggered.connect(self.menu_action_HVIP_triggered)
+        self.menu_action_HVIP_2.triggered.connect(self.menu_action_HVIP_triggered)
         self.menu_action_parser.triggered.connect(self.menu_action_parser_triggered)
-        self.menu_action_MPP_cntrl.triggered.connect(self.menu_action_MPP_cntrl_triggered)
+        self.menu_action_MPP_cntrl_2.triggered.connect(self.menu_action_MPP_cntrl_triggered)
+        self.menu_action_ddii_config.triggered.connect(self.menu_action_ddii_config_triggered)
         self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_stateChanged)
         self.start_accumulation_wave_start_action.triggered.connect(self.start_accumulation_wave_start_action_toolbar_triggered)
         self.stop_accumulation_wave_stop_action.triggered.connect(self.stop_accumulation_wave_stop_action_toolbar_triggered)
@@ -402,10 +416,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.radioButton_cmbt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.COMBAT_MODE))
         self.radioButton_const_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.CONSTANT_MODE))
         self.pushButton_clear_hist.clicked.connect(self.pushButton_clear_hist_clicked_handler)
+        self.pushButton_update_data.clicked.connect(self.pushButton_update_data_clicked_handler)
 
         # Обновление файлов в потоке
         self.timer = QTimer()
         self.timer.timeout.connect(self.queue_qt_plot)
+        self.timer.timeout.connect(self.queue_qt_hist)
         self.timer.start(10)
 
         # self.pushButton_setting_trapezoid.clicked.connect(self.pushButton_trapezoid_setting_handler)
@@ -427,6 +443,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.color_sipm = (0, 255, 255)
         self.pushButton_auto_flag = 1
         self.queue = Queue()
+        self.queue_hist = Queue()
         self.gistogram_data_pips = []
         self.gistogram_data_sipm = []
         self.gistogram_data_EdE = []
@@ -519,6 +536,20 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 cmd.start()
 
     ############ handler button ##############
+    def pushButton_update_data_clicked_handler(self):
+        tmp_res = []
+        self.client.write_registers(self.CMD_DBG_GET_DATA_MPP, 0x0000, self.CM_ID)
+        log_s(self.send_handler.mess)
+        result = self.get_telemetria()
+        log_s(self.send_handler.mess)
+        try:
+            tmp_res = result.registers
+        except Exception:
+            self.logger.debug("Нет ответа ЦМ")
+        if not tmp_res:
+            pass
+        else:
+            self.pars_telemetria(result)
 
     def pushButton_clear_hist_clicked_handler(self):
         self.client.write_registers(address = 0x0014, values = [0x0000 for i in range(18)], slave = self.mpp_id)
@@ -544,59 +575,19 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def pushButton_single_measure_clicked(self, chanal: int) -> None:
         """
-        Эта функция вызывается при нажатии кнопки «Одиночный».
-        Получение waveform ADCA и построение осциллограммы
+        Запускает поток для чтения осциллограм мпп. 
         """
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.SILENT_MODE, slave = self.CM_ID)
         match chanal:
             case self.ALL:
                 t_all_single = threading.Thread(target=self.thread_readWaveform_adc_all, daemon = True)
                 t_all_single.start()
-                # t_all_single.join()
-                # self.qt_plotter(self.data_pips, self.v_line_pips, self.plot_pips, color = self.color_pips)
-                # self.qt_plotter(self.data_sipm, self.v_line_sipm, self.plot_sipm, color = self.color_sipm)
             case self.PIPS:
                 t_pips_single = threading.Thread(target=self.thread_readWaveform_adcA, daemon = True)
                 t_pips_single.start()
-                # t_pips_single.join()
-                # self.qt_plotter(self.data_pips, self.v_line_pips, self.plot_pips, color = self.color_pips) # раскомментировать
-
             case self.SIPM:
                 t_sipm_single = threading.Thread(target=self.thread_readWaveform_adcB, daemon = True)
                 t_sipm_single.start()
-                # t_sipm_single.join() # запустили поток как фоновый и ждем конца выполнения
-                # self.qt_plotter(self.data_sipm, self.v_line_sipm, self.plot_sipm, color = self.color_sipm)
-
-
-    def pushButton_auto_measure_clicked(self, chanal: int) -> None:
-        """
-        Эта функция вызывается при нажатии кнопки «Автозапуск».
-        Получение waveform ADCA и построение осциллограммы. 
-        """
-        if self.pushButton_auto_flag == 1:
-            self.pushButton_auto_flag = 0
-            match chanal:
-                case self.ALL:
-                    t_all_auto = threading.Thread(target=self.thread_readWaveform_adc_auto_adc_all, daemon = True)
-                    
-                    t_all_auto.start()
-                    # t_all_auto.join()
-
-                case self.PIPS:
-                    t_pips_auto = threading.Thread(target=self.thread_readWaveform_adc_auto_adcA, daemon = True)
-                    # t_pips_auto = WorkerThread()
-                    t_pips_auto.start()
-                    # self.qt_plotter(waveform, self.v_line_pips, self.plot_pips, color = self.color_pips)
-                    # t_pips_auto.join()
-                case self.SIPM:
-                    t_sipm_auto = threading.Thread(target=self.thread_readWaveform_adc_auto_adcB, daemon = True)
-                    t_sipm_auto.start()
-                    # t_sipm.join()
-        else:
-            self.pushButton_auto_flag = 1
-        
-    def tmp_print_treading(self, data):
-        print(data)
-
 
     def pushButton_trapezoid_clicked_handler(self) -> None:
         self.dialog_trap.show()
@@ -622,6 +613,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def menu_action_parser_triggered(self) -> None:
         pass
 
+    def menu_action_ddii_config_triggered(self) -> None:
+        self.menu_action_ddii_config_dialog.show()
+
     ############ Triggered Menu Bar ##############
     def start_accumulation_wave_start_action_toolbar_triggered(self) -> None:
         self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/start_notVisible.svg"))
@@ -630,6 +624,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.start_accumulation_wave_start_action.setEnabled(False)
         self.stop_accumulation_wave_stop_action.setIcon(QIcon("./icon/stop.svg"))
         self.start_accumulation_flag = 0
+        self.max_adc_histA = []
+        self.max_adc_histB = []
         # папка /log/data_flow/ с сегодняшней датой и временем
         
         folder_name = self.current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
@@ -642,9 +638,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.logger.debug("Создана папка для записи данных: " + self.folder_path)
         self.data_flow_flag = 1 # флаг записи данных в файл
         self.pushButton_auto_flag = 0 # флаг автозапуска
-        t_flow_auto = threading.Thread(target=self.thread_readWaveform_adc_flowl, daemon = True)        
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.SILENT_MODE, slave = self.CM_ID)
+        t_flow_auto = threading.Thread(target=self.thread_readWaveform_adc_flow, daemon = True)        
         t_flow_auto.start()
-        # ese:
+        # else:
         #     self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/resume.svg"))
         #     self.data_flow_flag = 0
         
@@ -661,22 +658,21 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.data_flow_flag = 0 # запрещаем запись данных в файл
         self.pushButton_auto_flag = 1 # флаг автозапуска
         self.start_accumulation_wave_start_action.setToolTip("Начать накопление")
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
         # if self.start_accumulation_flag == 0:
         #     self.start_accumulation_wave_start_action_toolbar_triggered()
     
 
 
     ############ Потоки ##############
+    ####  DELETE #####
     def thread_write_reg_not_answer(self, adr, val, slv):
         self.client.write_registers(address = adr, values = val, slave = slv)
         log_s(self.send_handler.mess)
 
-
     def thread_readWaveform_adcA(self) -> None:
 
-        self.start_measurement_func()
-
-        # self.start_measurement_func()
+        # self.start_measure_mpp()
         waveform = self.readWaveform_adcA()
         self.data_pips = waveform
         self.queue.put((waveform, self.v_line_pips, self.plot_pips, self.color_pips))
@@ -684,104 +680,112 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.logger.debug(self.tmp_bufer)
 
     def thread_readWaveform_adcB(self) -> None:
-        self.start_measurement_func()
-
-        # self.start_measurement_func()
+        # self.start_measure_mpp()
         waveform = self.readWaveform_adcB()
         self.data_sipm = waveform
         self.queue.put((waveform, self.v_line_sipm, self.plot_sipm, self.color_sipm))
-        
 
     def thread_readWaveform_adc_all(self) -> None:
-        self.start_measurement_func()
+        # self.start_measure_mpp()
         waveformA = self.readWaveform_adcA()
         waveformB = self.readWaveform_adcB()
         self.data_pips = waveformA
         self.data_sipm = waveformB
         self.queue.put((waveformA, self.v_line_pips, self.plot_pips, self.color_pips))
         self.queue.put((waveformB, self.v_line_sipm, self.plot_sipm, self.color_sipm))
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
 
-    def thread_readWaveform_adc_auto_adcA(self) -> None:
-        """
-        Ищем waveform такую, чтобы max значение было выше порого. Если так, то выхожим из while
-        """
-        max_value = 0
-        while max_value < int(self.v_line_pips.value()):
+    # def thread_readWaveform_adc_auto_adcA(self) -> None:
+    #     """
+    #     Ищем waveform такую, чтобы max значение было выше порого. Если так, то выхожим из while
+    #     """
+    #     max_value = 0
+    #     while max_value < int(self.v_line_pips.value()):
             
-            self.reciveModbus(2)
-            # self.start_measurement_func()
-            # waveform = self.readWaveform_adcA()
-            # self.data_pips = waveform
-            # self.queue.put((waveform, self.v_line_pips, self.plot_pips, self.color_pips))
-            # data = self.hex_to_list(waveform)[1]
-            # max_value = max(data)
-            self.start_measurement_func()
-            waveform = self.readWaveform_adcA()
-            self.data_pips = waveform
-            self.queue.put((waveform, self.v_line_pips, self.plot_pips, self.color_pips))
-            data = self.hex_to_list(waveform)[1]
-            max_value = max(data)
-            if self.pushButton_auto_flag == 1:
-                break
-        self.pushButton_auto_flag = 1
+    #         self.reciveModbus(2)
+    #         # self.start_measurement_func()
+    #         # waveform = self.readWaveform_adcA()
+    #         # self.data_pips = waveform
+    #         # self.queue.put((waveform, self.v_line_pips, self.plot_pips, self.color_pips))
+    #         # data = self.hex_to_list(waveform)[1]
+    #         # max_value = max(data)
+    #         self.start_measurement_func()
+    #         waveform = self.readWaveform_adcA()
+    #         self.data_pips = waveform
+    #         self.queue.put((waveform, self.v_line_pips, self.plot_pips, self.color_pips))
+    #         data = self.hex_to_list(waveform)[1]
+    #         max_value = max(data)
+    #         if self.pushButton_auto_flag == 1:
+    #             break
+    #     self.pushButton_auto_flag = 1
 
-    def thread_readWaveform_adc_auto_adcB(self) -> None:
-        max_value = 0
-        while max_value < int(self.v_line_sipm.value()):
-            self.start_measurement_func()
-            waveform = self.readWaveform_adcB()
-            self.data_sipm = waveform
-            self.queue.put((waveform, self.v_line_sipm, self.plot_sipm, self.color_sipm))
-            data = self.hex_to_list(waveform)[1]
-            max_value = max(data)
-            if self.pushButton_auto_flag == 1:
-                break
-        self.pushButton_auto_flag = 1
+    # def thread_readWaveform_adc_auto_adcB(self) -> None:
+    #     max_value = 0
+    #     while max_value < int(self.v_line_sipm.value()):
+    #         self.start_measurement_func()
+    #         waveform = self.readWaveform_adcB()
+    #         self.data_sipm = waveform
+    #         self.queue.put((waveform, self.v_line_sipm, self.plot_sipm, self.color_sipm))
+    #         data = self.hex_to_list(waveform)[1]
+    #         max_value = max(data)
+    #         if self.pushButton_auto_flag == 1:
+    #             break
+    #     self.pushButton_auto_flag = 1
 
-    def thread_readWaveform_adc_auto_adc_all(self) -> None:
-        max_valueA = -m.inf
-        max_valueB = -m.inf
-        while max_valueA < int(self.v_line_pips.value()) or max_valueB < int(self.v_line_sipm.value()):
-            self.start_measurement_func()
-            if max_valueA < self.v_line_pips.value():
-                self.start_measurement_func()
-                waveformA = self.readWaveform_adcA()
-                self.data_pips = waveformA
-                self.queue.put((waveformA, self.v_line_pips, self.plot_pips, self.color_pips))
-                dataA = self.hex_to_list(waveformA)[1]
-                max_valueA = max(dataA)
-            if max_valueB < self.v_line_sipm.value():
-                self.start_measurement_func()
-                waveformB  = self.readWaveform_adcB()
-                self.data_sipm = waveformB
-                self.queue.put((waveformB, self.v_line_sipm, self.plot_sipm, self.color_sipm))
-                dataB = self.hex_to_list(waveformB)[1]
-                max_valueB = max(dataB)
-            if self.pushButton_auto_flag == 1:
-                break
-        self.pushButton_auto_flag = 1
+    # def thread_readWaveform_adc_auto_adc_all(self) -> None:
+    #     max_valueA = -m.inf
+    #     max_valueB = -m.inf
+    #     while max_valueA < int(self.v_line_pips.value()) or max_valueB < int(self.v_line_sipm.value()):
+    #         self.start_measurement_func()
+    #         if max_valueA < self.v_line_pips.value():
+    #             self.start_measurement_func()
+    #             waveformA = self.readWaveform_adcA()
+    #             self.data_pips = waveformA
+    #             self.queue.put((waveformA, self.v_line_pips, self.plot_pips, self.color_pips))
+    #             dataA = self.hex_to_list(waveformA)[1]
+    #             max_valueA = max(dataA)
+    #         if max_valueB < self.v_line_sipm.value():
+    #             self.start_measurement_func()
+    #             waveformB  = self.readWaveform_adcB()
+    #             self.data_sipm = waveformB
+    #             self.queue.put((waveformB, self.v_line_sipm, self.plot_sipm, self.color_sipm))
+    #             dataB = self.hex_to_list(waveformB)[1]
+    #             max_valueB = max(dataB)
+    #         if self.pushButton_auto_flag == 1:
+    #             break
+    #     self.pushButton_auto_flag = 1
 
-    def thread_readWaveform_adc_flowl(self) -> None:
-        try:
-            trg = int(self.lineEdit_triger.text())
-        except Exception:
-            self.logger.debug("Пустая строка или не число")
-            trg = 100
-        self.ddii_set_triger(trg)
+    def thread_readWaveform_adc_flow(self) -> None:
+        # try:
+        #     trg = int(self.lineEdit_triger.text())
+        # except Exception:
+        #     self.logger.debug("Пустая строка или не число")
+        #     trg = 100
+        # self.ddii_set_triger(trg)
         while 1:
-            data_osc = self.ddii_get_osc()
-            # self.start_measurement_func()
+            self.start_measure_mpp()
             waveformA = self.readWaveform_adcA()
-            self.data_pips = waveformA
             self.queue.put((waveformA, self.v_line_pips, self.plot_pips, self.color_pips))
+            x, data_pips = self.hex_to_list(waveformA)
+            maxA = self.get_peack_adc(data_pips)
+            self.max_adc_histA.append(maxA)
+            self.queue_hist.put((self.max_adc_histA, self.plot_gist_pips, (255, 0, 0, 150))) # red
             waveformB  = self.readWaveform_adcB()
-            self.data_sipm = waveformB
             self.queue.put((waveformB, self.v_line_sipm, self.plot_sipm, self.color_sipm))
+            x, data_sipm = self.hex_to_list(waveformB)
+            maxB = self.get_peack_adc(data_sipm)
+            self.max_adc_histB.append(maxB)
+            self.queue_hist.put((self.max_adc_histB, self.plot_gist_sipm, (0, 0, 255, 150))) # blue
             if self.pushButton_auto_flag == 1:
                 break
         self.pushButton_auto_flag = 1
 
     ############ function service ##############
+    def get_peack_adc(self, data):
+        # print(data)
+        # print(max(data))
+        return max(data)
+
     def ddii_get_osc(self):
         pass
 
@@ -872,11 +876,11 @@ class Engine(QtWidgets.QMainWindow, QThread):
         log_s(self.send_handler.mess)
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
         return result
-    
+
     def pars_telemetria(self, tel: ModbusResponse) -> None:
         ## endian is wrong
         tel = tel.encode()
-        print(tel)
+        # print(tel)
         tel_b = int(tel[1:2].hex(), 16)
         # if tel_b == self.DEBUG_MODE:
         #     self.radioButton_db_mode.setChecked(True)
@@ -886,7 +890,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.radioButton_cmbt_mode.setChecked(True)
         elif tel_b == self.SILENT_MODE:
             self.radioButton_const_mode.setChecked(True)
-
+        ######### LEVEL ###########
         tel_b = int(self.swap_bytes(tel[19:21]).hex(), 16)
 
         self.lineEdit_01_hh_l.setText(str(tel_b))
@@ -915,7 +919,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
         tel_b = int(self.swap_bytes(tel[17:19]).hex(), 16)
         self.lineEdit_60_hh_l.setText(str(tel_b))
-        #############
+        ######### ВИП1 ###########
         float_t = self.byte_to_float(tel[21:25])
         self.hvip_pips = float_t
         self.lineEdit_hvip_pips.setText("{:.2f}".format(float_t))
@@ -927,7 +931,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.hvip_current_pips = float_t
 
         self.hvip_mode_pips = int(tel[33:34].hex(), 16)
-        ###############
+        ######### ВИП2 ###########
         float_t = self.byte_to_float(tel[35:39])
         self.lineEdit_hvip_sipm.setText("{:.2f}".format(float_t))
         
@@ -939,8 +943,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.hvip_current_sipm = float_t
 
         self.hvip_mode_sipm = int(tel[47:48].hex(), 16)
-        print(self.hvip_mode_sipm)
-        ###############
+        ######### ВИП3 ###########
         float_t = self.byte_to_float(tel[49:53])
         self.lineEdit_hvip_ch.setText("{:.2f}".format(float_t))
         self.hvip_ch = float_t
@@ -952,11 +955,63 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.hvip_current_ch = float_t
 
         self.hvip_mode_ch = int(tel[61:62].hex(), 16)
-        print(self.hvip_mode_ch)
-
         ##############
-        tel_b = int(self.swap_bytes(tel[62:63]).hex(), 16)
-        self.checkBox_enable_test_csa.setText(str(tel_b))
+        tel_b = int(self.swap_bytes(tel[63:64]).hex(), 16)
+        if tel_b == 1:
+            self.checkBox_enable_test_csa.setChecked(True) 
+        else:
+            self.checkBox_enable_test_csa.setChecked(False) 
+
+        tel_b = int(self.swap_bytes(tel[64:66]).hex(), 16)
+        self.ddii_interval_measure = tel_b
+
+        tel_b = int(self.swap_bytes(tel[66:68]).hex(), 16)
+        self.lineEdit_ACQ1.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[68:70]).hex(), 16)
+        self.lineEdit_ACQ2.setText(str(tel_b))
+        ######### Гистограмма ###########
+        tel_b = int(self.swap_bytes(tel[70:72]).hex(), 16)
+        self.lineEdit_HCP_1.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[72:74]).hex(), 16)
+        self.lineEdit_HCP_5.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[74:76]).hex(), 16)
+        self.lineEdit_HCP_10.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[76:78]).hex(), 16)
+        self.lineEdit_HCP_20.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[78:80]).hex(), 16)
+        self.lineEdit_HCP_45.setText(str(tel_b))
+
+        tel_b = int(self.swap_4_dytes(tel[80:84]).hex(), 16)
+        self.lineEdit_01_hh.setText(str(tel_b))
+
+        tel_b = int(self.swap_4_dytes(tel[84:88]).hex(), 16)
+        self.lineEdit_05_hh.setText(str(tel_b))
+
+        tel_b = int(self.swap_4_dytes(tel[88:92]).hex(), 16)
+        self.lineEdit_08_hh.setText(str(tel_b))
+
+        tel_b = int(self.swap_4_dytes(tel[92:96]).hex(), 16)
+        self.lineEdit_1_6_hh.setText(str(tel_b))
+
+        tel_b = int(self.swap_4_dytes(tel[96:100]).hex(), 16)
+        self.lineEdit_3_hh.setText(str(tel_b))
+
+        tel_b = int(self.swap_4_dytes(tel[100:104]).hex(), 16)
+        self.lineEdit_5_hh.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[104:106]).hex(), 16)
+        self.lineEdit_10_hh.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[106:108]).hex(), 16)
+        self.lineEdit_30_hh.setText(str(tel_b))
+
+        tel_b = int(self.swap_bytes(tel[108:110]).hex(), 16)
+        self.lineEdit_60_hh.setText(str(tel_b))
         # print(tel[9:12])
         # print(tel_b)
         # tel_b = int(tel[13:16].hex(), 16)
@@ -972,6 +1027,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def swap_bytes(self, byte_str) -> bytes:
     # Поменяем местами первый и второй байты
         return byte_str[1:] + byte_str[:1]
+    
+    def swap_4_dytes(self, byte_str) -> bytes:
+        n0 = byte_str[:2]
+        n1 = byte_str[2:4]
+        n = n1 + n0
+        return n
     
     def byte_to_float(self, byte_str) -> float:
     # Байты в float
@@ -1056,8 +1117,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
                     self.widget_led_2.setStyleSheet(style.widget_led_on())
                     self.pars_telemetria(result)
                 ######## MPP #######  
-                slv = int(self.lineEdit_IDmpp_2.text())
-                result: ModbusResponse = self.client.read_holding_registers(0x0000, 4, slave=slv)
+                self.mpp_id = int(self.lineEdit_IDmpp_2.text())
+                result: ModbusResponse = self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
                 log_s(self.send_handler.mess)
                 try:
                     tmp_res = result.registers
@@ -1086,6 +1147,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.widget_led_2.setStyleSheet(style.widget_led_off())
             self.client.close()
             self.label_state_2.setText("State: ")
+            
     ############ Function MODBUS ################
     def sendModbus(self, data):
         """
@@ -1121,104 +1183,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         Raises:
             SerialException: If there is an error while communicating with the serial port.
         """
-        crc: int = self.calculateCrc16_modbus(data)
-        data_crc: int = (data << 16) + self.swappedByte_crc_modbus(crc)
-        num_bytes: int = m.ceil(data_crc.bit_length() / 8)
-        data_bytes: bytes = data_crc.to_bytes(num_bytes, byteorder='big')
-        try:
-            # self.ser.open()
-            self.ser.write(data_bytes)
-            # self.ser.close()
-            log_s("TX", data_bytes.hex())
-            # print(data_bytes.hex())
-        except serial.SerialException as e:
-            self.label_state_2.setText("State: Общая ошибка последовательного порта.")
-            self.logger.error("Общая ошибка последовательного порта: " + str(e))
-        return num_bytes, data_crc
-
-    def send_comand_Modbus(self, dev_id: int, f_code: int, reg_cnt: int, comand: int) -> None:
-        """
-            Отдельная функция для отправки модбасс команд
-            
-            Args:
-            dev_id (int): ID девайса
-            f_code (int): Функциональная команда
-            reg_cnt (int): Количество регистров считывания (если нет, то 00 00)
-            data : данные для передачи
-        """
-
-        transaction: int = (dev_id << 40) + \
-                            (f_code << 32) + \
-                            (reg_cnt << 16) +\
-                            + comand
-        self.sendModbus(transaction)
-
-    def get_transaction_Modbus(self, num_bite: int) -> str:
-        """
-            Получение транзакции модбас
-            Обрезаем эхо, CRC, заголовок модбас
-            Returns:
-        """
-        # self.logger.debug("Buffer input = " + str(self.ser.in_waiting))
-        # transaction: bytes = self.ser.readall()
-        # self.ser.reset_input_buffer()
-        # log_s("TX", transaction.hex())
-        # self.ser.reset_input_buffer()
-
-        transaction = self.reciveModbus(0)[::-1]
-        tr = transaction[4:num_bite*2+4]
-        self.logger.debug(tr[::-1])
-        return tr[::-1]
-    
-    def write_modbus_timeout(self, dev_id:int, data:str, num_bite:int, timeout:int) -> str:
-        """F CODE 16
-        Отправляет команду и ждет ответ
-        Args:
-            dev_id (_type_): ID
-            num_bite (_type_): Колдичество байт для приема
-            timeout (_type_): Время одидания ответа
-
-        Returns:
-            str: _description_
-        """
-        self.send_comand_Modbus(dev_id = dev_id,
-                                        f_code = self.MB_F_CODE_16, 
-                                        comand = self.REG_COMAND, 
-                                        reg_cnt = self.CM_DBG_CMD_CONNECT)
-        time_start = time.time_ns() // 1_000_000
-        time_now = time_start
-        while timeout > time_now - time_start:
-            time_now = time.time_ns() // 1_000_000
-            transaction = self.reciveModbus(0)[::-1]
-            tr = transaction[4:num_bite*2+4]
-            # self.logger.debug(tr[::-1])
-            self.logger.debug(tr[:2])
-            self.logger.debug("Timeout:" + str(time.time_ns() // 1_000_000 - time_start))
-            if tr[:2] == dev_id:
-                return tr[::-1]
-        return "^_^"
-
-    def reciveModbus(self, amount_bytes: int) -> str:
-        """
-        TODO: Проверка CRC
-        """
-
-        try:
-            # self.ser.open()
-            self.logger.debug("Buffer input = " + str(self.ser.in_waiting))
-            # self.ser.reset_input_buffer()
-            answer: bytes = self.ser.readall()
-            # self.ser.reset_input_buffer()
-            # self.ser.close()
-            # self.logger.debug(answer.hex())
-            # print(answer.hex())
-            log_s("RX", answer.hex())
-            # return int(answer.hex(), 16)
-            return answer.hex()
-        except serial.SerialException as e:
-            self.label_state_2.setText("State: Общая ошибка последовательного порта.")
-            self.logger.error("Общая ошибка последовательного порта: " + str(e))
-            return ""
+        pass
 
     ###### Read data & plot oscillogramm #########
     def readWaveform_adcA(self) -> list[int]:
@@ -1234,7 +1199,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         """
         initial_reg = 0xA000
         waveform_list = self.readWaveform_engine(initial_reg)
-        self.tmp_bufer = waveform_list
+        # self.tmp_bufer = waveform_list
         return waveform_list
 
     def readWaveform_adcB(self) -> list[int]:
@@ -1248,16 +1213,15 @@ class Engine(QtWidgets.QMainWindow, QThread):
         """
         initial_reg = 0xA200
         waveform_list = self.readWaveform_engine(initial_reg)
-        self.tmp_bufer = waveform_list
+        # self.tmp_bufer = waveform_list
         return waveform_list
 
-    def start_measurement_func(self):
-        """Устанавливает триггер, считывает осциллограммы МПП, записавет масимумы
+    def start_measure_mpp(self):
+        """Принудительный запуск измерения МПП, считывает осциллограммы МПП
+        0E 06 00 00 00 51 48 C9 
         """
-        start_measure_comand: int = (self.mpp_id << 40) + (self.f_comand_write << 32) + (self.start_measure << 0)
-        num_bytes, data_crc = self.sendModbus(start_measure_comand)
-        self.reciveModbus(num_bytes*2)
-
+        self.client.write_register(self.REG_COMAND, 0x0051, self.mpp_id)
+        log_s(self.send_handler.mess)
 
     def readWaveform_engine(self, initial_reg: int):
         """
@@ -1293,25 +1257,31 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.reciveModbus(num_bytes*2)
         # time.sleep(0.5)
         waveform_list = []
+        tmp_res = []
         end_reg = 0
         if initial_reg == 0xA000:
             end_reg = 0xA1FF
         if initial_reg == 0xA200:
             end_reg = 0xA3FF
         while initial_reg != end_reg:
-            read_waveform_comand: int = (self.mpp_id << 40) + \
-                                        (self.f_comand_read << 32) + \
-                                        (initial_reg << 16) + \
-                                        amount_read_reg
-            self.sendModbus(read_waveform_comand)
-            data_hex: str = self.get_transaction_Modbus(amount_read_reg*2)
-            
+            result: ModbusResponse = self.client.read_holding_registers(initial_reg, amount_read_reg, slave=self.mpp_id)
+            log_s(self.send_handler.mess)
             # waveform_data: str = data_hex[22:(amount_read_reg * 4 + 22)]
             # self.logger.debug(data)
-            waveform_list = waveform_list + self.parserWaveform(data_hex)
-            initial_reg = initial_reg + amount_read_reg
-            if initial_reg + amount_read_reg > end_reg:
-                amount_read_reg = end_reg - initial_reg
+            try:
+                tmp_res = result.registers
+                if not tmp_res:
+                    pass
+                else:
+                    result_tmp = result.encode()
+                    tel_tmp_b = result_tmp[1:].hex()
+                    waveform_list = waveform_list + self.parserWaveform(tel_tmp_b)
+                    initial_reg = initial_reg + amount_read_reg
+                    if (initial_reg + amount_read_reg) > end_reg:
+                        amount_read_reg = end_reg - initial_reg
+            except Exception:
+                self.logger.debug("Нет ответа от МПП")
+            
         # self.logger.debug(waveform_list)
         # print(waveform_list)
         return waveform_list
@@ -1330,9 +1300,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
         list: A list of 4-character strings
         """
         # self.logger.debug(data)
-        data_str: str = data.replace("0x", "")
+        # data_str: str = data.replace("0x", "")
         # self.logger.debug(data_str)
-        data_list= re.findall(r"\w\w\w\w", data_str)
+        data_list= re.findall(r"\w\w\w\w", data)
         # self.logger.debug(data_list)
         return data_list
 
@@ -1352,17 +1322,23 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # print(y)
 
     def qt_gistogram_plotter(self, data: list,
-                            bins: np.ndarray,
                             plot_widget: pg.PlotWidget,
-                            color : tuple = (255, 0, 0)) -> None:
-        
-        self.plot_gist_EdE.clear()
-        self.plot_gist_pips.clear()
-        self.plot_gist_sipm.clear()
+                            color : tuple = (0, 0, 255, 150)) -> None:
+        """Построение гистограммы
 
-        pen = pg.mkPen(color)
-        gist_data = np.histogram(data, bins=bins)
-        self.plot_gist_EdE.plot(gist_data, pen=pen)
+        Args:
+            data (list): Данные
+            plot_widget (pg.PlotWidget): указатель на PlotWidget
+            color (tuple, optional): Цвет гистограммы. Defaults to (0, 0, 255, 150) Синий.
+        """
+
+        bin_count = 4096
+        # self.plot_gist_EdE.clear()
+        # self.plot_gist_pips.clear()
+        # self.plot_gist_sipm.clear()
+        plot_widget.clear()
+        y, x  = np.histogram(data, bins=np.linspace(0, bin_count, bin_count))
+        plot_widget.plot(x, y, stepMode=True, fillLevel=0, brush=color)
 
     def change_gistogramm_bins(self, data: list,
                                 bins: np.ndarray,
@@ -1372,7 +1348,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         Изменение количества бинов соответствующей гистограммы.
         Должна быть в классе отдельного окна.
         """
-
 
     
     def writer_data(self, color: tuple, x, y):
@@ -1476,9 +1451,18 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def queue_qt_plot(self):
         """
-            Очередь для отрисовки данных МПП
+            Очередь для отрисовки осцилограмм МПП
         """
         while not self.queue.empty():
             data, v_line, plot, color = self.queue.get()
             self.qt_plotter(data, v_line, plot, color)
+
+    def queue_qt_hist(self):
+        """
+            Очередь для отрисовки гистограмм
+        """
+        while not self.queue_hist.empty():
+            data, plot, color = self.queue_hist.get()
+            self.qt_gistogram_plotter(data, plot, color)
+
     ##########################################

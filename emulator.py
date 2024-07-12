@@ -809,7 +809,7 @@ class Emulator(QtWidgets.QMainWindow, QThread):
         Функция для определения коэффициента преобразования
         Сначала определяет какой unit был, потом его преобразует в нужный unit
         """
-        label = self.parent.label_unit_1.text()
+        # label = self.parent.label_unit_1.text()
         try:
             k_mv_lsb = float(self.parent.lineEdit_mV_to_lsb.text())
             
@@ -862,6 +862,8 @@ class Emulator(QtWidgets.QMainWindow, QThread):
                 k_pips, k_sipm = self.get_unit_label_for_transfer(self.MV)
             if self.parent.radioButton_lsb.isChecked():
                 k_pips, k_sipm = self.get_unit_label_for_transfer(self.LSB)
+            else:
+                k_pips, k_sipm = 1, 1
             self.transfer_threhold(k_pips, k_sipm, ndigits = 8, amp = amplif)
         else:
             self.ampl_pips1 = 1
@@ -875,6 +877,8 @@ class Emulator(QtWidgets.QMainWindow, QThread):
                 k_pips, k_sipm = self.get_unit_label_for_transfer(self.MV)
             if self.parent.radioButton_lsb.isChecked():
                 k_pips, k_sipm = self.get_unit_label_for_transfer(self.LSB)
+            else:
+                k_pips, k_sipm = 1, 1
             self.transfer_threhold(k_pips, k_sipm, ndigits = 8, amp = amplif)
 
     def initThreshold(self):
