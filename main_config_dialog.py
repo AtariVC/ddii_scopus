@@ -10,16 +10,16 @@ import qtmodern.styles
 from qtmodern.windows import ModernWindow
 import sys
 from src.log_config import log_init, log_s
+from PyQt6.QtGui import QIntValidator, QDoubleValidator
 
 class MainConfigDialog(QtWidgets.QDialog):
-    lineEdit_pwm_pips: QtWidgets.QLineEdit
-    lineEdit_hvip_pips: QtWidgets.QLineEdit
-    lineEdit_pwm_sipm: QtWidgets.QLineEdit
-    lineEdit_hvip_sipm: QtWidgets.QLineEdit
-    lineEdit_pwm_ch: QtWidgets.QLineEdit
-    lineEdit_hvip_ch: QtWidgets.QLineEdit
-    lineEdit_th_100: QtWidgets.QLineEdit
-    lineEdit_interval: QtWidgets.QLineEdit
+    lineEdit_pwm_pips   :  QtWidgets.QLineEdit
+    lineEdit_hvip_pips  : QtWidgets.QLineEdit
+    lineEdit_pwm_sipm   :  QtWidgets.QLineEdit
+    lineEdit_hvip_sipm  : QtWidgets.QLineEdit
+    lineEdit_pwm_ch     :    QtWidgets.QLineEdit
+    lineEdit_hvip_ch    :   QtWidgets.QLineEdit
+    lineEdit_interval   :  QtWidgets.QLineEdit
 
     lineEdit_lvl_0_1: QtWidgets.QLineEdit
     lineEdit_lvl_0_5: QtWidgets.QLineEdit
@@ -34,6 +34,7 @@ class MainConfigDialog(QtWidgets.QDialog):
 
     pushButton_save_hvip: QtWidgets.QPushButton
     pushButton_save_mpp: QtWidgets.QPushButton
+    lineEdit_cfg_mpp_id: QtWidgets.QLineEdit
 
     CM_DBG_SET_CFG = 0x0005
     CM_ID = 1
@@ -43,16 +44,38 @@ class MainConfigDialog(QtWidgets.QDialog):
         loadUi(os.path.join(os.path.dirname(__file__),  f'style/DialogConfig.ui'), self)
         self.root = root
         self.pushButton_save_mpp.clicked.connect(self.pushButton_save_mpp_handler)
+        validator = QIntValidator()
+        d_validator = QDoubleValidator()
+        self.lineEdit_lvl_0_1.setValidator(validator)
+        self.lineEdit_lvl_0_5.setValidator(validator)
+        self.lineEdit_lvl_0_8.setValidator(validator)
+        self.lineEdit_lvl_1_6.setValidator(validator)
+        self.lineEdit_lvl_3.setValidator(validator)
+        self.lineEdit_lvl_5.setValidator(validator)
+        self.lineEdit_lvl_10.setValidator(validator)
+        self.lineEdit_lvl_30.setValidator(validator)
+        self.lineEdit_lvl_60.setValidator(validator)
+        self.lineEdit_pwm_pips.setValidator(d_validator)
+        self.lineEdit_hvip_pips.setValidator(d_validator)
+        self.lineEdit_pwm_sipm .setValidator(d_validator)
+        self.lineEdit_hvip_sipm.setValidator(d_validator)
+        self.lineEdit_pwm_ch.setValidator(d_validator)
+        self.lineEdit_hvip_ch.setValidator(d_validator)
+        self.lineEdit_interval.setValidator(d_validator)
 
     def pushButton_save_mpp_handler(self):
-        data = self.set_ddii_cfg()
-        print(data)
-        self.root.client.write_registers(address = self.CM_DBG_SET_CFG, values = data[0], slave = self.CM_ID)
-        log_s(self.root.send_handler.mess)
+        try:
+            data = self.set_ddii_cfg()
+            print(data)
+            self.root.client.write_registers(address = self.CM_DBG_SET_CFG, values = data, slave = self.CM_ID)
+            log_s(self.root.send_handler.mess)
+        except Exception as err:
+            self.root.logger.debug(err)
+        self.close()
 
-    def set_ddii_cfg(self) -> list[int]:
-        data = [0x0ff1]
-        data.append(int(self.lineEdit_th_100.text()))
+    def set_ddii_cfg(self):
+        data = []
+        data.append(0x0ff1)
         data.append(int(self.lineEdit_lvl_0_1.text()))
         data.append(int(self.lineEdit_lvl_0_5.text()))
         data.append(int(self.lineEdit_lvl_0_8.text()))
@@ -64,19 +87,22 @@ class MainConfigDialog(QtWidgets.QDialog):
         data.append(int(self.lineEdit_lvl_30.text()))
         data.append(int(self.lineEdit_lvl_60.text()))
 
-        data.append(struct.unpack('<I', struct.pack('<f', float(self.lineEdit_pwm_ch.text())))[0])
-        data.append(struct.unpack('<I', struct.pack('<f', float(self.lineEdit_pwm_pips.text())))[0])
-        data.append(struct.unpack('<I', struct.pack('<f', float(self.lineEdit_pwm_sipm.text())))[0])
-        
-        data.append(struct.unpack('<I', struct.pack('<f', float(self.lineEdit_hvip_ch.text())))[0])
-        data.append(struct.unpack('<I', struct.pack('<f', float(self.lineEdit_hvip_pips.text())))[0])
-        data.append(struct.unpack('<I', struct.pack('<f', float(self.lineEdit_hvip_sipm.text())))[0])
+        data.append(struct.unpack('<i', struct.pack('<f', float(self.lineEdit_pwm_ch.text())))[0])
+        data.append(struct.pack('<f', float(self.lineEdit_pwm_pips.text())))
+        data.append(struct.pack('<f', float(self.lineEdit_pwm_sipm.text())))
+
+        data.append(struct.pack('<f', float(self.lineEdit_hvip_ch.text())))
+        data.append(struct.pack('<f', float(self.lineEdit_hvip_pips.text())))
+        data.append(struct.pack('<f', float(self.lineEdit_hvip_sipm.text())))
+
+        self.root.cfg_pips(self.lineEdit_hvip_pips)
+        self.root.cfg_sipm(self.lineEdit_hvip_sipm)
+        self.root.cfg_cherenkov(self.lineEdit_hvip_ch)
 
         data.append(int(self.lineEdit_interval.text()))
-        data.append(int(self.lineEdit_))
+        data.append(int(self.lineEdit_cfg_mpp_id.text()))
 
         return data
-    
 # if __name__ == "__main__":
 #     app = QtWidgets.QApplication(sys.argv)
 #     qtmodern.styles.dark(app)

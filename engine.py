@@ -272,6 +272,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
     hvip_mode_sipm = 0
     hvip_mode_ch = 0
     ddii_interval_measure = 0
+    cfg_cherenkov = 34
+    cfg_pips = 40
+    cfg_sipm = 28
+    mpp_id = 15
 
 
     modulename = ["emulator"] # подключаемые модули, обязательно для заполения
@@ -281,6 +285,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     PIPS = 2
 
     CM_DBG_CMD_CONNECT = 0
+    CM_DBG_GET_VOLTAGE = 0x0007
     CSA_TEST_ENABLE = 5
     # HVIP_PIPS_VOLTAGE = 6
     # HVIP_PIPS_READ_VOLTAGE = 7
@@ -1045,6 +1050,17 @@ class Engine(QtWidgets.QMainWindow, QThread):
         float_t: float = struct.unpack('!f', n_b)[0]
         return float_t
 
+    def parse_voltage(self, data):
+        data_v = data.encode()
+        # print(tel)
+        float_t = self.byte_to_float(data_v[1:5])
+        self.cfg_cherenkov = float_t
+        float_t = self.byte_to_float(data_v[5:9])
+        self.cfg_pips = float_t
+        float_t = self.byte_to_float(data_v[9:13])
+        self.cfg_sipm = float_t
+        return [self.cfg_pips, self.cfg_sipm, self.cfg_cherenkov]
+
     ############ function connect mpp ##############
     def serialConnect(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
         """Подключкние к ДДИИ
@@ -1136,6 +1152,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
                     self.status_MPP = 1
                     if status_CM == 1:
                         self.label_state_2.setText("State: CM - OK, MPP - OK")
+                        voltage: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 6, slave=1)
+                        log_s(self.send_handler.mess)
+                        self.parse_voltage(voltage)
                     else:
                         self.label_state_2.setText("State: CM - None, MPP - OK")
                 self.pushButton_connect_2.setText("Отключить")
@@ -1285,6 +1304,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.logger.debug(waveform_list)
         # print(waveform_list)
         return waveform_list
+
 
     def parserWaveform(self, data: str) -> list[str]:
         """

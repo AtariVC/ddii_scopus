@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>680</width>
-    <height>447</height>
+    <width>595</width>
+    <height>458</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,8 +32,15 @@
       <widget class="QGroupBox" name="groupBox">
        <property name="font">
         <font>
-         <pointsize>11</pointsize>
+         <family>MS Shell Dlg 2</family>
+         <pointsize>12</pointsize>
+         <weight>50</weight>
+         <italic>false</italic>
+         <bold>false</bold>
         </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">font: 12pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
        <property name="title">
         <string>Настройка ВИП</string>
@@ -227,8 +234,15 @@
       <widget class="QGroupBox" name="groupBox_2">
        <property name="font">
         <font>
-         <pointsize>11</pointsize>
+         <family>MS Shell Dlg 2</family>
+         <pointsize>12</pointsize>
+         <weight>50</weight>
+         <italic>false</italic>
+         <bold>false</bold>
         </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">font: 12pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
        <property name="title">
         <string>Настройка МПП</string>
@@ -246,42 +260,6 @@
         <property name="bottomMargin">
          <number>5</number>
         </property>
-        <item row="2" column="0">
-         <layout class="QHBoxLayout" name="horizontalLayout_4">
-          <property name="leftMargin">
-           <number>5</number>
-          </property>
-          <property name="topMargin">
-           <number>5</number>
-          </property>
-          <property name="rightMargin">
-           <number>5</number>
-          </property>
-          <property name="bottomMargin">
-           <number>5</number>
-          </property>
-          <item>
-           <spacer name="horizontalSpacer_4">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QPushButton" name="pushButton_save_mpp">
-            <property name="text">
-             <string>Сохранить</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
         <item row="0" column="0">
          <layout class="QGridLayout" name="gridLayout_5" columnstretch="1,0,0">
           <property name="bottomMargin">
@@ -395,6 +373,12 @@
                </item>
                <item row="0" column="1">
                 <widget class="QLineEdit" name="lineEdit_lvl_0_1">
+                 <property name="minimumSize">
+                  <size>
+                   <width>80</width>
+                   <height>0</height>
+                  </size>
+                 </property>
                  <property name="text">
                   <string>40</string>
                  </property>
@@ -479,6 +463,12 @@
                </property>
                <item row="0" column="1">
                 <widget class="QLineEdit" name="lineEdit_lvl_10">
+                 <property name="minimumSize">
+                  <size>
+                   <width>80</width>
+                   <height>0</height>
+                  </size>
+                 </property>
                  <property name="text">
                   <string>1000</string>
                  </property>
@@ -538,7 +528,7 @@
             <property name="title">
              <string>Общее</string>
             </property>
-            <layout class="QGridLayout" name="gridLayout_14" rowstretch="0,0">
+            <layout class="QGridLayout" name="gridLayout_14" rowstretch="0">
              <property name="leftMargin">
               <number>7</number>
              </property>
@@ -575,36 +565,42 @@
                 <number>7</number>
                </property>
                <item row="0" column="0">
-                <widget class="QLabel" name="label_7">
-                 <property name="text">
-                  <string>Поорог 100 кэВ, lsb</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="0">
                 <widget class="QLabel" name="label_8">
                  <property name="text">
-                  <string>Интервал опроса, с</string>
+                  <string>Интр. опроса, с</string>
                  </property>
                 </widget>
                </item>
-               <item row="0" column="2">
-                <widget class="QLineEdit" name="lineEdit_th_100">
+               <item row="1" column="2">
+                <widget class="QLineEdit" name="lineEdit_cfg_mpp_id">
                  <property name="text">
-                  <string>40</string>
+                  <string>15</string>
                  </property>
                  <property name="alignment">
                   <set>Qt::AlignCenter</set>
                  </property>
                 </widget>
                </item>
-               <item row="1" column="2">
+               <item row="0" column="2">
                 <widget class="QLineEdit" name="lineEdit_interval">
+                 <property name="minimumSize">
+                  <size>
+                   <width>80</width>
+                   <height>0</height>
+                  </size>
+                 </property>
                  <property name="text">
                   <string>720</string>
                  </property>
                  <property name="alignment">
                   <set>Qt::AlignCenter</set>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_18">
+                 <property name="text">
+                  <string>МПП ID</string>
                  </property>
                 </widget>
                </item>
@@ -617,6 +613,45 @@
         </item>
        </layout>
       </widget>
+     </item>
+     <item row="2" column="0">
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <property name="leftMargin">
+        <number>5</number>
+       </property>
+       <property name="topMargin">
+        <number>5</number>
+       </property>
+       <property name="rightMargin">
+        <number>5</number>
+       </property>
+       <property name="bottomMargin">
+        <number>5</number>
+       </property>
+       <item>
+        <spacer name="horizontalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_save_mpp">
+         <property name="styleSheet">
+          <string notr="true">font: 12pt &quot;MS Shell Dlg 2&quot;;</string>
+         </property>
+         <property name="text">
+          <string>Сохранить</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>
