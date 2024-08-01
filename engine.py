@@ -46,7 +46,7 @@ from serial.serialutil import SerialException
 from src.py_toggle import pyToggle
 # from serial.serialutil import SerialException
 # from src.py_toggle import pyToggle
-from src.log_config import log_init, log_s
+from src.log_config import log_init, log_s, SendFilter, SendHandler
 import logging
 from src.customComboBox_COMport import CustomComboBox_COMport
 import copy as cp
@@ -74,26 +74,6 @@ import struct
 import copy
 # import colorlog
 # from firstblood.all import *
-
-# Создание фильтра для pymodbus
-class SendFilter(logging.Filter):
-    def filter(self, record):
-        # message = record.getMessage()
-        return False #'SEND:' in message or 'RECV:' in message
-    
-# Создание обработчика для pymodbus
-class SendHandler(logging.Handler):
-    def __init__(self):
-        super().__init__()
-        self.mess = []
-
-    def emit(self, record):
-        message = self.format(record)
-        # print(message)
-        if 'SEND:' in message:
-            self.mess.append(message)
-        if 'RECV:' in message:
-            self.mess.append(message)
 
 class Engine(QtWidgets.QMainWindow, QThread):
     my_button: QtWidgets.QPushButton
@@ -207,6 +187,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     pushButton_reload: QtWidgets.QPushButton
     pushButton_clear_hist: QtWidgets.QPushButton
     pushButton_update_data: QtWidgets.QPushButton
+    pushButton_reset_cfg: QtWidgets.QPushButton
 
     ######### Измерение ##############
     lineEdit_triger: QtWidgets.QLineEdit
@@ -271,10 +252,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
     hvip_mode_pips = 0
     hvip_mode_sipm = 0
     hvip_mode_ch = 0
-    ddii_interval_measure = 0
-    cfg_cherenkov = 34
-    cfg_pips = 40
-    cfg_sipm = 28
+    ddii_interval_measure = -1
+    v_cfg_cherenkov = -1
+    v_cfg_pips = -1
+    v_cfg_sipm = -1
     mpp_id = 15
 
 
@@ -286,6 +267,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     CM_DBG_CMD_CONNECT = 0
     CM_DBG_GET_VOLTAGE = 0x0007
+    CM_SET_DEFAULT_CFG = 0x0008
+    CM_DBG_GET_CFG_PWM = 0x000A
     CSA_TEST_ENABLE = 5
     # HVIP_PIPS_VOLTAGE = 6
     # HVIP_PIPS_READ_VOLTAGE = 7
@@ -368,7 +351,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.v_line_sipm.sigPositionChangeFinished.connect(self.update_line_static_sipm)
         ############## Инициализация других окон #############
         self.dialog_trap: MainTrapezoidDialog =  MainTrapezoidDialog(self)
-        self.munu_action_HVIP: MainHvipDialog =  MainHvipDialog(self)
         self.menu_action_MPP_cntrl_dialog: MainMppControlDialog =  MainMppControlDialog(self)
         self.menu_action_ddii_config_dialog:  MainConfigDialog =  MainConfigDialog(self)
 
@@ -422,6 +404,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.radioButton_const_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.CONSTANT_MODE))
         self.pushButton_clear_hist.clicked.connect(self.pushButton_clear_hist_clicked_handler)
         self.pushButton_update_data.clicked.connect(self.pushButton_update_data_clicked_handler)
+        self.pushButton_reset_cfg.clicked.connect(self.pushButton_reset_cfg_handler)
 
         # Обновление файлов в потоке
         self.timer = QTimer()
@@ -541,6 +524,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 cmd.start()
 
     ############ handler button ##############
+    def pushButton_reset_cfg_handler(self):
+        self.client.write_registers(self.CM_SET_DEFAULT_CFG, 0x0000, self.CM_ID)
+        log_s(self.send_handler.mess)
+
     def pushButton_update_data_clicked_handler(self):
         tmp_res = []
         self.client.write_registers(self.CMD_DBG_GET_DATA_MPP, 0x0000, self.CM_ID)
@@ -610,6 +597,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     ############ Triggered Menu Action ##############
     def menu_action_HVIP_triggered(self) -> None:
+        self.munu_action_HVIP: MainHvipDialog =  MainHvipDialog(self)
         self.munu_action_HVIP.show()
     
     def menu_action_MPP_cntrl_triggered(self) -> None:
@@ -939,7 +927,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         ######### ВИП2 ###########
         float_t = self.byte_to_float(tel[35:39])
         self.lineEdit_hvip_sipm.setText("{:.2f}".format(float_t))
-        
+        self.hvip_sipm = float_t
 
         float_t = self.byte_to_float(tel[39:43])
         self.hvip_pwm_sipm = float_t
@@ -1050,16 +1038,67 @@ class Engine(QtWidgets.QMainWindow, QThread):
         float_t: float = struct.unpack('!f', n_b)[0]
         return float_t
 
-    def parse_voltage(self, data):
-        data_v = data.encode()
-        # print(tel)
-        float_t = self.byte_to_float(data_v[1:5])
-        self.cfg_cherenkov = float_t
-        float_t = self.byte_to_float(data_v[5:9])
-        self.cfg_pips = float_t
-        float_t = self.byte_to_float(data_v[9:13])
-        self.cfg_sipm = float_t
-        return [self.cfg_pips, self.cfg_sipm, self.cfg_cherenkov]
+    def parse_voltage(self, data: ModbusResponse) -> tuple:
+        try:
+            data_v = data.encode()
+            cherenkov_v =    self.byte_to_float(data_v[1:5])
+            cherenkov_pwm =  self.byte_to_float(data_v[5:9])
+            cherenkov_cur =  self.byte_to_float(data_v[9:13])
+            cherenkov_mode = self.byte_to_float(data_v[13:14])
+
+            pips_v = self.byte_to_float(data_v[14:18])
+            pips_pwm = self.byte_to_float(data_v[18:22])
+            pips_cur = self.byte_to_float(data_v[22:26])
+            pips_mode = self.byte_to_float(data_v[26:27])
+
+            sipm_v = self.byte_to_float(data_v[31:35])
+            sipm_pwm = self.byte_to_float(data_v[35:39])
+            sipm_cur = self.byte_to_float(data_v[39:43])
+            sipm_mode = self.byte_to_float(data_v[43:44])
+
+            data_out = (pips_v, pips_pwm, pips_cur, pips_mode,
+                        sipm_v, sipm_pwm, sipm_cur, sipm_mode,
+                        cherenkov_v, cherenkov_pwm, cherenkov_cur, cherenkov_mode)
+            return data_out
+        except Exception:
+            return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    
+    def parse_cfg_voltage(self, data: ModbusResponse) -> tuple:
+        try:
+            data_v = data.encode()
+            ##### volt #####
+            v_cfg_cherenkov = self.byte_to_float(data_v[1:5])
+            v_cfg_pips = self.byte_to_float(data_v[5:9])
+            v_cfg_sipm = self.byte_to_float(data_v[9:13])
+            
+            return v_cfg_pips, v_cfg_sipm, v_cfg_cherenkov
+        except Exception:
+            return 0, 0, 0
+        
+    def parse_cfg_pwm(self, data: ModbusResponse)-> tuple: 
+        try:
+            data_v = data.encode()
+            ##### pwm #####
+            pwm_cfg_cherenkov = self.byte_to_float(data_v[1:5])
+            pwm_cfg_pips = self.byte_to_float(data_v[5:9])
+            pwm_cfg_sipm = self.byte_to_float(data_v[9:13])
+            return pwm_cfg_pips, pwm_cfg_sipm, pwm_cfg_cherenkov
+        except Exception:
+            return 0, 0, 0
+        
+    def get_cfg_voltage(self):
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
+        result: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 6, slave=self.CM_ID)
+        log_s(self.send_handler.mess)
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
+        return result
+    
+    def get_cfg_pwm(self):
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
+        result: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_CFG_PWM, 6, slave=self.CM_ID)
+        log_s(self.send_handler.mess)
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
+        return result
 
     ############ function connect mpp ##############
     def serialConnect(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
@@ -1119,9 +1158,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 ######## CM #######     
                 
                 # print(self.send_handler.mess)
-                log_s(self.send_handler.mess)
                 result = self.get_telemetria()
-                log_s(self.send_handler.mess)
+                
                 try:
                     tmp_res = result.registers
                 except Exception:
@@ -1152,9 +1190,19 @@ class Engine(QtWidgets.QMainWindow, QThread):
                     self.status_MPP = 1
                     if status_CM == 1:
                         self.label_state_2.setText("State: CM - OK, MPP - OK")
-                        voltage: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 6, slave=1)
-                        log_s(self.send_handler.mess)
-                        self.parse_voltage(voltage)
+                        voltage = self.get_cfg_voltage()
+                        #### voltage ####
+                        try:
+                            self.v_cfg_pips, self.v_cfg_sipm, self.v_cfg_cherenkov = self.parse_cfg_voltage(voltage)
+                        except Exception as e:
+                            self.logger.debug(e)
+                        #### voltage ####
+                        pwm = self.get_cfg_pwm()
+                        try:
+                            self.pwm_cfg_pips, self.pwm_cfg_sipm, self.pwm_cfg_cherenkov = self.parse_cfg_pwm(pwm)
+                        except Exception as e:
+                            self.logger.debug(e)
+                        
                     else:
                         self.label_state_2.setText("State: CM - None, MPP - OK")
                 self.pushButton_connect_2.setText("Отключить")

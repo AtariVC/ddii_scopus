@@ -10,7 +10,6 @@ from loguru import logger
 from datetime import datetime
 import sys
 import re
-from PyQt6.QtCore import Qt, QTimer, QThread
 
 # from logger import logging
 
@@ -93,25 +92,6 @@ def log_s(message: list):
             logger.log("TX", new_mess.upper())
     message.clear()
 
-# Создание фильтра для pymodbus
-class SendFilter(logging.Filter, QThread):
-    def filter(self, record):
-        # message = record.getMessage()
-        return False #'SEND:' in message or 'RECV:' in message
-    
-# Создание обработчика для pymodbus
-class SendHandler(logging.Handler, QThread):
-    def __init__(self):
-        super().__init__()
-        self.mess = []
-
-    def emit(self, record):
-        message = self.format(record)
-        # print(message)
-        if 'SEND:' in message:
-            self.mess.append(message)
-        if 'RECV:' in message:
-            self.mess.append(message)
 
 
 
