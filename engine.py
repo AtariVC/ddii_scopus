@@ -872,150 +872,154 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def pars_telemetria(self, tel: ModbusResponse) -> None:
         ## endian is wrong
-        tel = tel.encode()
-        # print(tel)
-        tel_b = int(tel[1:2].hex(), 16)
-        # if tel_b == self.DEBUG_MODE:
-        #     self.radioButton_db_mode.setChecked(True)
-        if tel_b == self.COMBAT_MODE:
-            self.radioButton_slnt_mode.setChecked(True)
-        elif tel_b == self.CONSTANT_MODE:
-            self.radioButton_cmbt_mode.setChecked(True)
-        elif tel_b == self.SILENT_MODE:
-            self.radioButton_const_mode.setChecked(True)
-        ######### LEVEL ###########
-        tel_b = int(self.swap_bytes(tel[19:21]).hex(), 16)
+        try:
+            tel = tel.encode()
+            # print(tel)
+            tel_b = int(tel[1:2].hex(), 16)
+            # if tel_b == self.DEBUG_MODE:
+            #     self.radioButton_db_mode.setChecked(True)
+            if tel_b == self.COMBAT_MODE:
+                self.radioButton_slnt_mode.setChecked(True)
+            elif tel_b == self.CONSTANT_MODE:
+                self.radioButton_cmbt_mode.setChecked(True)
+            elif tel_b == self.SILENT_MODE:
+                self.radioButton_const_mode.setChecked(True)
+            ######### LEVEL ###########
+            tel_b = int(self.swap_bytes(tel[19:21]).hex(), 16)
 
-        self.lineEdit_01_hh_l.setText(str(tel_b))
+            self.lineEdit_01_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[3:5]).hex(), 16)
-        self.lineEdit_05_hh_l.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[3:5]).hex(), 16)
+            self.lineEdit_05_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[5:7]).hex(), 16)
-        self.lineEdit_08_hh_l.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[5:7]).hex(), 16)
+            self.lineEdit_08_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[7:9]).hex(), 16)
-        self.lineEdit_1_6_hh_l.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[7:9]).hex(), 16)
+            self.lineEdit_1_6_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[9:11]).hex(), 16)
-        self.lineEdit_3_hh_l.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[9:11]).hex(), 16)
+            self.lineEdit_3_hh_l.setText(str(tel_b))
 
 
-        tel_b = int(self.swap_bytes(tel[11:13]).hex(), 16)
-        self.lineEdit_5_hh_l.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[11:13]).hex(), 16)
+            self.lineEdit_5_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[13:15]).hex(), 16)
-        self.lineEdit_10_hh_l.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[13:15]).hex(), 16)
+            self.lineEdit_10_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[15:17]).hex(), 16)
-        self.lineEdit_30_hh_l.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[15:17]).hex(), 16)
+            self.lineEdit_30_hh_l.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[17:19]).hex(), 16)
-        self.lineEdit_60_hh_l.setText(str(tel_b))
-        ######### ВИП1 ###########
-        float_t = self.byte_to_float(tel[21:25])
-        self.hvip_pips = float_t
-        self.lineEdit_hvip_pips.setText("{:.2f}".format(float_t))
+            tel_b = int(self.swap_bytes(tel[17:19]).hex(), 16)
+            self.lineEdit_60_hh_l.setText(str(tel_b))
+            ######### ВИП1 ###########
+            float_t = self.byte_to_float(tel[21:25])
+            self.hvip_ch = float_t
+            self.lineEdit_hvip_ch.setText("{:.2f}".format(float_t))
 
-        float_t = self.byte_to_float(tel[25:29])
-        self.hvip_pwm_pips = float_t
+            float_t = self.byte_to_float(tel[25:29])
+            self.hvip_pwm_ch = float_t
 
-        float_t = self.byte_to_float(tel[29:33])
-        self.hvip_current_pips = float_t
+            float_t = self.byte_to_float(tel[29:33])
+            self.hvip_current_ch = float_t
 
-        self.hvip_mode_pips = int(tel[33:34].hex(), 16)
-        ######### ВИП2 ###########
-        float_t = self.byte_to_float(tel[35:39])
-        self.lineEdit_hvip_sipm.setText("{:.2f}".format(float_t))
-        self.hvip_sipm = float_t
+            self.hvip_mode_ch = int(tel[33:34].hex(), 16)
+            ######### ВИП2 ###########
+            float_t = self.byte_to_float(tel[35:39])
+            self.lineEdit_hvip_pips.setText("{:.2f}".format(float_t))
+            self.hvip_pips = float_t
 
-        float_t = self.byte_to_float(tel[39:43])
-        self.hvip_pwm_sipm = float_t
+            float_t = self.byte_to_float(tel[39:43])
+            self.hvip_pwm_pips = float_t
 
-        float_t = self.byte_to_float(tel[43:47])
-        self.hvip_current_sipm = float_t
+            float_t = self.byte_to_float(tel[43:47])
+            self.hvip_current_pips = float_t
 
-        self.hvip_mode_sipm = int(tel[47:48].hex(), 16)
-        ######### ВИП3 ###########
-        float_t = self.byte_to_float(tel[49:53])
-        self.lineEdit_hvip_ch.setText("{:.2f}".format(float_t))
-        self.hvip_ch = float_t
+            self.hvip_mode_pips = int(tel[47:48].hex(), 16)
+            ######### ВИП3 ###########
+            float_t = self.byte_to_float(tel[49:53])
+            self.lineEdit_hvip_sipm.setText("{:.2f}".format(float_t))
+            self.hvip_sipm = float_t
 
-        float_t = self.byte_to_float(tel[53:57])
-        self.hvip_pwm_ch = float_t
+            float_t = self.byte_to_float(tel[53:57])
+            self.hvip_pwm_sipm = float_t
 
-        float_t = self.byte_to_float(tel[57:61])
-        self.hvip_current_ch = float_t
+            float_t = self.byte_to_float(tel[57:61])
+            self.hvip_current_sipm = float_t
 
-        self.hvip_mode_ch = int(tel[61:62].hex(), 16)
-        ##############
-        tel_b = int(self.swap_bytes(tel[63:64]).hex(), 16)
-        if tel_b == 1:
-            self.checkBox_enable_test_csa.setChecked(True) 
-        else:
-            self.checkBox_enable_test_csa.setChecked(False) 
+            self.hvip_mode_sipm = int(tel[61:62].hex(), 16)
+            ##############
+            tel_b = int(self.swap_bytes(tel[63:64]).hex(), 16)
+            if tel_b == 1:
+                self.checkBox_enable_test_csa.setChecked(True) 
+            else:
+                self.checkBox_enable_test_csa.setChecked(False) 
 
-        tel_b = int(self.swap_bytes(tel[64:66]).hex(), 16)
-        self.ddii_interval_measure = tel_b
+            tel_b = int(self.swap_bytes(tel[64:66]).hex(), 16)
+            self.ddii_interval_measure = tel_b
 
-        tel_b = int(self.swap_bytes(tel[66:68]).hex(), 16)
-        self.lineEdit_ACQ1.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[66:68]).hex(), 16)
+            self.lineEdit_ACQ1.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[68:70]).hex(), 16)
-        self.lineEdit_ACQ2.setText(str(tel_b))
-        ######### Гистограмма ###########
-        tel_b = int(self.swap_bytes(tel[70:72]).hex(), 16)
-        self.lineEdit_HCP_1.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[68:70]).hex(), 16)
+            self.lineEdit_ACQ2.setText(str(tel_b))
+            ######### Гистограмма ###########
+            tel_b = int(self.swap_bytes(tel[70:72]).hex(), 16)
+            self.lineEdit_HCP_1.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[72:74]).hex(), 16)
-        self.lineEdit_HCP_5.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[72:74]).hex(), 16)
+            self.lineEdit_HCP_5.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[74:76]).hex(), 16)
-        self.lineEdit_HCP_10.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[74:76]).hex(), 16)
+            self.lineEdit_HCP_10.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[76:78]).hex(), 16)
-        self.lineEdit_HCP_20.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[76:78]).hex(), 16)
+            self.lineEdit_HCP_20.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[78:80]).hex(), 16)
-        self.lineEdit_HCP_45.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[78:80]).hex(), 16)
+            self.lineEdit_HCP_45.setText(str(tel_b))
 
-        tel_b = int(self.swap_4_dytes(tel[80:84]).hex(), 16)
-        self.lineEdit_01_hh.setText(str(tel_b))
+            tel_b = int(self.swap_4_dytes(tel[80:84]).hex(), 16)
+            self.lineEdit_01_hh.setText(str(tel_b))
 
-        tel_b = int(self.swap_4_dytes(tel[84:88]).hex(), 16)
-        self.lineEdit_05_hh.setText(str(tel_b))
+            tel_b = int(self.swap_4_dytes(tel[84:88]).hex(), 16)
+            self.lineEdit_05_hh.setText(str(tel_b))
 
-        tel_b = int(self.swap_4_dytes(tel[88:92]).hex(), 16)
-        self.lineEdit_08_hh.setText(str(tel_b))
+            tel_b = int(self.swap_4_dytes(tel[88:92]).hex(), 16)
+            self.lineEdit_08_hh.setText(str(tel_b))
 
-        tel_b = int(self.swap_4_dytes(tel[92:96]).hex(), 16)
-        self.lineEdit_1_6_hh.setText(str(tel_b))
+            tel_b = int(self.swap_4_dytes(tel[92:96]).hex(), 16)
+            self.lineEdit_1_6_hh.setText(str(tel_b))
 
-        tel_b = int(self.swap_4_dytes(tel[96:100]).hex(), 16)
-        self.lineEdit_3_hh.setText(str(tel_b))
+            tel_b = int(self.swap_4_dytes(tel[96:100]).hex(), 16)
+            self.lineEdit_3_hh.setText(str(tel_b))
 
-        tel_b = int(self.swap_4_dytes(tel[100:104]).hex(), 16)
-        self.lineEdit_5_hh.setText(str(tel_b))
+            tel_b = int(self.swap_4_dytes(tel[100:104]).hex(), 16)
+            self.lineEdit_5_hh.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[104:106]).hex(), 16)
-        self.lineEdit_10_hh.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[104:106]).hex(), 16)
+            self.lineEdit_10_hh.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[106:108]).hex(), 16)
-        self.lineEdit_30_hh.setText(str(tel_b))
+            tel_b = int(self.swap_bytes(tel[106:108]).hex(), 16)
+            self.lineEdit_30_hh.setText(str(tel_b))
 
-        tel_b = int(self.swap_bytes(tel[108:110]).hex(), 16)
-        self.lineEdit_60_hh.setText(str(tel_b))
-        # print(tel[9:12])
-        # print(tel_b)
-        # tel_b = int(tel[13:16].hex(), 16)
-        # self.lineEdit_08_hh_l.setText(str(tel_b))
-        # print(tel[13:16])
-        # print(tel_b)
-        # tel_b = int(tel[17:20].hex(), 16)
-        # self.lineEdit_01_hh_l.setText(str(tel_b))
-        # print(tel[17:20])
-        # print(tel_b)
-        # self.lineEdit_triger.setText("")
+            tel_b = int(self.swap_bytes(tel[108:110]).hex(), 16)
+            self.lineEdit_60_hh.setText(str(tel_b))
+            # print(tel[9:12])
+            # print(tel_b)
+            # tel_b = int(tel[13:16].hex(), 16)
+            # self.lineEdit_08_hh_l.setText(str(tel_b))
+            # print(tel[13:16])
+            # print(tel_b)
+            # tel_b = int(tel[17:20].hex(), 16)
+            # self.lineEdit_01_hh_l.setText(str(tel_b))
+            # print(tel[17:20])
+            # print(tel_b)
+            # self.lineEdit_triger.setText("")
+        except Exception as ex:
+            self.logger.debug(ex)
+            self.logger.exception("message")
 
     def swap_bytes(self, byte_str) -> bytes:
     # Поменяем местами первый и второй байты
@@ -1044,23 +1048,25 @@ class Engine(QtWidgets.QMainWindow, QThread):
             cherenkov_v =    self.byte_to_float(data_v[1:5])
             cherenkov_pwm =  self.byte_to_float(data_v[5:9])
             cherenkov_cur =  self.byte_to_float(data_v[9:13])
-            cherenkov_mode = self.byte_to_float(data_v[13:14])
+            cherenkov_mode = int(data_v[13:14].hex(), 16)
 
-            pips_v = self.byte_to_float(data_v[14:18])
-            pips_pwm = self.byte_to_float(data_v[18:22])
-            pips_cur = self.byte_to_float(data_v[22:26])
-            pips_mode = self.byte_to_float(data_v[26:27])
+            pips_v = self.byte_to_float(data_v[15:19])
+            pips_pwm = self.byte_to_float(data_v[19:23])
+            pips_cur = self.byte_to_float(data_v[23:27])
+            pips_mode = int(data_v[27:28].hex(), 16)
 
-            sipm_v = self.byte_to_float(data_v[31:35])
-            sipm_pwm = self.byte_to_float(data_v[35:39])
-            sipm_cur = self.byte_to_float(data_v[39:43])
-            sipm_mode = self.byte_to_float(data_v[43:44])
+            sipm_v = self.byte_to_float(data_v[29:33])
+            sipm_pwm = self.byte_to_float(data_v[33:37])
+            sipm_cur = self.byte_to_float(data_v[37:41])
+            sipm_mode = int(data_v[41:42].hex(), 16)
 
             data_out = (pips_v, pips_pwm, pips_cur, pips_mode,
                         sipm_v, sipm_pwm, sipm_cur, sipm_mode,
                         cherenkov_v, cherenkov_pwm, cherenkov_cur, cherenkov_mode)
             return data_out
-        except Exception:
+        except Exception as ex:
+            self.logger.debug(ex)
+            self.logger.exception("message")
             return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     
     def parse_cfg_voltage(self, data: ModbusResponse) -> tuple:
@@ -1196,7 +1202,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
                             self.v_cfg_pips, self.v_cfg_sipm, self.v_cfg_cherenkov = self.parse_cfg_voltage(voltage)
                         except Exception as e:
                             self.logger.debug(e)
-                        #### voltage ####
+                        #### pwm ####
                         pwm = self.get_cfg_pwm()
                         try:
                             self.pwm_cfg_pips, self.pwm_cfg_sipm, self.pwm_cfg_cherenkov = self.parse_cfg_pwm(pwm)

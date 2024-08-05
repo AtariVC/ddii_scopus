@@ -11,14 +11,22 @@ import logging
 from PyQt6.QtCore import QTimer
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QDoubleValidator, QCloseEvent
+from pymodbus.pdu import ModbusResponse
 
 
 class ModbusWorker(QThread):
     # Сигнал для обновления интерфейса
-    update_signal = pyqtSignal(str)
-    def __init__(self, root):
+
+    CM_DBG_SET_VOLTAGE = 0x0006
+    CM_DBG_GET_VOLTAGE = 0x0009
+    CMD_HVIP_ON_OFF = 0x000B
+
+    update_signal = pyqtSignal(tuple)
+    finished_signal = pyqtSignal()
+    def __init__(self, root, root_d):
         super().__init__()
         self.root = root
+        self.root_d = root_d
         log = logging.getLogger('pymodbus')
         log.setLevel(logging.DEBUG)
         handler = logging.StreamHandler()
@@ -27,25 +35,76 @@ class ModbusWorker(QThread):
         log.addHandler(handler)
         self.send_handler = SendHandler()
         log.addHandler(self.send_handler)
+        self.running = True
+        self.set_voltage_thread = None
 
-    def get_hvip_data(self):
-        self.root.client.write_registers(address=0x0001, values=1, slave=1)
-        result = self.root.client.read_holding_registers(0x0000, 62, slave=1)
-        log_s(self.send_handler.mess)
+    # def get_hvip_data(self):
+    #     self.root.client.write_registers(address=0x0001, values=1, slave=1)
+    #     result = self.root.client.read_holding_registers(0x0000, 62, slave=1)
+    #     log_s(self.send_handler.mess)
+    #     return result
 
-    ## TODO: Переписать через update_signal
     def th_measure_voltage_pips(self):
-        self.root.measure_voltage_pips
+        while self.running:
+            res = self.measure_voltage_pips()
+            self.update_signal.emit(res)
+            self.sleep(2)
 
-    def update_label_data(self):
-        pass
-    def send_hvip_data(self):
-        pass
+    def measure_voltage_pips(self):
+        # Измерение напряжения: 01 10 00 07 00 00 71 C8
+        transaction = self.get_voltage()
+        voltage = self.root.parse_voltage(transaction)
+        return voltage
+
+    def get_voltage(self):
+        try:
+            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.DEBUG_MODE, slave = self.root.CM_ID)
+            result = self.root.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 21, slave=self.root.CM_ID)
+            log_s(self.root.send_handler.mess)
+            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.COMBAT_MODE, slave = self.root.CM_ID)
+            return result
+        except Exception as ex:
+            self.root.logger.debug(ex)
+            return 0
+    
+    def th_set_voltage(self, data):
+        self.stop()
+        try:
+            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.DEBUG_MODE, slave = self.root.CM_ID)
+            self.root.client.write_registers(address = self.CM_DBG_SET_VOLTAGE,
+                                values = data, 
+                                slave = self.root.CM_ID)
+            log_s(self.root.send_handler.mess)
+            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.COMBAT_MODE, slave = self.root.CM_ID)
+            self.finished_signal.emit()
+            self.running = True
+        except Exception as ex:
+            self.root.logger.debug(ex)
+    
+    def th_hvip_power(self, data):
+        self.stop()
+        try:
+            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.DEBUG_MODE, slave = self.root.CM_ID)
+            self.root.client.write_registers(address = self.CMD_HVIP_ON_OFF,
+                                values = data, 
+                                slave = self.root.CM_ID)
+            log_s(self.root.send_handler.mess)
+            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.COMBAT_MODE, slave = self.root.CM_ID)
+            # res_encode = res.encode()
+            # data = [int(res_encode[1:2].hex(), 16), int(res_encode[3:4].hex(), 16)]
+            self.finished_signal.emit()
+            self.running = True
+        except Exception as ex:
+            self.root.logger.debug(ex)
 
     def stop(self):
         self.running = False
         self.quit()
         self.wait()
+
+    def start_voltage_thread(self, data):
+        self.set_voltage_thread = threading.Thread(target=self.th_set_voltage, args=(data,), daemon=True)
+        self.set_voltage_thread.start()
 
 class MainHvipDialog(QtWidgets.QDialog):
     spinBox_pips_volt: QtWidgets.QDoubleSpinBox
@@ -77,21 +136,21 @@ class MainHvipDialog(QtWidgets.QDialog):
     SIPM_CH_VOLTAGE = 2
     CHERENKOV_CH_VOLTAGE = 3
 
-    CM_DBG_SET_VOLTAGE = 0x0006
-    CM_DBG_GET_VOLTAGE = 0x0009
 
     def __init__(self, root, **kwargs) -> None:
         super().__init__(root, **kwargs)
         loadUi(os.path.join(os.path.dirname(__file__),  f'style/HVIP_window.ui'), self)
         self.root = root
-        self.modbus_worker = ModbusWorker(root)
+        self.modbus_worker = ModbusWorker(root, self)
+        self.modbus_worker.update_signal.connect(self.update_label)
+        self.modbus_worker.finished_signal.connect(self.start_measure)
         self.spinBox_pips_volt.setValue(root.v_cfg_pips)
         self.spinBox_sipm_volt.setValue(root.v_cfg_sipm)
         self.spinBox_ch_volt.setValue(root.v_cfg_cherenkov)
 
-        self.doubleSpinBox_pips_pwm.setValue(root.hvip_pwm_pips)
-        self.doubleSpinBox_sipm_pwm.setValue(root.hvip_pwm_sipm)
-        self.doubleSpinBox_ch_pwm.setValue(root.hvip_pwm_ch)
+        self.doubleSpinBox_pips_pwm.setValue(root.pwm_cfg_pips)
+        self.doubleSpinBox_sipm_pwm.setValue(root.pwm_cfg_sipm)
+        self.doubleSpinBox_ch_pwm.setValue(root.pwm_cfg_cherenkov)
 
         self.label_pips_mes.setText("{:.2f}".format(root.hvip_pips))
         self.label_sipm_mes.setText("{:.2f}".format(root.hvip_sipm))
@@ -115,110 +174,158 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.pushButton_ch_on.setText("Отключить")
             self.led_ch.setStyleSheet(style.widget_led_on())
 
-        self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
+        # self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
         self.pushButton_apply.clicked.connect(self.pushButton_apply_handler)
 
         self.pushButton_pips_on.clicked.connect(self.pushButton_pips_on_handler)
         self.pushButton_sipm_on.clicked.connect(self.pushButton_sipm_on_handler)
         self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
-        # # self.horizontalSlider_v_pips.valueChanged.connect(lambda: self.slider_value_changed(self.V_PIPS))
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.measure_voltage_pips)
-        self.timer.start(10)
-        # self.spinBox_pips_volt.setValidator(double_validator)
-        # self.label_sipm_mes.setValidator(double_validator)
-        # self.label_ch_mes.setValidator(double_validator)
         self.flag_measure = 1
 
-        # self.timer = threading.Timer(4, self.pushButton_meas_handler)
-
-    # def slider_value_update(self, text):
-    #     try:
-    #         value = int(text)
-    #         if  22 <= value <= 77:
-    #             self.horizontalSlider_v_pips.setValue(value)
-    #         elif value > 77:
-    #             self.horizontalSlider_v_pips.setValue(77)
-    #         elif value < 22:
-    #             self.horizontalSlider_v_pips.setValue(22)
-    #     except ValueError:
-    #         pass
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.th_measure = threading.Thread(target=self.modbus_worker.th_measure_voltage_pips, daemon = True)
+        self.th_measure.start()
     
-    # def slider_value_changed(self, numlineEdit):
+    def start_measure(self):
+        self.th_measure = threading.Thread(target=self.modbus_worker.th_measure_voltage_pips, daemon = True)
+        self.th_measure.start()
 
-    #     match numlineEdit:
-    #         case self.V_PIPS:
-    #             self.lineEdit_set_v_pips.setText(str(self.horizontalSlider_v_pips.value()))
-    #     # self.pushButton_ok_handler()
-    
+    ############ handler button ##############
     def pushButton_pips_on_handler(self):
-        pips_on = threading.Thread(target=self.modbus_worker.get_hvip_data, daemon = True)
-        pips_on.start()
+        if self.pips_on == 1:
+            data = [0x0001, 0x0000]
+            self.pips_on = 0
+            self.pushButton_pips_on.setText("Включить")
+            self.led_pips.setStyleSheet(style.widget_led_off())
+            
+        else:
+            data = [0x0001, 0x0001]
+            self.pips_on = 1
+            self.pushButton_pips_on.setText("Отключить")
+            self.led_pips.setStyleSheet(style.widget_led_on())
+        self.th_hvip_on_off = threading.Thread(target=self.modbus_worker.th_hvip_power, args=(data,), daemon = True)
+        self.th_hvip_on_off.start()
 
     def pushButton_sipm_on_handler(self):
-        pass
+        if self.sipm_on == 1:
+            data = [0x0002, 0x0000]
+            self.sipm_on = 0
+            self.pushButton_sipm_on.setText("Включить")
+            self.led_sipm.setStyleSheet(style.widget_led_off())
+            
+        else:
+            data = [0x0002, 0x0001]
+            self.sipm_on = 1
+            self.pushButton_sipm_on.setText("Отключить")
+            self.led_sipm.setStyleSheet(style.widget_led_on())
+        self.th_hvip_on_off = threading.Thread(target=self.modbus_worker.th_hvip_power, args=(data,), daemon = True)
+        self.th_hvip_on_off.start()
 
     def pushButton_ch_on_handler(self):
-        pass
+        if self.ch_on == 1:
+            data = [0x0003, 0x0000]
+            self.ch_on = 0
+            self.pushButton_ch_on.setText("Включить")
+            self.led_ch.setStyleSheet(style.widget_led_off())
+            
+        else:
+            data = [0x0003, 0x0001]
+            self.ch_on = 1
+            self.pushButton_ch_on.setText("Отключить")
+            self.led_ch.setStyleSheet(style.widget_led_on())
+        self.th_hvip_on_off = threading.Thread(target=self.modbus_worker.th_hvip_power, args=(data,), daemon = True)
+        self.th_hvip_on_off.start()
 
     def pushButton_apply_handler(self) -> None:
         #  Костыль, чтобы избавится от ошибки - переменная не определена
         try:
-            float_t = float(self.spinBox_pips_volt.text().replace(',', '.'))
-            v_pips: bytes = struct.pack('>f', float_t)
-            v_pips_l = [int(v_pips[0:2].hex(), 16), int(v_pips[2:4].hex(), 16)]
-            float_t = float(self.spinBox_sipm_volt.text().replace(',', '.'))
-            v_sipm: bytes = struct.pack('>f', float_t)
-            v_sipm_l = [int(v_sipm[0:2].hex(), 16), int(v_sipm[2:4].hex(), 16)]
-            float_t = float(self.spinBox_ch_volt.text().replace(',', '.'))
-            v_ch: bytes = struct.pack('>f', float_t)
-            v_ch_l = [int(v_ch[0:2].hex(), 16), int(v_ch[2:4].hex(), 16)]
-            data = v_pips_l + v_sipm_l + v_ch_l
-            self.root.client.write_registers(address = self.CM_DBG_SET_VOLTAGE,
-                                values = data, 
-                                slave = self.root.CM_ID)
-            log_s(self.root.send_handler.mess)
-            self.timer.start(1000)
-            self.flag_measure = 0
+            data_voltage = self.set_voltage()
+            data_pwm = self.set_pwm()
+            data = data_voltage + data_pwm
+            self.modbus_worker.start_voltage_thread(data)
         except Exception as VErr:
             self.root.logger.debug(VErr)
-        
+
+    def set_voltage(self) -> list:
+        float_t = float(self.spinBox_pips_volt.text().replace(',', '.'))
+        v_pips_l = self.float_to_byte(float_t)
+        float_t = float(self.spinBox_sipm_volt.text().replace(',', '.'))
+        v_sipm_l = self.float_to_byte(float_t)
+        float_t = float(self.spinBox_ch_volt.text().replace(',', '.'))
+        v_ch_l = self.float_to_byte(float_t)
+        data = v_ch_l + v_pips_l + v_sipm_l
+        return data
+    
+    def float_to_byte(self, float_t) -> list:
+        byte_str: bytes = struct.pack('>f', float_t)
+        n0: bytes = self.root.swap_bytes(byte_str[0:2])
+        n1: bytes = self.root.swap_bytes(byte_str[2:4])
+        return [int(n1.hex(), 16), int(n0.hex(), 16)]
+
+    def set_pwm(self) -> list:
+        float_t = float(self.doubleSpinBox_pips_pwm.text().replace(',', '.'))
+        v_pips_l = self.float_to_byte(float_t)
+        float_t = float(self.doubleSpinBox_sipm_pwm.text().replace(',', '.'))
+        v_sipm_l = self.float_to_byte(float_t)
+        float_t = float(self.doubleSpinBox_ch_pwm.text().replace(',', '.'))
+        v_ch_l = self.float_to_byte(float_t)
+        data = v_ch_l + v_pips_l + v_sipm_l
+        return data
 
     def pushButton_ok_handler(self) -> None:
         try:
-            float_t = float(self.spinBox_pips_volt.text().replace(',', '.'))
-            v_pips: bytes = struct.pack('>f', float_t)
-            v_pips_l = [int(v_pips[0:2].hex(), 16), int(v_pips[2:4].hex(), 16)]
-            float_t = float(self.spinBox_sipm_volt.text().replace(',', '.'))
-            v_sipm: bytes = struct.pack('>f', float_t)
-            v_sipm_l = [int(v_sipm[0:2].hex(), 16), int(v_sipm[2:4].hex(), 16)]
-            float_t = float(self.spinBox_ch_volt.text().replace(',', '.'))
-            v_ch: bytes = struct.pack('>f', float_t)
-            v_ch_l = [int(v_ch[0:2].hex(), 16), int(v_ch[2:4].hex(), 16)]
-            data = v_pips_l + v_sipm_l + v_ch_l
-            self.root.client.write_registers(address = self.CM_DBG_SET_VOLTAGE,
-                                values = data, 
-                                slave = self.root.CM_ID)
-            log_s(self.root.send_handler.mess)
-            self.timer.stop()
+            self.pushButton_apply_handler()
         except Exception as VErr:
             self.root.logger.debug(VErr)
-        self.timer.stop()
         self.close()
 
-    def measure_voltage_pips(self):
+
+    ############# update label ###############
+    # def update_power_status(self, data):
+    #     try:
+    #         if data[0] == self.PIPS_CH_VOLTAGE:
+    #             if data[1] == 1:
+    #                 self.pips_on = 0
+    #                 self.pushButton_pips_on.setText("Отключить")
+    #                 self.led_pips.setStyleSheet(style.widget_led_on())
+    #             else:
+    #                 self.pips_on = 1
+    #                 self.pushButton_pips_on.setText("Включить")
+    #                 self.led_pips.setStyleSheet(style.widget_led_off())
+    #         elif data[0] == self.SIPM_CH_VOLTAGE:
+    #             if data[1] == 1:
+    #                 self.sipm_on = 0
+    #                 self.pushButton_sipm_on.setText("Отключить")
+    #                 self.led_pips.setStyleSheet(style.widget_led_on())
+    #             else:
+    #                 self.sipm_on = 1
+    #                 self.pushButton_sipm_on.setText("Включить")
+    #                 self.led_sipm.setStyleSheet(style.widget_led_off())
+    #         elif data[0] == self.CHERENKOV_CH_VOLTAGE:
+    #             if data[1] == 1:
+    #                 self.ch_on = 0
+    #                 self.pushButton_ch_on.setText("Отключить")
+    #                 self.led_pips.setStyleSheet(style.widget_led_on())
+    #             else:
+    #                 self.ch_on = 1
+    #                 self.pushButton_ch_on.setText("Включить")
+    #                 self.led_pips.setStyleSheet(style.widget_led_off())
+    #     except Exception as ex:
+    #         self.root.logger.debug(ex)
+
+    def update_label(self, voltage):
         try:
-            # Измерение напряжения: 01 10 00 07 00 00 71 C8
-            transaction = self.get_voltage()
-            voltage = self.root.parse_voltage(transaction)
             ### pips ###
             self.label_pips_mes.setText("{:.2f}".format(voltage[0]))
             self.label_pips_pwm_mes.setText("{:.2f}".format(voltage[1]))
             self.label_pips_cur.setText("{:.2f}".format(voltage[2]))
             if voltage[3] == 1:
+                self.pips_on = 1
                 self.pushButton_pips_on.setText("Отключить")
                 self.led_pips.setStyleSheet(style.widget_led_on())
             elif voltage[3] == 0:
+                self.pips_on = 0
                 self.pushButton_pips_on.setText("Включить")
                 self.led_pips.setStyleSheet(style.widget_led_off())
             else:
@@ -228,9 +335,11 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.label_sipm_pwm_mes.setText("{:.2f}".format(voltage[5]))
             self.label_sipm_cur.setText("{:.2f}".format(voltage[6]))
             if voltage[7] == 1:
+                self.sipm_on = 1
                 self.pushButton_sipm_on.setText("Отключить")
                 self.led_sipm.setStyleSheet(style.widget_led_on())
             elif voltage[7] == 0:
+                self.sipm_on = 0
                 self.pushButton_sipm_on.setText("Включить")
                 self.led_sipm.setStyleSheet(style.widget_led_off())
             else:
@@ -239,46 +348,23 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.label_ch_mes.setText("{:.2f}".format(voltage[8]))
             self.label_ch_pwm_mes.setText("{:.2f}".format(voltage[9]))
             self.label_ch_cur.setText("{:.2f}".format(voltage[10]))
-            if voltage[3] == 1:
+            if voltage[11] == 1:
+                self.ch_on = 1
                 self.pushButton_ch_on.setText("Отключить")
                 self.led_ch.setStyleSheet(style.widget_led_on())
-            elif voltage[3] == 0:
+            elif voltage[11] == 0:
+                self.ch_on = 0
                 self.pushButton_ch_on.setText("Включить")
                 self.led_ch.setStyleSheet(style.widget_led_off())
             else:
                 self.root.logger.debug("Ошибка работы HVIP CHERENKOV")
+        except Exception as ex:
+            self.root.logger.debug(ex)
+            self.root.logger.exception("message")
 
-        except struct.error as err:
-            self.root.logger.debug(err)
-            self.timer.stop()
-    
-    def get_voltage(self):
-        self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.DEBUG_MODE, slave = self.root.CM_ID)
-        result = self.root.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 16, slave=self.root.CM_ID)
-        log_s(self.root.send_handler.mess)
-        self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.COMBAT_MODE, slave = self.root.CM_ID)
-        return result
-    
     def closeEvent(self, event) -> None:
-        self.timer.stop()
         self.modbus_worker.stop()
         self.close()
         self.destroy()
-        event.accept()
+        # event.accept()
         return super().closeEvent(event)
-    
-    
-
-    # def pushButton_meas_handler(self) -> None:
-    #     """
-    #     Обработчик нажатия кнопки "Измерить напряжение ВИП"
-    #     """
-    #     if self.flag_measure == 1:
-    #         self.measure_voltage_pips()
-            
-    #         # self.flag_measure = 0
-    #     else:
-    #         self.pushButton_meas.setText("Измерить")
-    #         self.flag_measure = 1
-    #         self.timer.stop()
-        
