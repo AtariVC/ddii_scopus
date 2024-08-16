@@ -144,6 +144,19 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.modbus_worker = ModbusWorker(root, self)
         self.modbus_worker.update_signal.connect(self.update_label)
         self.modbus_worker.finished_signal.connect(self.start_measure)
+
+
+
+        # self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
+        self.pushButton_apply.clicked.connect(self.pushButton_apply_handler)
+
+        self.pushButton_pips_on.clicked.connect(self.pushButton_pips_on_handler)
+        self.pushButton_sipm_on.clicked.connect(self.pushButton_sipm_on_handler)
+        self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
+        self.flag_measure = 1
+
+    def showEvent(self, event):
+        root = self.root        
         self.spinBox_pips_volt.setValue(root.v_cfg_pips)
         self.spinBox_sipm_volt.setValue(root.v_cfg_sipm)
         self.spinBox_ch_volt.setValue(root.v_cfg_cherenkov)
@@ -173,16 +186,6 @@ class MainHvipDialog(QtWidgets.QDialog):
         if root.hvip_mode_ch == 1:
             self.pushButton_ch_on.setText("Отключить")
             self.led_ch.setStyleSheet(style.widget_led_on())
-
-        # self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
-        self.pushButton_apply.clicked.connect(self.pushButton_apply_handler)
-
-        self.pushButton_pips_on.clicked.connect(self.pushButton_pips_on_handler)
-        self.pushButton_sipm_on.clicked.connect(self.pushButton_sipm_on_handler)
-        self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
-        self.flag_measure = 1
-
-    def showEvent(self, event):
         super().showEvent(event)
         self.th_measure = threading.Thread(target=self.modbus_worker.th_measure_voltage_pips, daemon = True)
         self.th_measure.start()
@@ -250,10 +253,13 @@ class MainHvipDialog(QtWidgets.QDialog):
     def set_voltage(self) -> list:
         float_t = float(self.spinBox_pips_volt.text().replace(',', '.'))
         v_pips_l = self.float_to_byte(float_t)
+        self.root.v_cfg_pips = v_pips_l
         float_t = float(self.spinBox_sipm_volt.text().replace(',', '.'))
         v_sipm_l = self.float_to_byte(float_t)
+        self.root.v_cfg_sipm = v_sipm_l
         float_t = float(self.spinBox_ch_volt.text().replace(',', '.'))
         v_ch_l = self.float_to_byte(float_t)
+        self.root.v_cfg_ch = v_ch_l
         data = v_ch_l + v_pips_l + v_sipm_l
         return data
     
@@ -266,16 +272,21 @@ class MainHvipDialog(QtWidgets.QDialog):
     def set_pwm(self) -> list:
         float_t = float(self.doubleSpinBox_pips_pwm.text().replace(',', '.'))
         v_pips_l = self.float_to_byte(float_t)
+        self.root.pwm_cfg_pips = v_pips_l
         float_t = float(self.doubleSpinBox_sipm_pwm.text().replace(',', '.'))
         v_sipm_l = self.float_to_byte(float_t)
+        self.root.pwm_cfg_sipm = v_sipm_l
         float_t = float(self.doubleSpinBox_ch_pwm.text().replace(',', '.'))
         v_ch_l = self.float_to_byte(float_t)
+        self.root.pwm_cfg_ch = v_ch_l
         data = v_ch_l + v_pips_l + v_sipm_l
         return data
 
     def pushButton_ok_handler(self) -> None:
         try:
-            self.pushButton_apply_handler()
+            self.modbus_worker.stop()
+            self.close()
+            self.destroy()
         except Exception as VErr:
             self.root.logger.debug(VErr)
         self.close()

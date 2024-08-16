@@ -81,7 +81,7 @@ def log_s(message: list):
             logger.debug("Нет ответа от устройства")
             logger.debug("pymodus.send_handler.mass: IndexError")
             return 0
-        mess = re.findall(r"[a-f0-9]{1,2}", mess)
+        mess = re.findall(r'[a-f0-9]{1,2}', mess)
         new_mess = ""
         for i in range(0, len(mess)):
             if len(mess[i]) == 1:

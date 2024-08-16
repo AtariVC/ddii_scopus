@@ -5,7 +5,6 @@ import qtmodern.styles
 import os
 from qtmodern.windows import ModernWindow
 
-
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()

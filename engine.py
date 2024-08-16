@@ -22,7 +22,7 @@
 import pdb
 from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtWidgets import QSplitter, QSizePolicy, QLineEdit
-from PyQt6.QtCore import Qt, QTimer, QThread
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
 import numpy as np
 import pyqtgraph as pg
@@ -246,6 +246,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     hvip_pips = 0
     hvip_sipm = 0
     hvip_ch = 0
+    pwm_cfg_pips, pwm_cfg_sipm, pwm_cfg_cherenkov = -1, -1, -1
     hvip_current_pips = 0
     hvip_current_sipm = 0
     hvip_current_ch = 0
@@ -257,6 +258,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
     v_cfg_pips = -1
     v_cfg_sipm = -1
     mpp_id = 15
+    # dict_hh = {'01_hh': 40, '05_hh': 160, '08_hh': 340, '1_6_hh': 680,
+    #         '3_hh': 800, '5_hh': 900, '10_hh': 1000, '30_hh': 1110, '60_hh': 1210}
+    
 
 
     modulename = ["emulator"] # подключаемые модули, обязательно для заполения
@@ -289,6 +293,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     CMD_TEST_ENABLE = 0x0004
     
+    update_telem_signal = pyqtSignal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -296,6 +301,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # Создаем конфиг файл
         self.config = configparser.ConfigParser()
         self.parser = parser
+        #####################
+        
         #####################
         self.dialog_trapezoid_settings = MainTrapezoidDialog(self)
         self.plot_pips = pg.PlotWidget()
@@ -406,6 +413,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.pushButton_update_data.clicked.connect(self.pushButton_update_data_clicked_handler)
         self.pushButton_reset_cfg.clicked.connect(self.pushButton_reset_cfg_handler)
 
+        self.update_telem_signal.connect(self.update_telem)
         # Обновление файлов в потоке
         self.timer = QTimer()
         self.timer.timeout.connect(self.queue_qt_plot)
@@ -525,12 +533,17 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     ############ handler button ##############
     def pushButton_reset_cfg_handler(self):
+
         self.client.write_registers(self.CM_SET_DEFAULT_CFG, 0x0000, self.CM_ID)
         log_s(self.send_handler.mess)
 
     def pushButton_update_data_clicked_handler(self):
         tmp_res = []
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
+        log_s(self.send_handler.mess)
         self.client.write_registers(self.CMD_DBG_GET_DATA_MPP, 0x0000, self.CM_ID)
+        log_s(self.send_handler.mess)
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
         log_s(self.send_handler.mess)
         result = self.get_telemetria()
         log_s(self.send_handler.mess)
@@ -542,6 +555,17 @@ class Engine(QtWidgets.QMainWindow, QThread):
             pass
         else:
             self.pars_telemetria(result)
+        voltage = self.get_cfg_voltage()
+        try:
+            self.v_cfg_pips, self.v_cfg_sipm, self.v_cfg_cherenkov = self.parse_cfg_voltage(voltage)
+        except Exception as e:
+            self.logger.debug(e)
+        #### pwm ####
+        pwm = self.get_cfg_pwm()
+        try:
+            self.pwm_cfg_pips, self.pwm_cfg_sipm, self.pwm_cfg_cherenkov = self.parse_cfg_pwm(pwm)
+        except Exception as e:
+            self.logger.debug(e)
 
     def pushButton_clear_hist_clicked_handler(self):
         self.client.write_registers(address = 0x0014, values = [0x0000 for i in range(18)], slave = self.mpp_id)
@@ -863,11 +887,13 @@ class Engine(QtWidgets.QMainWindow, QThread):
         for n, (portname, desc, hwid) in enumerate(sorted(serial.tools.list_ports.comports())):
             self.comboBox_comm.addItem(portname)
     
-    def get_telemetria(self):
+    def get_telemetria(self) -> ModbusResponse:
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
-        result: ModbusResponse = self.client.read_holding_registers(0x0000, 62, slave=1)
+        log_s(self.send_handler.mess)
+        result: ModbusResponse = self.client.read_holding_registers(0x0000, 62, slave=1, timeout = 10)
         log_s(self.send_handler.mess)
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
+        log_s(self.send_handler.mess)
         return result
 
     def pars_telemetria(self, tel: ModbusResponse) -> None:
@@ -878,15 +904,14 @@ class Engine(QtWidgets.QMainWindow, QThread):
             tel_b = int(tel[1:2].hex(), 16)
             # if tel_b == self.DEBUG_MODE:
             #     self.radioButton_db_mode.setChecked(True)
-            if tel_b == self.COMBAT_MODE:
-                self.radioButton_slnt_mode.setChecked(True)
-            elif tel_b == self.CONSTANT_MODE:
+            if tel_b == self.COMBAT_MODE | tel_b == self.DEBUG_MODE:
                 self.radioButton_cmbt_mode.setChecked(True)
-            elif tel_b == self.SILENT_MODE:
+            elif tel_b == self.CONSTANT_MODE:
                 self.radioButton_const_mode.setChecked(True)
+            elif tel_b == self.SILENT_MODE:
+                self.radioButton_slnt_mode.setChecked(True)
             ######### LEVEL ###########
             tel_b = int(self.swap_bytes(tel[19:21]).hex(), 16)
-
             self.lineEdit_01_hh_l.setText(str(tel_b))
 
             tel_b = int(self.swap_bytes(tel[3:5]).hex(), 16)
@@ -900,7 +925,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
             tel_b = int(self.swap_bytes(tel[9:11]).hex(), 16)
             self.lineEdit_3_hh_l.setText(str(tel_b))
-
 
             tel_b = int(self.swap_bytes(tel[11:13]).hex(), 16)
             self.lineEdit_5_hh_l.setText(str(tel_b))
@@ -1094,17 +1118,80 @@ class Engine(QtWidgets.QMainWindow, QThread):
         
     def get_cfg_voltage(self):
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
+        log_s(self.send_handler.mess)
         result: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 6, slave=self.CM_ID)
         log_s(self.send_handler.mess)
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
+        log_s(self.send_handler.mess)
         return result
     
     def get_cfg_pwm(self):
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
+        log_s(self.send_handler.mess)
         result: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_CFG_PWM, 6, slave=self.CM_ID)
         log_s(self.send_handler.mess)
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
+        log_s(self.send_handler.mess)
         return result
+
+    def update_telem(self):
+        cheak_st_connect = self.status_CM, self.status_MPP
+        if cheak_st_connect == (1, 1):
+            self.widget_led_2.setStyleSheet(style.widget_led_on())
+            self.label_state_2.setText("State: CM - OK, MPP - OK")
+            self.pars_telemetria(self.tel_result)
+        elif cheak_st_connect == (1, 0):
+            self.label_state_2.setText("State: CM - OK, MPP - None")
+            self.widget_led_2.setStyleSheet(style.widget_led_on())
+            self.pars_telemetria(self.tel_result)
+        elif cheak_st_connect == (0, 1):
+            self.label_state_2.setText("State: CM - None, MPP - OK")
+        elif cheak_st_connect == (0, 0):
+            self.label_state_2.setText("State: CM - None, MPP - None")
+            self.widget_led_2.setStyleSheet(style.widget_led_off())
+            self.client.close()
+        
+
+    def cheack_connect(self) -> None:
+        self.status_CM = 1
+        self.status_MPP = 1
+        #### CM ####
+        self.tel_result: ModbusResponse  = self.get_telemetria()
+        try:
+            tmp_res = self.tel_result.registers
+        except Exception:
+            self.logger.debug("Соединение c ЦМ не установлено")
+            self.status_CM = 0
+
+        ######## MPP #######  
+        result: ModbusResponse = self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
+        log_s(self.send_handler.mess)
+        try:
+            tmp_res = result.registers
+        except Exception:
+            self.status_MPP = 0
+            self.logger.debug("Соединение c МПП не установлено")
+
+        if self.status_CM == 1:
+            #### voltage ####
+            voltage = self.get_cfg_voltage()
+            try:
+                self.v_cfg_pips, self.v_cfg_sipm, self.v_cfg_cherenkov = self.parse_cfg_voltage(voltage)
+            except Exception as e:
+                self.logger.debug(e)
+            #### pwm ####
+            pwm = self.get_cfg_pwm()
+            try:
+                self.pwm_cfg_pips, self.pwm_cfg_sipm, self.pwm_cfg_cherenkov = self.parse_cfg_pwm(pwm)
+            except Exception as e:
+                self.logger.debug(e)
+        self.update_telem_signal.emit()
+        
+
+    def reverse_bytes(self, data: list):
+        for item in data:
+            item = struct.pack('<FF', item)
+
 
     ############ function connect mpp ##############
     def serialConnect(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
@@ -1158,61 +1245,71 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 self.state_serial = 0
 
             if self.state_serial == 1:
+                self.pushButton_connect_2.setText("Отключить")
+                self.pushButton_connect_flag = 1
+                self.mpp_id = int(self.lineEdit_IDmpp_2.text())
+                
+                self.qtread_tel = threading.Thread(target=self.cheack_connect(), daemon = True)
+                self.qtread_tel.start()
                 # две команды на подключение: 1-ЦМ, 2-МПП
                 # CM 01 10 0000 0000 C0 09
                 # MPP 0F 06 0000 0051 49 18
                 ######## CM #######     
                 
                 # print(self.send_handler.mess)
-                result = self.get_telemetria()
+                #### CM ####
+
+                # tel_result: ModbusResponse  = self.get_telemetria()
                 
-                try:
-                    tmp_res = result.registers
-                except Exception:
-                    self.logger.debug("Modbus Error CM")
-                if not tmp_res:
-                    self.logger.debug("Соединение c ЦМ не установлено")
-                else:
-                    status_CM = 1
-                    self.widget_led_2.setStyleSheet(style.widget_led_on())
-                    self.pars_telemetria(result)
-                ######## MPP #######  
-                self.mpp_id = int(self.lineEdit_IDmpp_2.text())
-                result: ModbusResponse = self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
-                log_s(self.send_handler.mess)
-                try:
-                    tmp_res = result.registers
-                except Exception:
-                    self.logger.debug("Modbus Error MPP")
-                    self.status_MPP = 0
-                    self.logger.debug("Соединение c МПП не установлено")
-                    if status_CM == 0:
-                        self.label_state_2.setText("State: CM - None, MPP - None")
-                        self.widget_led_2.setStyleSheet(style.widget_led_off())
-                        self.client.close()
-                    else:
-                        self.label_state_2.setText("State: CM - OK, MPP - None")
-                else:
-                    self.status_MPP = 1
-                    if status_CM == 1:
-                        self.label_state_2.setText("State: CM - OK, MPP - OK")
-                        voltage = self.get_cfg_voltage()
-                        #### voltage ####
-                        try:
-                            self.v_cfg_pips, self.v_cfg_sipm, self.v_cfg_cherenkov = self.parse_cfg_voltage(voltage)
-                        except Exception as e:
-                            self.logger.debug(e)
-                        #### pwm ####
-                        pwm = self.get_cfg_pwm()
-                        try:
-                            self.pwm_cfg_pips, self.pwm_cfg_sipm, self.pwm_cfg_cherenkov = self.parse_cfg_pwm(pwm)
-                        except Exception as e:
-                            self.logger.debug(e)
-                        
-                    else:
-                        self.label_state_2.setText("State: CM - None, MPP - OK")
-                self.pushButton_connect_2.setText("Отключить")
-                self.pushButton_connect_flag = 1
+        #         try:
+        #             tmp_res = tel_result.registers
+        #         except Exception:
+        #             self.logger.debug("Modbus Error CM")
+        #         if not tmp_res:
+        #             self.logger.debug("Соединение c ЦМ не установлено")
+        #             self.status_CM = 0
+        #         else:
+        #             self.status_CM = 1
+        #             self.widget_led_2.setStyleSheet(style.widget_led_on())
+        #             self.pars_tel_signal.emit(tmp_res)
+        #             # self.pars_telemetria(tel_result)
+        #         ######## MPP #######  
+        #         self.mpp_id = int(self.lineEdit_IDmpp_2.text())
+        #         result: ModbusResponse = self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
+        #         log_s(self.send_handler.mess)
+        #         try:
+        #             tmp_res = result.registers
+        #         except Exception:
+        #             self.logger.debug("Modbus Error MPP")
+        #             self.status_MPP = 0
+        #             self.logger.debug("Соединение c МПП не установлено")
+        #         if self.status_CM == 0:
+        #             self.label_state_2.setText("State: CM - None, MPP - None")
+        #             self.widget_led_2.setStyleSheet(style.widget_led_off())
+        #             self.client.close()
+        #         elif self.status_CM == 1 and self.status_MPP == 0:
+        #             self.label_state_2.setText("State: CM - OK, MPP - None")
+        #         elif self.status_CM == 1 and self.status_MPP == 1:
+        #             self.label_state_2.setText("State: CM - OK, MPP - OK")
+        #         else:
+        #             self.label_state_2.setText("State: CM - None, MPP - OK")
+                
+        #         if self.status_CM == 1:
+        #             #### voltage ####
+        #             voltage = self.get_cfg_voltage()
+        #             try:
+        #                 self.v_cfg_pips, self.v_cfg_sipm, self.v_cfg_cherenkov = self.parse_cfg_voltage(voltage)
+        #             except Exception as e:
+        #                 self.logger.debug(e)
+        #             #### pwm ####
+        #             pwm = self.get_cfg_pwm()
+        #             try:
+        #                 self.pwm_cfg_pips, self.pwm_cfg_sipm, self.pwm_cfg_cherenkov = self.parse_cfg_pwm(pwm)
+        #             except Exception as e:
+        #                 self.logger.debug(e)
+
+        #         self.pushButton_connect_2.setText("Отключить")
+        #         self.pushButton_connect_flag = 1
         else:
             self.pushButton_connect_2.setText("Подключить")
             # self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
