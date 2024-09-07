@@ -1093,7 +1093,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.logger.exception("message")
             return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     
-    def parse_cfg_voltage(self, data: ModbusResponse) -> tuple:
+    def parse_cfg_voltage(self, data: ModbusResponse) -> tuple[float, float, float]:
         try:
             data_v = data.encode()
             ##### volt #####
@@ -1251,65 +1251,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 
                 self.qtread_tel = threading.Thread(target=self.cheack_connect(), daemon = True)
                 self.qtread_tel.start()
-                # две команды на подключение: 1-ЦМ, 2-МПП
-                # CM 01 10 0000 0000 C0 09
-                # MPP 0F 06 0000 0051 49 18
-                ######## CM #######     
-                
-                # print(self.send_handler.mess)
-                #### CM ####
-
-                # tel_result: ModbusResponse  = self.get_telemetria()
-                
-        #         try:
-        #             tmp_res = tel_result.registers
-        #         except Exception:
-        #             self.logger.debug("Modbus Error CM")
-        #         if not tmp_res:
-        #             self.logger.debug("Соединение c ЦМ не установлено")
-        #             self.status_CM = 0
-        #         else:
-        #             self.status_CM = 1
-        #             self.widget_led_2.setStyleSheet(style.widget_led_on())
-        #             self.pars_tel_signal.emit(tmp_res)
-        #             # self.pars_telemetria(tel_result)
-        #         ######## MPP #######  
-        #         self.mpp_id = int(self.lineEdit_IDmpp_2.text())
-        #         result: ModbusResponse = self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
-        #         log_s(self.send_handler.mess)
-        #         try:
-        #             tmp_res = result.registers
-        #         except Exception:
-        #             self.logger.debug("Modbus Error MPP")
-        #             self.status_MPP = 0
-        #             self.logger.debug("Соединение c МПП не установлено")
-        #         if self.status_CM == 0:
-        #             self.label_state_2.setText("State: CM - None, MPP - None")
-        #             self.widget_led_2.setStyleSheet(style.widget_led_off())
-        #             self.client.close()
-        #         elif self.status_CM == 1 and self.status_MPP == 0:
-        #             self.label_state_2.setText("State: CM - OK, MPP - None")
-        #         elif self.status_CM == 1 and self.status_MPP == 1:
-        #             self.label_state_2.setText("State: CM - OK, MPP - OK")
-        #         else:
-        #             self.label_state_2.setText("State: CM - None, MPP - OK")
-                
-        #         if self.status_CM == 1:
-        #             #### voltage ####
-        #             voltage = self.get_cfg_voltage()
-        #             try:
-        #                 self.v_cfg_pips, self.v_cfg_sipm, self.v_cfg_cherenkov = self.parse_cfg_voltage(voltage)
-        #             except Exception as e:
-        #                 self.logger.debug(e)
-        #             #### pwm ####
-        #             pwm = self.get_cfg_pwm()
-        #             try:
-        #                 self.pwm_cfg_pips, self.pwm_cfg_sipm, self.pwm_cfg_cherenkov = self.parse_cfg_pwm(pwm)
-        #             except Exception as e:
-        #                 self.logger.debug(e)
-
-        #         self.pushButton_connect_2.setText("Отключить")
-        #         self.pushButton_connect_flag = 1
         else:
             self.pushButton_connect_2.setText("Подключить")
             # self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
