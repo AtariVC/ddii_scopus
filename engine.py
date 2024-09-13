@@ -282,7 +282,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
     MB_F_CODE_3 = 0x03
     MB_F_CODE_6 = 0x06
     REG_COMAND = 0
-    CMD_DBG_GET_DATA_MPP = 2
 
     DEBUG_MODE = 0x0C
     COMBAT_MODE = 0x0E
@@ -290,7 +289,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     SILENT_MODE = 0x0D
 
     DDII_SWITCH_MODE = 0x0001
-
+    DDII_UPDATE_DATA = 0x0002
     CMD_TEST_ENABLE = 0x0004
     
     update_telem_signal = pyqtSignal()
@@ -539,12 +538,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def pushButton_update_data_clicked_handler(self):
         tmp_res = []
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
-        log_s(self.send_handler.mess)
-        self.client.write_registers(self.CMD_DBG_GET_DATA_MPP, 0x0000, self.CM_ID)
-        log_s(self.send_handler.mess)
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
-        log_s(self.send_handler.mess)
+        self.update_telemetria()
         result = self.get_telemetria()
         log_s(self.send_handler.mess)
         try:
@@ -675,7 +669,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.data_flow_flag = 0 # запрещаем запись данных в файл
         self.pushButton_auto_flag = 1 # флаг автозапуска
         self.start_accumulation_wave_start_action.setToolTip("Начать накопление")
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
         # if self.start_accumulation_flag == 0:
         #     self.start_accumulation_wave_start_action_toolbar_triggered()
     
@@ -710,7 +703,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.data_sipm = waveformB
         self.queue.put((waveformA, self.v_line_pips, self.plot_pips, self.color_pips))
         self.queue.put((waveformB, self.v_line_sipm, self.plot_sipm, self.color_sipm))
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
 
     # def thread_readWaveform_adc_auto_adcA(self) -> None:
     #     """
@@ -887,12 +879,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
         for n, (portname, desc, hwid) in enumerate(sorted(serial.tools.list_ports.comports())):
             self.comboBox_comm.addItem(portname)
     
+    def update_telemetria(self) -> None:
+        self.client.write_registers(address = self.DDII_UPDATE_DATA, values = [0], slave = self.CM_ID)
+
     def get_telemetria(self) -> ModbusResponse:
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
-        log_s(self.send_handler.mess)
+        self.update_telemetria()
         result: ModbusResponse = self.client.read_holding_registers(0x0000, 62, slave=1, timeout = 10)
-        log_s(self.send_handler.mess)
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
         log_s(self.send_handler.mess)
         return result
 
@@ -1017,6 +1009,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.lineEdit_1_6_hh.setText(str(tel_b))
 
             tel_b = int(self.swap_4_dytes(tel[96:100]).hex(), 16)
+            print(tel[96:100].hex())
+            print(self.swap_4_dytes(tel[96:100]).hex())
             self.lineEdit_3_hh.setText(str(tel_b))
 
             tel_b = int(self.swap_4_dytes(tel[100:104]).hex(), 16)
@@ -1046,7 +1040,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.logger.exception("message")
 
     def swap_bytes(self, byte_str) -> bytes:
-    # Поменяем местами первый и второй байты
+    # Меняем местами первый и второй байты
         return byte_str[1:] + byte_str[:1]
     
     def swap_4_dytes(self, byte_str) -> bytes:
@@ -1091,7 +1085,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         except Exception as ex:
             self.logger.debug(ex)
             self.logger.exception("message")
-            return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            return 0,
     
     def parse_cfg_voltage(self, data: ModbusResponse) -> tuple[float, float, float]:
         try:
@@ -1117,20 +1111,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
             return 0, 0, 0
         
     def get_cfg_voltage(self):
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
-        log_s(self.send_handler.mess)
         result: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 6, slave=self.CM_ID)
-        log_s(self.send_handler.mess)
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
         log_s(self.send_handler.mess)
         return result
     
     def get_cfg_pwm(self):
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.DEBUG_MODE, slave = self.CM_ID)
-        log_s(self.send_handler.mess)
         result: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_CFG_PWM, 6, slave=self.CM_ID)
-        log_s(self.send_handler.mess)
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
         log_s(self.send_handler.mess)
         return result
 
@@ -1155,7 +1141,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def cheack_connect(self) -> None:
         self.status_CM = 1
         self.status_MPP = 1
+
         #### CM ####
+        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.SILENT_MODE, slave = self.CM_ID)
         self.tel_result: ModbusResponse  = self.get_telemetria()
         try:
             tmp_res = self.tel_result.registers
@@ -1253,7 +1241,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 self.qtread_tel.start()
         else:
             self.pushButton_connect_2.setText("Подключить")
-            # self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.COMBAT_MODE, slave = self.CM_ID)
             self.pushButton_connect_flag = 0
             self.widget_led_2.setStyleSheet(style.widget_led_off())
             self.client.close()

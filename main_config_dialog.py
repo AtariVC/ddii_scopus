@@ -14,6 +14,7 @@ from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import logging
 from pymodbus.pdu import ModbusResponse
+from main_hvip_dialog import MainHvipDialog as hvip_dialog
 
 class ModbusWorker(QThread):
     # Сигнал для обновления интерфейса
@@ -117,12 +118,7 @@ class MainConfigDialog(QtWidgets.QDialog):
     def pushButton_save_mpp_handler(self):
         try:
             data = self.set_ddii_cfg()
-            print(data)
-            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.DEBUG_MODE, slave = self.CM_ID)
-            log_s(self.root.send_handler.mess)
             self.root.client.write_registers(address = self.CM_DBG_SET_CFG, values = data, slave = self.CM_ID)
-            log_s(self.root.send_handler.mess)
-            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.COMBAT_MODE, slave = self.CM_ID)
             log_s(self.root.send_handler.mess)
             self.update_parent_data()
         except Exception as err:
@@ -132,40 +128,39 @@ class MainConfigDialog(QtWidgets.QDialog):
     def set_ddii_cfg(self) -> list[int]:
         try:
             data = []
-            data.append(0x0ff1)
-            data.append(int(self.lineEdit_lvl_0_1.text()))
-            data.append(int(self.lineEdit_lvl_0_5.text()))
-            data.append(int(self.lineEdit_lvl_0_8.text()))
-            data.append(int(self.lineEdit_lvl_1_6.text()))
-            data.append(int(self.lineEdit_lvl_3.text()))
-            data.append(int(self.lineEdit_lvl_5.text()))
-            data.append(int(self.lineEdit_lvl_10.text()))
-            data.append(int(self.lineEdit_lvl_30.text()))
-            data.append(int(self.lineEdit_lvl_60.text()))
+            data.append(0xf10f)
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_1.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_5.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_8.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_1_6.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_3.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_5.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_10.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_30.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_60.text()))))
 
-            str_b = float(self.lineEdit_pwm_ch.text())
+            str_b = float(self.lineEdit_pwm_ch.text().replace(',', '.'))
             val: list[int] = self.float_to_byte(str_b)
             data += val
-            str_b = float(self.lineEdit_pwm_pips.text())
+            str_b = float(self.lineEdit_pwm_pips.text().replace(',', '.'))
             val: list[int] = self.float_to_byte(str_b)
             data += val
-            str_b = float(self.lineEdit_pwm_sipm.text())
+            str_b = float(self.lineEdit_pwm_sipm.text().replace(',', '.'))
             val: list[int] = self.float_to_byte(str_b)
             data += val
 
-            str_b = float(self.lineEdit_hvip_ch.text())
+            str_b = float(self.lineEdit_hvip_ch.text().replace(',', '.'))
             val: list[int] = self.float_to_byte(str_b)
             data += val
-            str_b = float(self.lineEdit_hvip_pips.text())
+            str_b = float(self.lineEdit_hvip_pips.text().replace(',', '.'))
             val: list[int] = self.float_to_byte(str_b)
             data += val
-            str_b = float(self.lineEdit_hvip_sipm.text())
+            str_b = float(self.lineEdit_hvip_sipm.text().replace(',', '.'))
             val: list[int] = self.float_to_byte(str_b)
             data += val
             
-            data.append(int(self.lineEdit_cfg_mpp_id.text()))
-            data.append(int(self.lineEdit_interval.text()))
-            
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_cfg_mpp_id.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_interval.text()))))
         except Exception as ex:
             self.root.logger.debug(ex)
 
@@ -194,11 +189,11 @@ class MainConfigDialog(QtWidgets.QDialog):
         self.root.mpp_id = self.lineEdit_cfg_mpp_id.text()
         self.root.lineEdit_IDmpp_2.setText(self.lineEdit_cfg_mpp_id.text())
 
-    def float_to_byte(self, float_t: float) -> list[int]:
-        byte_str: bytes = struct.pack('<f', float_t)
+    def float_to_byte(self, float_t) -> list:
+        byte_str: bytes = struct.pack('>f', float_t)
         n0: bytes = self.root.swap_bytes(byte_str[0:2])
         n1: bytes = self.root.swap_bytes(byte_str[2:4])
-        return [int(n0.hex(), 16), int(n1.hex(), 16)]
+        return [int(n1.hex(), 16), int(n0.hex(), 16)]
 # if __name__ == "__main__":
 #     app = QtWidgets.QApplication(sys.argv)
 #     qtmodern.styles.dark(app)

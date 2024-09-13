@@ -44,24 +44,29 @@ class ModbusWorker(QThread):
     #     log_s(self.send_handler.mess)
     #     return result
 
-    def th_measure_voltage_pips(self):
+    def th_measure_voltage(self):
         while self.running:
-            res = self.measure_voltage_pips()
-            self.update_signal.emit(res)
-            self.sleep(2)
+            res = self.measure_voltage()
+            if res != 0:
+                self.update_signal.emit(res)
+                self.sleep(2)
 
-    def measure_voltage_pips(self):
+    def measure_voltage(self):
         # Измерение напряжения: 01 10 00 07 00 00 71 C8
         transaction = self.get_voltage()
-        voltage = self.root.parse_voltage(transaction)
-        return voltage
+        if transaction != 0:
+            voltage = self.root.parse_voltage(transaction)
+            if voltage != (0,):
+                return voltage
+            else:
+                return 0
+        else:
+            return 0
 
     def get_voltage(self):
         try:
-            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.DEBUG_MODE, slave = self.root.CM_ID)
             result = self.root.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 21, slave=self.root.CM_ID)
             log_s(self.root.send_handler.mess)
-            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.COMBAT_MODE, slave = self.root.CM_ID)
             return result
         except Exception as ex:
             self.root.logger.debug(ex)
@@ -70,12 +75,10 @@ class ModbusWorker(QThread):
     def th_set_voltage(self, data):
         self.stop()
         try:
-            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.DEBUG_MODE, slave = self.root.CM_ID)
             self.root.client.write_registers(address = self.CM_DBG_SET_VOLTAGE,
                                 values = data, 
                                 slave = self.root.CM_ID)
             log_s(self.root.send_handler.mess)
-            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.COMBAT_MODE, slave = self.root.CM_ID)
             self.finished_signal.emit()
             self.running = True
         except Exception as ex:
@@ -84,12 +87,10 @@ class ModbusWorker(QThread):
     def th_hvip_power(self, data):
         self.stop()
         try:
-            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.DEBUG_MODE, slave = self.root.CM_ID)
             self.root.client.write_registers(address = self.CMD_HVIP_ON_OFF,
                                 values = data, 
                                 slave = self.root.CM_ID)
             log_s(self.root.send_handler.mess)
-            self.root.client.write_registers(address = self.root.DDII_SWITCH_MODE, values = self.root.COMBAT_MODE, slave = self.root.CM_ID)
             # res_encode = res.encode()
             # data = [int(res_encode[1:2].hex(), 16), int(res_encode[3:4].hex(), 16)]
             self.finished_signal.emit()
@@ -187,11 +188,10 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.pushButton_ch_on.setText("Отключить")
             self.led_ch.setStyleSheet(style.widget_led_on())
         super().showEvent(event)
-        self.th_measure = threading.Thread(target=self.modbus_worker.th_measure_voltage_pips, daemon = True)
-        self.th_measure.start()
+        self.start_measure()
     
     def start_measure(self):
-        self.th_measure = threading.Thread(target=self.modbus_worker.th_measure_voltage_pips, daemon = True)
+        self.th_measure = threading.Thread(target=self.modbus_worker.th_measure_voltage, daemon = True)
         self.th_measure.start()
 
     ############ handler button ##############
@@ -241,7 +241,6 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.th_hvip_on_off.start()
 
     def pushButton_apply_handler(self) -> None:
-        #  Костыль, чтобы избавится от ошибки - переменная не определена
         try:
             data_voltage = self.set_voltage()
             data_pwm = self.set_pwm()
