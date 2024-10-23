@@ -15,6 +15,7 @@ from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import logging
 from pymodbus.pdu import ModbusResponse
 from main_hvip_dialog import MainHvipDialog as hvip_dialog
+from copy import deepcopy
 
 class ModbusWorker(QThread):
     # Сигнал для обновления интерфейса
@@ -186,8 +187,6 @@ class MainConfigDialog(QtWidgets.QDialog):
         self.root.lineEdit_60_hh_l.setText(self.lineEdit_lvl_60.text())
 
         self.root.ddii_interval_measure = self.lineEdit_interval.text()
-        self.root.mpp_id = self.lineEdit_cfg_mpp_id.text()
-        self.root.lineEdit_IDmpp_2.setText(self.lineEdit_cfg_mpp_id.text())
 
     def float_to_byte(self, float_t) -> list:
         byte_str: bytes = struct.pack('>f', float_t)

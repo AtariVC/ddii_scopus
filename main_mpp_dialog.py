@@ -36,14 +36,13 @@ class MainMppControlDialog(QtWidgets.QDialog):
         self.root = root
         self.pushButton_apply.clicked.connect(self.pushButton_apply_handler)
         self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
-        self.MPP_ID = root.mpp_id
         # self.flag_measure = 1
 
         
     def pushButton_apply_handler(self) -> None:
         try:
             data = self.set_mpp_lavel()
-            self.root.client.write_registers(address = 0x000B, values = data, slave = self.MPP_ID)
+            self.root.client.write_registers(address = 0x000B, values = data, slave = self.root.mpp_id)
             log_s(self.root.send_handler.mess)
         except Exception as err:
             self.root.logger.debug(err)
@@ -51,7 +50,7 @@ class MainMppControlDialog(QtWidgets.QDialog):
     def pushButton_ok_handler(self) -> None:
         try:
             data = self.set_mpp_lavel()
-            self.root.client.write_registers(address = 0x000B, values = data, slave = self.MPP_ID)
+            self.root.client.write_registers(address = 0x000B, values = data, slave = self.root.mpp_id)
             log_s(self.root.send_handler.mess)
         except Exception as err:
             self.root.logger.debug(err)

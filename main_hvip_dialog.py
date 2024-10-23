@@ -156,35 +156,34 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
         self.flag_measure = 1
 
-    def showEvent(self, event):
-        root = self.root        
-        self.spinBox_pips_volt.setValue(root.v_cfg_pips)
-        self.spinBox_sipm_volt.setValue(root.v_cfg_sipm)
-        self.spinBox_ch_volt.setValue(root.v_cfg_cherenkov)
+    def showEvent(self, event):      
+        self.spinBox_pips_volt.setValue(self.root.v_cfg_pips)
+        self.spinBox_sipm_volt.setValue(self.root.v_cfg_sipm)
+        self.spinBox_ch_volt.setValue(self.root.v_cfg_cherenkov)
 
-        self.doubleSpinBox_pips_pwm.setValue(root.pwm_cfg_pips)
-        self.doubleSpinBox_sipm_pwm.setValue(root.pwm_cfg_sipm)
-        self.doubleSpinBox_ch_pwm.setValue(root.pwm_cfg_cherenkov)
+        self.doubleSpinBox_pips_pwm.setValue(self.root.pwm_cfg_pips)
+        self.doubleSpinBox_sipm_pwm.setValue(self.root.pwm_cfg_sipm)
+        self.doubleSpinBox_ch_pwm.setValue(self.root.pwm_cfg_cherenkov)
 
-        self.label_pips_mes.setText("{:.2f}".format(root.hvip_pips))
-        self.label_sipm_mes.setText("{:.2f}".format(root.hvip_sipm))
-        self.label_ch_mes.setText("{:.2f}".format(root.hvip_ch))
+        self.label_pips_mes.setText("{:.2f}".format(self.root.hvip_pips))
+        self.label_sipm_mes.setText("{:.2f}".format(self.root.hvip_sipm))
+        self.label_ch_mes.setText("{:.2f}".format(self.root.hvip_ch))
 
-        self.label_pips_cur.setText("{:.2f}".format(root.hvip_current_pips))
-        self.label_sipm_cur.setText("{:.2f}".format(root.hvip_current_sipm))
-        self.label_ch_cur.setText("{:.2f}".format(root.hvip_current_ch))
+        self.label_pips_cur.setText("{:.2f}".format(self.root.hvip_current_pips))
+        self.label_sipm_cur.setText("{:.2f}".format(self.root.hvip_current_sipm))
+        self.label_ch_cur.setText("{:.2f}".format(self.root.hvip_current_ch))
 
-        self.label_pips_pwm_mes.setText("{:.2f}".format(root.hvip_pwm_pips))
-        self.label_sipm_pwm_mes.setText("{:.2f}".format(root.hvip_pwm_sipm))
-        self.label_ch_pwm_mes.setText("{:.2f}".format(root.hvip_pwm_ch))
+        self.label_pips_pwm_mes.setText("{:.2f}".format(self.root.hvip_pwm_pips))
+        self.label_sipm_pwm_mes.setText("{:.2f}".format(self.root.hvip_pwm_sipm))
+        self.label_ch_pwm_mes.setText("{:.2f}".format(self.root.hvip_pwm_ch))
 
-        if root.hvip_mode_pips == 1:
+        if self.root.hvip_mode_pips == 1:
             self.pushButton_pips_on.setText("Отключить")
             self.led_pips.setStyleSheet(style.widget_led_on())
-        if root.hvip_mode_sipm == 1:
+        if self.root.hvip_mode_sipm == 1:
             self.pushButton_sipm_on.setText("Отключить")
             self.led_sipm.setStyleSheet(style.widget_led_on())
-        if root.hvip_mode_ch == 1:
+        if self.root.hvip_mode_ch == 1:
             self.pushButton_ch_on.setText("Отключить")
             self.led_ch.setStyleSheet(style.widget_led_on())
         super().showEvent(event)

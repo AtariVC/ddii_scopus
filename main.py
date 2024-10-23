@@ -13,7 +13,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # self.oscill_layout.addWidget(self.plot_widget)
         # self.plot_widget.setBackground('#F8F8F4')
         # self.pushButton_connect.clicked.connect(self.pushButtonConnect_clicked)
-        # self.pushButton_single.clicked.connect(self.pushButton_single_clicked)
+        # self.pushButton_single.clicked.connect(self.pushButton_single_clicked)    
         # np.array([1])
 
 if __name__ == "__main__":

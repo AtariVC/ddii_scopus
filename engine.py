@@ -21,7 +21,7 @@
 """
 import pdb
 from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtWidgets import QSplitter, QSizePolicy, QLineEdit
+from PyQt6.QtWidgets import QSplitter, QSizePolicy, QLineEdit, QSpinBox, QTabWidget, QWidget, QVBoxLayout, QLabel
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
 import numpy as np
@@ -50,7 +50,6 @@ from src.log_config import log_init, log_s, SendFilter, SendHandler
 import logging
 from src.customComboBox_COMport import CustomComboBox_COMport
 import copy as cp
-# import time
 import threading
 from main_trapezoid_dialog import MainTrapezoidDialog
 from main_hvip_dialog import MainHvipDialog
@@ -85,16 +84,14 @@ class Engine(QtWidgets.QMainWindow, QThread):
     pushButton_connect_2: QtWidgets.QPushButton
     lineEdit_Bauderate_2: QtWidgets.QLineEdit
     lineEdit_IDmpp_2: QtWidgets.QLineEdit
-    lineEdit_level_pips: QtWidgets.QLineEdit
     # pushButton_single_pips: QtWidgets.QPushButton
     # pushButton_auto_pips: QtWidgets.QPushButton
     pushButton_trapezoid: QtWidgets.QPushButton
     checkBox_writeLog_pips: QtWidgets.QLineEdit
-    lineEdit_level_sipm: QtWidgets.QLineEdit
     # pushButton_single_sipm: QtWidgets.QPushButton
     # pushButton_auto_sipm: QtWidgets.QPushButton
     checkBox_writeLog_sipm: QtWidgets.QLineEdit
-    pushButton_single_all: QtWidgets.QPushButton
+    pushButton_run_trig_pips: QtWidgets.QPushButton
     # pushButton_auto_all: QtWidgets.QPushButton
     label_state_2: QtWidgets.QLabel
     widget_led_2: QtWidgets.QWidget
@@ -106,7 +103,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
     horizontalLayou_forComboBox_comport: QtWidgets.QHBoxLayout
     horizontalLayout_splitter: QtWidgets.QHBoxLayout
     horizontalLayout_main: QtWidgets.QHBoxLayout
-    graph_widget: QtWidgets.QWidget
     measure_widget: QtWidgets.QWidget
     radioButton_auto_traprzoid: QtWidgets.QRadioButton
     menu_action_HVIP_2: QAction
@@ -115,6 +111,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     menu_action_ddii_config: QAction
     checkBox_enable_test_csa: QtWidgets.QCheckBox
     toolBar: QtWidgets.QToolBar
+    tabWidget_measure_telemetria: QtWidgets.QTabWidget
     # pushButton_setting_trapezoid: QtWidgets.QPushButton
 
     ########### Виджеты эмулятора #################
@@ -190,6 +187,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
     pushButton_reset_cfg: QtWidgets.QPushButton
 
     ######### Измерение ##############
+    lineEdit_pips_peack: QtWidgets.QLineEdit
+    lineEdit_sipm_peack: QtWidgets.QLineEdit
+    lineEdit_time_peack_pips: QtWidgets.QLineEdit
+    lineEdit_time_peack_sipm: QtWidgets.QLineEdit
     lineEdit_triger: QtWidgets.QLineEdit
     spinBox_level_pips: QtWidgets.QSpinBox
     spinBox_level_sipm: QtWidgets.QSpinBox
@@ -258,6 +259,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     v_cfg_pips = -1
     v_cfg_sipm = -1
     mpp_id = 15
+    flag_readWaveform_trig = 0
     # dict_hh = {'01_hh': 40, '05_hh': 160, '08_hh': 340, '1_6_hh': 680,
     #         '3_hh': 800, '5_hh': 900, '10_hh': 1000, '30_hh': 1110, '60_hh': 1210}
     
@@ -297,6 +299,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def __init__(self) -> None:
         super().__init__()
         loadUi(os.path.join(os.path.dirname(__file__),  'style/MainWindow4.ui'), self)
+        # path_graph_widget = os.path.join(os.path.dirname(__file__), 'style/Parser_waveform_ddii.ui')
+        # self.graph_widget: QtWidgets.QWidget = path_graph_widget.graph_widget
         # Создаем конфиг файл
         self.config = configparser.ConfigParser()
         self.parser = parser
@@ -329,8 +333,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.vLayout_gist_pips.addWidget(self.plot_gist_pips)
         self.vLayout_gist_sipm.addWidget(self.plot_gist_sipm)
         self.horizontalLayou_forComboBox_comport.addWidget(self.comboBox_comm)
+        
         # Создание вертикальной линии уровня pips
         self.posiInfLine_pips = 10
+        self.spinBox_level_pips.setValue(10)
         self.hoverPen_pips = pg.mkPen(color=(200, 100, 0), width=5, style=QtCore.Qt.PenStyle.DashDotLine)
         self.pen_pips = pg.mkPen(color=(100, 100, 0), width=5, style=QtCore.Qt.PenStyle.DashDotLine)
         self.v_line_pips = pg.InfiniteLine(pos=self.posiInfLine_pips, angle=0, movable=True,
@@ -341,6 +347,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
                                                 position=0.95)
         # Создание вертикальной линии уровня sipm
         self.posiInfLine_sipm = 10
+        self.spinBox_level_sipm.setValue(10)
         self.hoverPen_sipm = pg.mkPen(color=(200, 100, 0), width=5, style=QtCore.Qt.PenStyle.DashDotLine)
         self.pen_sipm = pg.mkPen(color=(100, 100, 0), width=5, style=QtCore.Qt.PenStyle.DashDotLine)
         self.v_line_sipm = pg.InfiniteLine(pos=self.posiInfLine_sipm, angle=0, movable=True,
@@ -369,11 +376,11 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.stop_accumulation_wave_stop_action.setToolTip("Остановить накопление")
         self.stop_accumulation_wave_stop_action.setEnabled(False)
 
-        self.v_line_pips.sigPositionChanged.connect(lambda: self.update_line(self.lineEdit_level_pips,
+        self.v_line_pips.sigPositionChanged.connect(lambda: self.update_line(self.spinBox_level_pips,
                                                                             self.v_line_pips_label,
                                                                             self.v_line_pips, self.hoverPen_pips,
                                                                             self.pen_pips, 0))
-        self.v_line_sipm.sigPositionChanged.connect(lambda: self.update_line(self.lineEdit_level_sipm,
+        self.v_line_sipm.sigPositionChanged.connect(lambda: self.update_line(self.spinBox_level_sipm,
                                                                             self.v_line_sipm_label,
                                                                             self.v_line_sipm, self.hoverPen_sipm,
                                                                             self.pen_sipm, 0))
@@ -381,11 +388,11 @@ class Engine(QtWidgets.QMainWindow, QThread):
                                                                             self.pen_pips))
         self.v_line_sipm.sigPositionChangeFinished.connect(lambda: self.update_line_static(self.v_line_sipm,
                                                                             self.pen_sipm))
-        self.lineEdit_level_pips.editingFinished.connect(lambda: self.update_line(self.lineEdit_level_pips,
+        self.spinBox_level_pips.editingFinished.connect(lambda: self.update_line(self.spinBox_level_pips,
                                                                             self.v_line_pips_label,
                                                                             self.v_line_pips, self.hoverPen_pips,
                                                                             self.pen_pips, 1))
-        self.lineEdit_level_sipm.editingFinished.connect(lambda: self.update_line(self.lineEdit_level_sipm,
+        self.spinBox_level_sipm.editingFinished.connect(lambda: self.update_line(self.spinBox_level_sipm,
                                                                             self.v_line_sipm_label,
                                                                             self.v_line_sipm, self.hoverPen_sipm,
                                                                             self.pen_sipm, 1))
@@ -394,7 +401,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.pushButton_auto_pips.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.PIPS))
         # self.pushButton_single_sipm.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.SIPM))
         # self.pushButton_auto_sipm.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.SIPM))
-        self.pushButton_single_all.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.ALL))
+        self.pushButton_run_trig_pips.clicked.connect(lambda: self.pushButton_trig_measure_handler(self.PIPS))
+
         # self.pushButton_auto_all.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.ALL))
         self.pushButton_trapezoid.clicked.connect(self.pushButton_trapezoid_clicked_handler)
         self.menu_action_HVIP_2.triggered.connect(self.menu_action_HVIP_triggered)
@@ -411,6 +419,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.pushButton_clear_hist.clicked.connect(self.pushButton_clear_hist_clicked_handler)
         self.pushButton_update_data.clicked.connect(self.pushButton_update_data_clicked_handler)
         self.pushButton_reset_cfg.clicked.connect(self.pushButton_reset_cfg_handler)
+        # self.tabWidget_measure_telemetria.currentChanged.connect(self.tab_telemetria_handler)
 
         self.update_telem_signal.connect(self.update_telem)
         # Обновление файлов в потоке
@@ -474,7 +483,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     ############ Infinite Line Event ##############
     def update_line(self,
-                    lineEdit_level: QLineEdit,
+                    lineEdit_level: QSpinBox,
                     v_line_label: pg.TextItem,
                     v_line: pg.Color,
                     hoverPen: pg.Color,
@@ -482,7 +491,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
                     flag_edit_text: int) -> None:
 
         if flag_edit_text == 1:
-            pos = round(int(lineEdit_level.text()))
+            pos: int = round(lineEdit_level.value())
             v_line.setPos(pos)
             #  TODO: Сделать обновлдение lineEdit
             # v_line.setPen(pen)
@@ -492,10 +501,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
             # v_line.setPos(pos)
             # v_line.setPen(hoverPen)
         # print("Положение вертикальной линии:", pos)
-        lineEdit_level.setText(str(pos))
+        lineEdit_level.setValue(pos)
         v_line_label.setText(str(pos))
-
-
 
     def update_line_static(self, v_line: pg.Color, pen: pg.Color) -> None:
         """
@@ -531,6 +538,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 cmd.start()
 
     ############ handler button ##############
+    # def tab_telemetria_handler(self, index):
+    #     if index == 0:
+    #         self.graph_widget.setVisible(True)
+    #     if index == 1:
+    #         self.graph_widget.setVisible(False)
+
     def pushButton_reset_cfg_handler(self):
 
         self.client.write_registers(self.CM_SET_DEFAULT_CFG, 0x0000, self.CM_ID)
@@ -583,21 +596,13 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
         self.serialConnect(self.mpp_id, baudrate, self.f_comand_write, self.start_measure)
 
-    def pushButton_single_measure_clicked(self, chanal: int) -> None:
+    def pushButton_trig_measure_handler(self, chanal_trig: int) -> None:
         """
         Запускает поток для чтения осциллограм мпп. 
         """
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.SILENT_MODE, slave = self.CM_ID)
-        match chanal:
-            case self.ALL:
-                t_all_single = threading.Thread(target=self.thread_readWaveform_adc_all, daemon = True)
-                t_all_single.start()
-            case self.PIPS:
-                t_pips_single = threading.Thread(target=self.thread_readWaveform_adcA, daemon = True)
-                t_pips_single.start()
-            case self.SIPM:
-                t_sipm_single = threading.Thread(target=self.thread_readWaveform_adcB, daemon = True)
-                t_sipm_single.start()
+        self.readWaveform_trig()
+        log_s(self.send_handler.mess)
 
     def pushButton_trapezoid_clicked_handler(self) -> None:
         self.dialog_trap.show()
@@ -617,7 +622,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def menu_action_HVIP_triggered(self) -> None:
         self.munu_action_HVIP: MainHvipDialog =  MainHvipDialog(self)
         self.munu_action_HVIP.show()
-    
+
     def menu_action_MPP_cntrl_triggered(self) -> None:
         self.menu_action_MPP_cntrl_dialog.show()
 
@@ -630,24 +635,26 @@ class Engine(QtWidgets.QMainWindow, QThread):
     ############ Triggered Menu Bar ##############
     def start_accumulation_wave_start_action_toolbar_triggered(self) -> None:
         self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/start_notVisible.svg"))
-        self.start_accumulation_wave_start_action.setToolTip("Пауза")
+        self.start_accumulation_wave_start_action.setToolTip("Старт измерения")
         self.stop_accumulation_wave_stop_action.setEnabled(True)
         self.start_accumulation_wave_start_action.setEnabled(False)
+        self.pushButton_run_trig_pips.setEnabled(False)
         self.stop_accumulation_wave_stop_action.setIcon(QIcon("./icon/stop.svg"))
         self.start_accumulation_flag = 0
         self.max_adc_histA = []
         self.max_adc_histB = []
         # папка /log/data_flow/ с сегодняшней датой и временем
-        
-        folder_name = self.current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
-        self.folder_path = os.path.join("./log/data_flow/", folder_name)
-        try:
-            self.file_extension += 1
-            os.makedirs(self.folder_path)
-        except FileExistsError:
-            os.makedirs(self.folder_path + "_" + str(self.file_extension))
-        self.logger.debug("Создана папка для записи данных: " + self.folder_path)
+
         self.data_flow_flag = 1 # флаг записи данных в файл
+        if self.data_flow_flag == 1:
+            folder_name = self.current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
+            self.folder_path = os.path.join("./log/data_flow/", folder_name)
+            try:
+                self.file_extension += 1
+                os.makedirs(self.folder_path)
+            except FileExistsError:
+                os.makedirs(self.folder_path + "_" + str(self.file_extension))
+            self.logger.debug("Создана папка для записи данных: " + self.folder_path)
         self.pushButton_auto_flag = 0 # флаг автозапуска
         self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.SILENT_MODE, slave = self.CM_ID)
         t_flow_auto = threading.Thread(target=self.thread_readWaveform_adc_flow, daemon = True)        
@@ -666,6 +673,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/start.svg"))
         self.stop_accumulation_wave_stop_action.setEnabled(False)
         self.start_accumulation_wave_start_action.setEnabled(True)
+        self.pushButton_run_trig_pips.setEnabled(True)
         self.data_flow_flag = 0 # запрещаем запись данных в файл
         self.pushButton_auto_flag = 1 # флаг автозапуска
         self.start_accumulation_wave_start_action.setToolTip("Начать накопление")
@@ -673,15 +681,52 @@ class Engine(QtWidgets.QMainWindow, QThread):
         #     self.start_accumulation_wave_start_action_toolbar_triggered()
     
 
-
-    ############ Потоки ##############
-    ####  DELETE #####
     def thread_write_reg_not_answer(self, adr, val, slv):
         self.client.write_registers(address = adr, values = val, slave = slv)
         log_s(self.send_handler.mess)
 
-    def thread_readWaveform_adcA(self) -> None:
+    ############ Осциллограммы ##############
+    def readWaveform_trig(self) -> None:
+        trig_val = int(self.lineEdit_triger.text())
+        self.pushButton_run_trig_pips.setText('Ост. изм.')
+        self.start_accumulation_wave_start_action.setEnabled(False)
+        self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/start_notVisible.svg"))
+        if self.flag_readWaveform_trig == 0:
+            self.flag_readWaveform_trig = 1
+            # self.client.write_registers(address=0x0079, values = trig_val, slave=self.mpp_id) # установка порогога
+            # log_s(self.send_handler.mess)
+            # self.client.write_registers(address=0x007A, values = trig_val, slave=self.mpp_id) # установка порогога
+            # log_s(self.send_handler.mess)
+            self.client.write_registers(address=0x0000, values=[0x0001, trig_val], slave=self.mpp_id) # установка порогога
+            log_s(self.send_handler.mess)
+            # self.client.write_registers(address=0x0000, values=[0x0101, trig_val], slave=self.mpp_id) # установка порогога
+            # log_s(self.send_handler.mess)
+            self.client.write_registers(address=0x0000, values=[0x0002, 0x0001], slave=self.mpp_id) # запуск регистрации
+            log_s(self.send_handler.mess)
+            # self.client.write_registers(address=0x0000, values=[0x0102, 0x0001], slave=self.mpp_id) # запуск регистрации
+            # log_s(self.send_handler.mess)
+            self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id) # начать измерение
+            log_s(self.send_handler.mess)
+            self.pushButton_auto_flag = 0 # флаг автозапуска
+            self.data_flow_flag = 1 # флаг записи данных в файл
+            t_readWaveform_trig = threading.Thread(target=self.thread_readWaveform_adc_flow, daemon = True)
+            t_readWaveform_trig.start()
+        else:
+            self.pushButton_auto_flag = 1 # флаг автозапуска
+            self.client.write_register(address=0x0001, value = 0x0000, slave=self.mpp_id) # Пораметр команды
+            log_s(self.send_handler.mess)
+            self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id)
+            log_s(self.send_handler.mess)
+            # self.client.write_register(address=0x0000, value=0x0002, slave=self.mpp_id) # остановка регистрации
+            # log_s(self.send_handler.mess)
+            # self.client.write_registers(address=0x0000, values=[0x0002, 0x0000], slave=self.mpp_id) # остановка регистрации
+            # log_s(self.send_handler.mess)
+            self.pushButton_run_trig_pips.setText('Начать изм.')
+            self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/start.svg"))
+            self.start_accumulation_wave_start_action.setEnabled(True)
+            self.flag_readWaveform_trig = 0
 
+    def thread_readWaveform_adcA(self) -> None:
         # self.start_measure_mpp()
         waveform = self.readWaveform_adcA()
         self.data_pips = waveform
@@ -771,20 +816,39 @@ class Engine(QtWidgets.QMainWindow, QThread):
         #     self.logger.debug("Пустая строка или не число")
         #     trg = 100
         # self.ddii_set_triger(trg)
+        hash_waveformA = hash(tuple())
+        hash_waveformB = hash(tuple())
         while 1:
-            self.start_measure_mpp()
+            if self.flag_readWaveform_trig != 1:
+                self.start_measure_mpp()
+            else:
+                self.client.write_registers(address=0x0000, values=[0x0009, 0x0000], slave=self.mpp_id) # запуск регистрации
+                self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id) # начать измерение
+                log_s(self.send_handler.mess)
             waveformA = self.readWaveform_adcA()
-            self.queue.put((waveformA, self.v_line_pips, self.plot_pips, self.color_pips))
-            x, data_pips = self.hex_to_list(waveformA)
-            maxA = self.get_peack_adc(data_pips)
-            self.max_adc_histA.append(maxA)
-            self.queue_hist.put((self.max_adc_histA, self.plot_gist_pips, (255, 0, 0, 150))) # red
+            if hash_waveformA != hash(tuple(waveformA)):
+                hash_waveformA = hash(tuple(waveformA))
+                self.queue.put((waveformA, self.v_line_pips, self.plot_pips, self.color_pips))
+                x, data_pips = self.hex_to_list(waveformA)
+                maxA = self.get_peack_adc(data_pips)
+                self.lineEdit_pips_peack.setText(str(maxA))
+                self.lineEdit_time_peack_pips.setText(str(x))
+                self.max_adc_histA.append(maxA)
+                self.queue_hist.put((self.max_adc_histA, self.plot_gist_pips, (255, 0, 0, 150))) # red
+            else:
+                pass
             waveformB  = self.readWaveform_adcB()
-            self.queue.put((waveformB, self.v_line_sipm, self.plot_sipm, self.color_sipm))
-            x, data_sipm = self.hex_to_list(waveformB)
-            maxB = self.get_peack_adc(data_sipm)
-            self.max_adc_histB.append(maxB)
-            self.queue_hist.put((self.max_adc_histB, self.plot_gist_sipm, (0, 0, 255, 150))) # blue
+            if hash_waveformB != hash(tuple(waveformB)):
+                hash_waveformB = hash(tuple(waveformB))
+                self.queue.put((waveformB, self.v_line_sipm, self.plot_sipm, self.color_sipm))
+                x, data_sipm = self.hex_to_list(waveformB)
+                maxB = self.get_peack_adc(data_sipm)
+                self.lineEdit_sipm_peack.setText(str(maxB))
+                self.lineEdit_time_peack_sipm.setText(str(x))
+                self.max_adc_histB.append(maxB)
+                self.queue_hist.put((self.max_adc_histB, self.plot_gist_sipm, (0, 0, 255, 150))) # blue
+            else:
+                pass
             if self.pushButton_auto_flag == 1:
                 break
         self.pushButton_auto_flag = 1
@@ -903,31 +967,31 @@ class Engine(QtWidgets.QMainWindow, QThread):
             elif tel_b == self.SILENT_MODE:
                 self.radioButton_slnt_mode.setChecked(True)
             ######### LEVEL ###########
-            tel_b = int(self.swap_bytes(tel[19:21]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[3:5]).hex(), 16)
             self.lineEdit_01_hh_l.setText(str(tel_b))
 
-            tel_b = int(self.swap_bytes(tel[3:5]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[5:7]).hex(), 16)
             self.lineEdit_05_hh_l.setText(str(tel_b))
 
-            tel_b = int(self.swap_bytes(tel[5:7]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[7:9]).hex(), 16)
             self.lineEdit_08_hh_l.setText(str(tel_b))
 
-            tel_b = int(self.swap_bytes(tel[7:9]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[9:11]).hex(), 16)
             self.lineEdit_1_6_hh_l.setText(str(tel_b))
 
-            tel_b = int(self.swap_bytes(tel[9:11]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[11:13]).hex(), 16)
             self.lineEdit_3_hh_l.setText(str(tel_b))
 
-            tel_b = int(self.swap_bytes(tel[11:13]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[13:15]).hex(), 16)
             self.lineEdit_5_hh_l.setText(str(tel_b))
 
-            tel_b = int(self.swap_bytes(tel[13:15]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[15:17]).hex(), 16)
             self.lineEdit_10_hh_l.setText(str(tel_b))
 
-            tel_b = int(self.swap_bytes(tel[15:17]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[17:19]).hex(), 16)
             self.lineEdit_30_hh_l.setText(str(tel_b))
 
-            tel_b = int(self.swap_bytes(tel[17:19]).hex(), 16)
+            tel_b = int(self.swap_bytes(tel[19:21]).hex(), 16)
             self.lineEdit_60_hh_l.setText(str(tel_b))
             ######### ВИП1 ###########
             float_t = self.byte_to_float(tel[21:25])
@@ -1339,7 +1403,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
         Размер пакета Modbus PDU(Protocol Data Unit)
         Ограничение: 253 байта
-        
+
         Args:
             initial_reg (int): С каго регистра начать считывать осциллограмму
             amount_read_reg (int) = 100: кол-во байт для считывания
@@ -1410,8 +1474,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
         plot_widget.clear()
         pen = pg.mkPen(color)
 
-        # if self.data_flow_flag == 1: # раскомментировать
-        #     self.writer_data(color, x, y)
+        if self.data_flow_flag == 1: # раскомментировать
+            self.writer_data(color, x, y)
         
         data_line = plot_widget.plot(x, y, pen=pen)
         data_line.setData(x, y)  # обновляем данные графика
