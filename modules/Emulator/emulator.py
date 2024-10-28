@@ -27,7 +27,7 @@ from style.styleSheet import styleSheet as style
 import crcmod
 import math as m
 import re
-import emulator
+import modules.emulator.emulator as emulator
 from serial.serialutil import SerialException
 from src.py_toggle import pyToggle
 from src.log_config import log_init, log_s
@@ -35,7 +35,7 @@ from src.customComboBox_COMport import CustomComboBox_COMport
 import copy as cp
 import time
 import threading
-from main_trapezoid_dialog import MainTrapezoidDialog
+from modules.main_trapezoid_dialog import MainTrapezoidDialog
 from queue import Queue
 import re
 import random

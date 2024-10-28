@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>595</width>
-    <height>458</height>
+    <height>478</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -229,6 +229,62 @@
         </item>
        </layout>
       </widget>
+     </item>
+     <item row="2" column="0">
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <property name="leftMargin">
+        <number>5</number>
+       </property>
+       <property name="topMargin">
+        <number>5</number>
+       </property>
+       <property name="rightMargin">
+        <number>5</number>
+       </property>
+       <property name="bottomMargin">
+        <number>5</number>
+       </property>
+       <item>
+        <spacer name="horizontalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="radioButton_mpp">
+         <property name="text">
+          <string>МПП</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="radioButton_cm">
+         <property name="text">
+          <string>ЦМ</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_save_mpp">
+         <property name="styleSheet">
+          <string notr="true">font: 12pt &quot;MS Shell Dlg 2&quot;;</string>
+         </property>
+         <property name="text">
+          <string>Сохранить</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
      <item row="1" column="0">
       <widget class="QGroupBox" name="groupBox_2">
@@ -614,8 +670,11 @@
        </layout>
       </widget>
      </item>
-     <item row="2" column="0">
-      <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <item row="3" column="0">
+      <layout class="QVBoxLayout" name="vLayout_ser_connect">
+       <property name="sizeConstraint">
+        <enum>QLayout::SetMinimumSize</enum>
+       </property>
        <property name="leftMargin">
         <number>5</number>
        </property>
@@ -628,30 +687,23 @@
        <property name="bottomMargin">
         <number>5</number>
        </property>
-       <item>
-        <spacer name="horizontalSpacer_4">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QPushButton" name="pushButton_save_mpp">
-         <property name="styleSheet">
-          <string notr="true">font: 12pt &quot;MS Shell Dlg 2&quot;;</string>
-         </property>
-         <property name="text">
-          <string>Сохранить</string>
-         </property>
-        </widget>
-       </item>
       </layout>
+     </item>
+     <item row="4" column="0">
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Maximum</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>1</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
      </item>
     </layout>
    </item>

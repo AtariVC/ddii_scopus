@@ -41,7 +41,7 @@ from style.styleSheet import styleSheet as style
 import crcmod
 import math as m
 import re
-from emulator import Emulator as emulator
+from modules.emulator.emulator import Emulator as emulator
 from serial.serialutil import SerialException
 from src.py_toggle import pyToggle
 # from serial.serialutil import SerialException
@@ -51,10 +51,10 @@ import logging
 from src.customComboBox_COMport import CustomComboBox_COMport
 import copy as cp
 import threading
-from main_trapezoid_dialog import MainTrapezoidDialog
-from main_hvip_dialog import MainHvipDialog
-from main_mpp_dialog import MainMppControlDialog
-from main_config_dialog import MainConfigDialog
+from modules.main_trapezoid_dialog import MainTrapezoidDialog
+from modules.main_hvip_dialog import MainHvipDialog
+from modules.main_mpp_dialog import MainMppControlDialog
+from modules.main_config_dialog import MainConfigDialog
 from queue import Queue
 import numpy as np
 import os
@@ -298,7 +298,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(os.path.join(os.path.dirname(__file__),  'style/MainWindow4.ui'), self)
+        loadUi(os.path.join(os.path.dirname(__file__),  'style/MainWindow5.ui'), self)
         # path_graph_widget = os.path.join(os.path.dirname(__file__), 'style/Parser_waveform_ddii.ui')
         # self.graph_widget: QtWidgets.QWidget = path_graph_widget.graph_widget
         # Создаем конфиг файл

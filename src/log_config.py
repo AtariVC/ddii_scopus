@@ -11,6 +11,7 @@ from datetime import datetime
 import sys
 import re
 from PyQt6.QtCore import Qt, QTimer, QThread
+from pathlib import Path
 
 # from logger import logging
 
@@ -23,9 +24,10 @@ def log_init():
 
     time_now = datetime.now()
     form_time = time_now.strftime("%Y-%m-%d %H_%M_%S")
-    log_path_debug = "./log/debug/" + str(form_time) + ".log"
-    log_path_serial = "./log/serial/" + str(form_time) + ".log"
-    log_path_emulator = "./log/emulator/" + str(form_time) + ".log"
+    home_dir = str(Path(__file__).parent.parent.parent.resolve())
+    log_path_debug =    home_dir + "./log/debug/" + str(form_time) + ".log"
+    log_path_serial =   home_dir + "./log/serial/" + str(form_time) + ".log"
+    log_path_emulator = home_dir + "./log/emulator/" + str(form_time) + ".log"
     log_format_debug = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <4}</level> | \
 <yellow>{file}:{line}</yellow> | <w>{message}</w>"
     log_format_tx = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <1}</level> | \
@@ -37,6 +39,8 @@ def log_init():
 
     logger.add(sys.stderr, level="DEBUG", format=log_format_debug, 
             colorize=True, backtrace=True, diagnose=True, filter=debug_filter)
+    logger.add(sys.stderr, level="ERROR", format=log_format_debug, 
+            colorize=True, backtrace=True, diagnose=True, filter=error_filter)
     # логирование serial rx
     logger.add(sys.stdout,level=rx_level.name, format=log_format_rx, 
             colorize=True, backtrace=True, diagnose=True, filter=rx_filter)
@@ -46,8 +50,9 @@ def log_init():
     # эмулятор
     logger.add(sys.stdout,level=emulator_level.name, format=log_format_emulator, 
             colorize=True, backtrace=True, diagnose=True, filter=emulator_filter)
-    # логирование debug в файл
+    # логирование в файл
     logger.add(log_path_debug, level="DEBUG", format=log_format_debug, rotation="100 MB", enqueue=True, filter=debug_filter)
+    logger.add(log_path_debug, level="ERROR", format=log_format_debug, rotation="100 MB", enqueue=True, filter=error_filter)
     logger.add(log_path_serial, level=rx_level.name, format=log_format_rx, enqueue=True, filter=rx_filter)
     logger.add(log_path_serial, level=tx_level.name, format=log_format_tx, enqueue=True, filter=tx_filter)
     logger.add(log_path_emulator, level=emulator_level.name, format=log_format_emulator, enqueue=True, filter=emulator_filter)
@@ -67,14 +72,17 @@ def rx_filter(record):
 def debug_filter(record):
     return record["level"].name == "DEBUG"
 
-def log_s(message: list):
+def error_filter(record):
+    return record["level"].name == "ERROR"
+
+async def log_s(message: list):
     mess = ''
     for item in message:
         try:
-            if item[:4] == "SEND":
+            if item[:4] == "send":
                 mess = item[6:].replace("0x", "")
                 mode = "TX"
-            if item[:4] == "RECV":
+            if item[:4] == "recv":
                 mode = "RX"
                 mess = item[6:].replace("0x", "")
         except IndexError as e:
@@ -92,28 +100,6 @@ def log_s(message: list):
         elif mode == "TX":
             logger.log("TX", new_mess.upper())
     message.clear()
-
-# Создание фильтра для pymodbus
-class SendFilter(logging.Filter, QThread):
-    def filter(self, record):
-        # message = record.getMessage()
-        return False #'SEND:' in message or 'RECV:' in message
-    
-# Создание обработчика для pymodbus
-class SendHandler(logging.Handler, QThread):
-    def __init__(self):
-        super().__init__()
-        self.mess = []
-
-    def emit(self, record):
-        message = self.format(record)
-        # print(message)
-        if 'SEND:' in message:
-            self.mess.append(message)
-        if 'RECV:' in message:
-            self.mess.append(message)
-
-
 
 # def log_init_debug():
 #     logger.remove(0)
