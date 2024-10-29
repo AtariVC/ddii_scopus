@@ -99,7 +99,6 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
                 )
             connected = await self.client.connect()
             if connected:
-                self.cm = ModbusCMComand(self.client, self.logger)
                 self.state_serial = 1
                 self.logger.debug(port + " ,Baudrate = " + str(baudrate) +
                                 ", Parity = "+"None"+
@@ -134,7 +133,7 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
         # self.tel_result: ModbusResponse  = self.get_telemetria()
         try:
             response: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
-                                                                        values = self.SILENT_MODE,
+                                                                        values = [self.SILENT_MODE],
                                                                         slave = self.CM_ID)
             
             await log_s(self.mw.send_handler.mess)
@@ -160,6 +159,7 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
             self.logger.error(e)
 
         await self.update_label_connect()
+        self.client.close()
     
     @asyncSlot()
     async def update_label_connect(self):

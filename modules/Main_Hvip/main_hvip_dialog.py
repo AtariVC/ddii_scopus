@@ -1,111 +1,107 @@
 from PyQt6 import QtWidgets
 from qtpy.uic import loadUi
-from src.log_config import log_init, log_s, SendFilter, SendHandler
+from qasync import QEventLoop, asyncSlot
+import qasync
 # from engine_trapezoid_dialog import EngineTrapezoidFilter
 import os
 import struct
-from style.styleSheet import styleSheet as style
-import sys
-import threading
-import logging
+# import threading
+from PyQt6 import QtWidgets, QtCore
+from PyQt6.QtWidgets import QWidget, QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
 from PyQt6.QtCore import QTimer
-from PyQt6.QtCore import QThread, pyqtSignal, Qt
-from PyQt6.QtGui import QDoubleValidator, QCloseEvent
-from pymodbus.pdu import ModbusResponse
+from PyQt6.QtGui import QFont
+import qtmodern.styles
+from qtmodern.windows import ModernWindow
+import sys
+from pymodbus.client import AsyncModbusSerialClient
 
 
-class ModbusWorker(QThread):
-    # Сигнал для обновления интерфейса
+# from PyQt6.QtCore import QThread, pyqtSignal, Qt
+from PyQt6.QtGui import QIntValidator, QDoubleValidator
+import logging
+# from modules.dialog_window.main_hvip_dialog import MainHvipDialog as hvip_dialog
+# from copy import deepcopy
+import asyncio
+from pathlib import Path
 
-    CM_DBG_SET_VOLTAGE = 0x0006
-    CM_DBG_GET_VOLTAGE = 0x0009
-    CMD_HVIP_ON_OFF = 0x000B
+####### импорты из других директорий ######
+# /src
+src_path = Path(__file__).resolve().parent.parent.parent
+modules_path = Path(__file__).resolve().parent.parent
+# Добавляем папку src в sys.path
+sys.path.append(str(src_path))
+sys.path.append(str(modules_path))
 
-    update_signal = pyqtSignal(tuple)
-    finished_signal = pyqtSignal()
-    def __init__(self, root, root_d):
-        super().__init__()
-        self.root = root
-        self.root_d = root_d
-        log = logging.getLogger('pymodbus')
-        log.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.DEBUG)
-        handler.addFilter(SendFilter())
-        log.addHandler(handler)
-        self.send_handler = SendHandler()
-        log.addHandler(self.send_handler)
-        self.running = True
-        self.set_voltage_thread = None
+from src.modbus_worker import ModbusWorker
+from src.ddii_comand import ModbusCMComand, ModbusMPPComand
+from src.parsers import  Parsers
+from modules.Main_Serial.main_serial_dialog import SerialConnect
+from src.log_config import log_init, log_s
+from src.env_var import EnviramentVar
 
-    # def get_hvip_data(self):
-    #     self.root.client.write_registers(address=0x0001, values=1, slave=1)
-    #     result = self.root.client.read_holding_registers(0x0000, 62, slave=1)
-    #     log_s(self.send_handler.mess)
-    #     return result
 
-    def th_measure_voltage(self):
-        while self.running:
-            res = self.measure_voltage()
-            if res != 0:
-                self.update_signal.emit(res)
-                self.sleep(2)
+    # def th_measure_voltage(self):
+    #     while self.running:
+    #         res = self.measure_voltage()
+    #         if res != 0:
+    #             self.update_signal.emit(res)
+    #             self.sleep(2)
 
-    def measure_voltage(self):
-        # Измерение напряжения: 01 10 00 07 00 00 71 C8
-        transaction = self.get_voltage()
-        if transaction != 0:
-            voltage = self.root.parse_voltage(transaction)
-            if voltage != (0,):
-                return voltage
-            else:
-                return 0
-        else:
-            return 0
+    # def measure_voltage(self):
+    #     # Измерение напряжения: 01 10 00 07 00 00 71 C8
+    #     transaction = self.get_voltage()
+    #     if transaction != 0:
+    #         voltage = self.root.parse_voltage(transaction)
+    #         if voltage != (0,):
+    #             return voltage
+    #         else:
+    #             return 0
+    #     else:
+    #         return 0
 
-    def get_voltage(self):
-        try:
-            result = self.root.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 21, slave=self.root.CM_ID)
-            log_s(self.root.send_handler.mess)
-            return result
-        except Exception as ex:
-            self.root.logger.debug(ex)
-            return 0
+    # def get_voltage(self):
+    #     try:
+    #         result = self.root.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 21, slave=self.root.CM_ID)
+    #         log_s(self.root.send_handler.mess)
+    #         return result
+    #     except Exception as ex:
+    #         self.root.logger.debug(ex)
+    #         return 0
     
-    def th_set_voltage(self, data):
-        self.stop()
-        try:
-            self.root.client.write_registers(address = self.CM_DBG_SET_VOLTAGE,
-                                values = data, 
-                                slave = self.root.CM_ID)
-            log_s(self.root.send_handler.mess)
-            self.finished_signal.emit()
-            self.running = True
-        except Exception as ex:
-            self.root.logger.debug(ex)
+    # def th_set_voltage(self, data):
+    #     self.stop()
+    #     try:
+    #         self.root.client.write_registers(address = self.CM_DBG_SET_VOLTAGE,
+    #                             values = data, 
+    #                             slave = self.root.CM_ID)
+    #         log_s(self.root.send_handler.mess)
+    #         self.finished_signal.emit()
+    #         self.running = True
+    #     except Exception as ex:
+    #         self.root.logger.debug(ex)
     
-    def th_hvip_power(self, data):
-        self.stop()
-        try:
-            self.root.client.write_registers(address = self.CMD_HVIP_ON_OFF,
-                                values = data, 
-                                slave = self.root.CM_ID)
-            log_s(self.root.send_handler.mess)
-            # res_encode = res.encode()
-            # data = [int(res_encode[1:2].hex(), 16), int(res_encode[3:4].hex(), 16)]
-            self.finished_signal.emit()
-            self.running = True
-        except Exception as ex:
-            self.root.logger.debug(ex)
+    # def th_hvip_power(self, data):
+    #     self.stop()
+    #     try:
+    #         self.root.client.write_registers(address = self.CMD_HVIP_ON_OFF,
+    #                             values = data, 
+    #                             slave = self.root.CM_ID)
+    #         log_s(self.root.send_handler.mess)
+    #         # res_encode = res.encode()
+    #         # data = [int(res_encode[1:2].hex(), 16), int(res_encode[3:4].hex(), 16)]
+    #         self.finished_signal.emit()
+    #         self.running = True
+    #     except Exception as ex:
+    #         self.root.logger.debug(ex)
 
-    def stop(self):
-        self.running = False
-        self.quit()
-        self.wait()
+    # def stop(self):
+    #     self.running = False
+    #     self.quit()
+    #     self.wait()
 
-    def start_voltage_thread(self, data):
-        self.set_voltage_thread = threading.Thread(target=self.th_set_voltage, args=(data,), daemon=True)
-        self.set_voltage_thread.start()
+    # def start_voltage_thread(self, data):
+    #     self.set_voltage_thread = threading.Thread(target=self.th_set_voltage, args=(data,), daemon=True)
+    #     self.set_voltage_thread.start()
 
 class MainHvipDialog(QtWidgets.QDialog):
     spinBox_pips_volt: QtWidgets.QDoubleSpinBox
@@ -133,19 +129,27 @@ class MainHvipDialog(QtWidgets.QDialog):
     led_sipm: QtWidgets.QWidget
     led_ch: QtWidgets.QWidget
 
+    vLayout_ser_connect: QtWidgets.QVBoxLayout
+
     PIPS_CH_VOLTAGE = 1
     SIPM_CH_VOLTAGE = 2
     CHERENKOV_CH_VOLTAGE = 3
 
 
-    def __init__(self, root, **kwargs) -> None:
-        super().__init__(root, **kwargs)
-        loadUi(os.path.join(os.path.dirname(__file__),  f'style/HVIP_window.ui'), self)
-        self.root = root
-        self.modbus_worker = ModbusWorker(root, self)
-        self.modbus_worker.update_signal.connect(self.update_label)
-        self.modbus_worker.finished_signal.connect(self.start_measure)
+    def __init__(self, logger, *args) -> None:
+        super().__init__()
+        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/HVIP_window.ui'), self)
+        self.mw = ModbusWorker()
+        self.parser = Parsers()
+        self.logger = logger
 
+        if __name__ == "__main__":
+            self.w_ser_dialog: SerialConnect = args[0]
+            self.w_ser_dialog.coroutine_finished.connect(self.get_client)
+        else:
+            self.client: AsyncModbusSerialClient = args[0]
+            self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
+            self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
 
 
         # self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
@@ -155,8 +159,21 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.pushButton_sipm_on.clicked.connect(self.pushButton_sipm_on_handler)
         self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
         self.flag_measure = 1
+    
+    @asyncSlot()
+    async def get_client(self) -> None:
+        """Функция перехватывает client и переподключается к нему
+        """
+        if self.w_ser_dialog.state_serial == 1:
+            self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
+            await self.client.connect()
+            # print(self.client.is_connected())
+            self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
+            self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
+            await self.update_gui_data()
+        
 
-    def showEvent(self, event):      
+    async def update_gui_data(self):      
         self.spinBox_pips_volt.setValue(self.root.v_cfg_pips)
         self.spinBox_sipm_volt.setValue(self.root.v_cfg_sipm)
         self.spinBox_ch_volt.setValue(self.root.v_cfg_cherenkov)
@@ -377,3 +394,41 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.destroy()
         # event.accept()
         return super().closeEvent(event)
+
+
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    qtmodern.styles.dark(app)
+    # light(app)
+    logger = log_init()
+    spacer_g = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    spacer_v = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    w_ser_dialog: SerialConnect = SerialConnect(logger)
+    w: MainHvipDialog = MainHvipDialog(logger, w_ser_dialog)
+    grBox : QGroupBox = QGroupBox("Подключение")
+    # Настройка шрифта для QGroupBox
+    font = QFont()
+    font.setFamily("Arial")         # Шрифт
+    font.setPointSize(12)           # Размер шрифта
+    font.setBold(False)             # Жирный текст
+    font.setItalic(False)           # Курсив
+    grBox.setFont(font)
+    gridL: QGridLayout = QGridLayout()
+    w.vLayout_ser_connect.addWidget(grBox)
+    grBox.setLayout(gridL)
+    gridL.addItem(spacer_g, 0, 0)
+    gridL.addItem(spacer_g, 0, 2)
+    gridL.addItem(spacer_v, 2, 1, 1, 3)
+    gridL.addWidget(w_ser_dialog, 0, 1)
+
+    event_loop = qasync.QEventLoop(app)
+    asyncio.set_event_loop(event_loop)
+    app_close_event = asyncio.Event()
+    app.aboutToQuit.connect(app_close_event.set)
+    w.show()
+
+    with event_loop:
+        try:
+            event_loop.run_until_complete(app_close_event.wait())
+        except asyncio.CancelledError:
+            ...
