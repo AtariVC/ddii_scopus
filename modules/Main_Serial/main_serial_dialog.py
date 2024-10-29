@@ -1,7 +1,7 @@
 from PyQt6 import QtWidgets, QtCore
 from qtpy.uic import loadUi
 from qasync import asyncSlot
-from PyQt6.QtWidgets import QSizePolicy
+from PyQt6.QtWidgets import QSizePolicy, QApplication
 import qtmodern.styles
 from qtmodern.windows import ModernWindow
 import sys
@@ -39,6 +39,7 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
     label_state_w               : QtWidgets.QLabel
     horizontalLayout_comport    : QtWidgets.QHBoxLayout
 
+    coroutine_finished = QtCore.pyqtSignal()
 
     def __init__(self, logger, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -51,9 +52,19 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
         self.pushButton_connect_flag = 0
         self.size_policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         self.comboBox_comm.setSizePolicy(self.size_policy)
+        self.mpp_id: int = 14
+        self.state_serial: int = 0
+        self.serial_task = None
 
-        self.pushButton_connect_w.clicked.connect(self.serialConnect)
+        self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
 
+    @asyncSlot()
+    async def pushButton_connect_Handler(self) -> None:
+            # self.serial_task = asyncio.create_task(self.serialConnect())
+        # while not task.done():
+        await self.serialConnect()
+        self.coroutine_finished.emit()
+            # await asyncio.sleep(0.1)
 
     @asyncSlot()
     async def serialConnect(self) -> None:
@@ -75,10 +86,9 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
 
         baudrate = int(self.lineEdit_Bauderate_w.text())
         self.mpp_id = int(self.lineEdit_ID_w.text())
-        self.state_serial = 0
         if self.pushButton_connect_flag == 0:
             port = self.comboBox_comm.currentText()
-            self.client: AsyncModbusSerialClient = AsyncModbusSerialClient(
+            self.client = AsyncModbusSerialClient(
                 port,
                 timeout=1,
                 baudrate=baudrate,
@@ -126,6 +136,7 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
             response: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
                                                                         values = self.SILENT_MODE,
                                                                         slave = self.CM_ID)
+            
             await log_s(self.mw.send_handler.mess)
             if response.isError():
                 self.logger.debug("Соединение c ЦМ не установлено")
@@ -166,7 +177,6 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
         elif cheak_st_connect == (0, 0):
             self.label_state_w.setText("State: CM - None, MPP - None")
             self.widget_led_w.setStyleSheet(widget_led_off())
-            self.client.close()
 
 
 if __name__ == "__main__":

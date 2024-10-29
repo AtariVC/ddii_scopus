@@ -76,7 +76,7 @@ def error_filter(record):
     return record["level"].name == "ERROR"
 
 async def log_s(message: list):
-    mess = ''
+    mess: list[str]= [r'']
     for item in message:
         try:
             if item[:4] == "send":
@@ -89,7 +89,8 @@ async def log_s(message: list):
             logger.debug("Нет ответа от устройства")
             logger.debug("pymodus.send_handler.mass: IndexError")
             return 0
-        mess = re.findall(r'[a-f0-9]{1,2}', mess)
+        mess: list[str] = re.findall(r'\b[a-f0-9]{1,2}\b', mess)
+        # ''.join(mess)
         new_mess = ""
         for i in range(0, len(mess)):
             if len(mess[i]) == 1:

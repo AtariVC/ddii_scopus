@@ -15,6 +15,7 @@ from qtmodern.windows import ModernWindow
 import sys
 from pymodbus.client import AsyncModbusSerialClient
 
+
 # from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import logging
@@ -75,42 +76,35 @@ class MainConfigDialog(QtWidgets.QDialog):
     #CMD_HVIP_ON_OFF = 0x000B
 
 
-    def __init__(self, logger, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, logger, *args) -> None:
+        super().__init__()
         loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogConfig.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
-        self.cm_cmd: ModbusCMComand = ModbusCMComand(client, logger)
-        self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(client, logger)
-        self.w_ser_connect: QWidget = SerialConnect(logger)
         i_validator = QIntValidator()
         d_validator = QDoubleValidator()
         self.initValidator(i_validator, d_validator)
-        ## создать ообработчик кнопки serial_connect и считывать состояние кнопки, если есть коннект, 
-        # то забрать наследуемся от client
+        if __name__ == "__main__":
+            self.w_ser_dialog: SerialConnect = args[0]
+            self.w_ser_dialog.coroutine_finished.connect(self.get_client)
+        else:
+            self.client: AsyncModbusSerialClient = args[0]
+            self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
+            self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
         # self.pushButton_save_mpp.clicked.connect(self.pushButton_save_mpp_handler)
 
-    def initValidator(self, validator, d_validator) -> None:
-        self.lineEdit_lvl_0_1.setValidator(validator)
-        self.lineEdit_lvl_0_5.setValidator(validator)
-        self.lineEdit_lvl_0_8.setValidator(validator)
-        self.lineEdit_lvl_1_6.setValidator(validator)
-        self.lineEdit_lvl_3.setValidator(validator)
-        self.lineEdit_lvl_5.setValidator(validator)
-        self.lineEdit_lvl_10.setValidator(validator)
-        self.lineEdit_lvl_30.setValidator(validator)
-        self.lineEdit_lvl_60.setValidator(validator)
-        self.lineEdit_pwm_pips.setValidator(d_validator)
-        self.lineEdit_hvip_pips.setValidator(d_validator)
-        self.lineEdit_pwm_sipm .setValidator(d_validator)
-        self.lineEdit_hvip_sipm.setValidator(d_validator)
-        self.lineEdit_pwm_ch.setValidator(d_validator)
-        self.lineEdit_hvip_ch.setValidator(d_validator)
-        self.lineEdit_interval.setValidator(d_validator)
-    
+    @asyncSlot()
+    async def get_client(self) -> None:
+        # if status == 1:
+        self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
+        # print(self.client.is_connected())
+        self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
+        self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
+        await self.update_gui_data()
+
     @asyncSlot()    
-    async def update_gui_data(self, event) -> None:
+    async def update_gui_data(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_telemetria()
             tel_dict: dict = self.parser.pars_telemetria(answer)
@@ -131,9 +125,9 @@ class MainConfigDialog(QtWidgets.QDialog):
             self.lineEdit_pwm_ch.setText(tel_dict["hvip_pwm_ch"])
             self.lineEdit_hvip_ch.setText(tel_dict["hvip_ch"])
 
-            self.lineEdit_interval.setText(str(tel_dict["hvip_pwm_pips"]))
+            self.lineEdit_interval.setText(str(tel_dict["ddii_interval_measure"]))
 
-            self.lineEdit_cfg_mpp_id.setText(str(tel_dict["hvip_pwm_pips"]))
+            self.lineEdit_cfg_mpp_id.setText(str(self.w_ser_dialog.mpp_id))
         except Exception as e:
             self.logger.error(e)
 
@@ -218,6 +212,25 @@ class MainConfigDialog(QtWidgets.QDialog):
     #     return [int(n1.hex(), 16), int(n0.hex(), 16)]
     
 
+
+    def initValidator(self, validator, d_validator) -> None:
+        self.lineEdit_lvl_0_1.setValidator(validator)
+        self.lineEdit_lvl_0_5.setValidator(validator)
+        self.lineEdit_lvl_0_8.setValidator(validator)
+        self.lineEdit_lvl_1_6.setValidator(validator)
+        self.lineEdit_lvl_3.setValidator(validator)
+        self.lineEdit_lvl_5.setValidator(validator)
+        self.lineEdit_lvl_10.setValidator(validator)
+        self.lineEdit_lvl_30.setValidator(validator)
+        self.lineEdit_lvl_60.setValidator(validator)
+        self.lineEdit_pwm_pips.setValidator(d_validator)
+        self.lineEdit_hvip_pips.setValidator(d_validator)
+        self.lineEdit_pwm_sipm .setValidator(d_validator)
+        self.lineEdit_hvip_sipm.setValidator(d_validator)
+        self.lineEdit_pwm_ch.setValidator(d_validator)
+        self.lineEdit_hvip_ch.setValidator(d_validator)
+        self.lineEdit_interval.setValidator(d_validator)
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
@@ -225,15 +238,15 @@ if __name__ == "__main__":
     logger = log_init()
     spacer_g = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     spacer_v = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-    w_ser_connect: SerialConnect = SerialConnect(logger)
-    w: MainConfigDialog = MainConfigDialog(logger)
+    w_ser_dialog: SerialConnect = SerialConnect(logger)
+    w: MainConfigDialog = MainConfigDialog(logger, w_ser_dialog)
     grBox : QGroupBox = QGroupBox("Подключение")
     # Настройка шрифта для QGroupBox
     font = QFont()
     font.setFamily("Arial")         # Шрифт
     font.setPointSize(12)           # Размер шрифта
-    font.setBold(False)              # Жирный текст
-    font.setItalic(False)            # Курсив
+    font.setBold(False)             # Жирный текст
+    font.setItalic(False)           # Курсив
     grBox.setFont(font)
     gridL: QGridLayout = QGridLayout()
     w.vLayout_ser_connect.addWidget(grBox)
@@ -241,7 +254,7 @@ if __name__ == "__main__":
     gridL.addItem(spacer_g, 0, 0)
     gridL.addItem(spacer_g, 0, 2)
     gridL.addItem(spacer_v, 2, 1, 1, 3)
-    gridL.addWidget(w_ser_connect, 0, 1)
+    gridL.addWidget(w_ser_dialog, 0, 1)
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)

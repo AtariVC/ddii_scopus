@@ -15,6 +15,7 @@ class SendHandler(logging.Handler):
 
     def emit(self, record):
         message = self.format(record)
+        # self.mess.append(message)
         # print(message)
         if 'recv:' in message:
             self.mess.append(message)
@@ -56,6 +57,7 @@ class ModbusWorker(ModbusWorkerLog):
         b : bytes = n_i.to_bytes(4, byteorder='big')
         float_t: float = struct.unpack('!f', b)[0]
         return float_t
+
 
 if __name__ == "__main__":
     mw = ModbusWorker()
