@@ -19,7 +19,6 @@ from pymodbus.client import AsyncModbusSerialClient
 # from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import logging
-from pymodbus.pdu import ModbusResponse
 # from modules.dialog_window.main_hvip_dialog import MainHvipDialog as hvip_dialog
 # from copy import deepcopy
 import asyncio
