@@ -159,19 +159,17 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.pushButton_sipm_on.clicked.connect(self.pushButton_sipm_on_handler)
         self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
         self.flag_measure = 1
-    
+
     @asyncSlot()
     async def get_client(self) -> None:
-        """Функция перехватывает client и переподключается к нему
+        """Функция перехватывает client от SerialConnect и переподключается к нему
         """
         if self.w_ser_dialog.state_serial == 1:
             self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
             await self.client.connect()
-            # print(self.client.is_connected())
             self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
             await self.update_gui_data()
-        
 
     async def update_gui_data(self):      
         self.spinBox_pips_volt.setValue(self.root.v_cfg_pips)
