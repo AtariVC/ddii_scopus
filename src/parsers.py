@@ -125,3 +125,29 @@ class Parsers(ModbusWorker, EnviramentVar):
             d_tel["500_hh"] = tel_b
 
             return d_tel
+    
+    def parse_voltage(self, data_v: bytes) -> dict:
+        try:
+            cherenkov_v =    self.byte_to_float(data_v[1:5])
+            cherenkov_pwm =  self.byte_to_float(data_v[5:9])
+            cherenkov_cur =  self.byte_to_float(data_v[9:13])
+            cherenkov_mode = int(data_v[13:14].hex(), 16)
+
+            pips_v = self.byte_to_float(data_v[15:19])
+            pips_pwm = self.byte_to_float(data_v[19:23])
+            pips_cur = self.byte_to_float(data_v[23:27])
+            pips_mode = int(data_v[27:28].hex(), 16)
+
+            sipm_v = self.byte_to_float(data_v[29:33])
+            sipm_pwm = self.byte_to_float(data_v[33:37])
+            sipm_cur = self.byte_to_float(data_v[37:41])
+            sipm_mode = int(data_v[41:42].hex(), 16)
+
+            data_out = {pips_v, pips_pwm, pips_cur, pips_mode,
+                        sipm_v, sipm_pwm, sipm_cur, sipm_mode,
+                        cherenkov_v, cherenkov_pwm, cherenkov_cur, cherenkov_mode}
+            return data_out
+        except Exception as ex:
+            self.logger.debug(ex)
+            self.logger.exception("message")
+            return 0,

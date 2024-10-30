@@ -19,7 +19,6 @@ from pymodbus.client import AsyncModbusSerialClient
 # from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import logging
-from pymodbus.pdu import ModbusResponse
 # from modules.dialog_window.main_hvip_dialog import MainHvipDialog as hvip_dialog
 # from copy import deepcopy
 import asyncio
@@ -96,12 +95,15 @@ class MainConfigDialog(QtWidgets.QDialog):
 
     @asyncSlot()
     async def get_client(self) -> None:
-        # if status == 1:
-        self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
-        # print(self.client.is_connected())
-        self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
-        self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
-        await self.update_gui_data()
+        """Функция перехватывает client и переподключается к нему
+        """
+        if self.w_ser_dialog.state_serial == 1:
+            self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
+            await self.client.connect()
+            # print(self.client.is_connected())
+            self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
+            self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
+            await self.update_gui_data()
 
     @asyncSlot()    
     async def update_gui_data(self) -> None:
@@ -113,10 +115,10 @@ class MainConfigDialog(QtWidgets.QDialog):
             self.lineEdit_lvl_0_8.setText(str(tel_dict["08_hh_l"]))
             self.lineEdit_lvl_1_6.setText(str(tel_dict["1_6_hh_l"]))
             self.lineEdit_lvl_3.setText(str(tel_dict["3_hh_l"]))
-            self.lineEdit_lvl_5.setText(str(tel_dict["5_6_hh_l"]))
-            self.lineEdit_lvl_10.setText(str(tel_dict["5_6_hh_l"]))
-            self.lineEdit_lvl_30.setText(str(tel_dict["5_6_hh_l"]))
-            self.lineEdit_lvl_60.setText(str(tel_dict["5_6_hh_l"]))
+            self.lineEdit_lvl_5.setText(str(tel_dict["5_hh_l"]))
+            self.lineEdit_lvl_10.setText(str(tel_dict["10_hh_l"]))
+            self.lineEdit_lvl_30.setText(str(tel_dict["30_hh_l"]))
+            self.lineEdit_lvl_60.setText(str(tel_dict["60_hh_l"]))
 
             self.lineEdit_pwm_pips.setText(tel_dict["hvip_pwm_pips"])
             self.lineEdit_hvip_pips.setText(tel_dict["hvip_pips"])
