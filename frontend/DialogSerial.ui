@@ -6,27 +6,30 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>429</width>
-    <height>75</height>
+    <width>380</width>
+    <height>74</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="0">
+   <item row="1" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_w_2">
+     <property name="spacing">
+      <number>2</number>
+     </property>
      <property name="leftMargin">
-      <number>5</number>
+      <number>2</number>
      </property>
      <property name="topMargin">
-      <number>5</number>
+      <number>2</number>
      </property>
      <property name="rightMargin">
-      <number>5</number>
+      <number>2</number>
      </property>
      <property name="bottomMargin">
-      <number>5</number>
+      <number>2</number>
      </property>
      <item>
       <widget class="QLabel" name="label_state_w">
@@ -64,8 +67,21 @@
      </item>
     </layout>
    </item>
-   <item row="0" column="0">
-    <layout class="QHBoxLayout" name="horizontalLayout_w" stretch="1,1,1,1,1,1,1,1,1">
+   <item row="2" column="1">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="0" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_w" stretch="1,1,1,1,0,1,1,0,1,0,1">
      <item>
       <widget class="QLabel" name="label_10">
        <property name="sizePolicy">
@@ -157,6 +173,19 @@
       </widget>
      </item>
      <item>
+      <spacer name="horizontalSpacer_5">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -171,6 +200,19 @@
      </item>
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_comport"/>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
      </item>
      <item>
       <widget class="QWidget" name="widget_led_w" native="true">
@@ -207,7 +249,7 @@
        <property name="sizeHint" stdset="0">
         <size>
          <width>1</width>
-         <height>20</height>
+         <height>2</height>
         </size>
        </property>
       </spacer>
@@ -237,6 +279,32 @@
       </widget>
      </item>
     </layout>
+   </item>
+   <item row="0" column="0">
+    <spacer name="horizontalSpacer_3">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>0</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="0" column="2">
+    <spacer name="horizontalSpacer_4">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>0</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>

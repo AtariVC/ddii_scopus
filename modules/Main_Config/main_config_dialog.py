@@ -91,19 +91,22 @@ class MainConfigDialog(QtWidgets.QDialog):
             self.client: AsyncModbusSerialClient = args[0]
             self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
-        # self.pushButton_save_mpp.clicked.connect(self.pushButton_save_mpp_handler)
+        self.pushButton_save_mpp.clicked.connect(self.pushButton_save_mpp_handler)
 
     @asyncSlot()
     async def get_client(self) -> None:
         """Функция перехватывает client и переподключается к нему
         """
-        if self.w_ser_dialog.state_serial == 1:
-            self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
-            await self.client.connect()
-            # print(self.client.is_connected())
-            self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
-            self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
-            await self.update_gui_data()
+        try:
+            if self.w_ser_dialog.state_serial == 1:
+                self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
+                await self.client.connect()
+                # print(self.client.is_connected())
+                self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
+                self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
+                await self.update_gui_data()
+        except Exception:
+            pass
 
     @asyncSlot()    
     async def update_gui_data(self) -> None:
@@ -133,58 +136,78 @@ class MainConfigDialog(QtWidgets.QDialog):
         except Exception as e:
             self.logger.error(e)
 
-    # def pushButton_save_mpp_handler(self):
-    #     try:
-    #         data = self.set_ddii_cfg()
-    #         self.root.client.write_registers(address = self.CM_DBG_SET_CFG, values = data, slave = self.CM_ID)
-    #         log_s(self.root.send_handler.mess)
-    #         self.update_parent_data()
-    #     except Exception as err:
-    #         self.root.logger.debug(err)
-    #     self.close()
+    def closeEvent(self, event) -> None:
+        try:
+            if self.client.connected:
+                self.client.close()
+        except Exception:
+            pass
 
-    def set_ddii_cfg(self):
-        pass
-        # try:
-        #     data = []
-        #     data.append(0xf10f)
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_1.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_5.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_8.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_1_6.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_3.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_5.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_10.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_30.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_60.text()))))
+    @asyncSlot()
+    async def pushButton_save_mpp_handler(self) -> None:
+        if self.radioButton_cm.isChecked():
+            try:
+                cfg_list_widget: list[int] = await self.get_cfg_data_from_widget()
+                await self.cm_cmd.set_cfg_ddii(cfg_list_widget)
+                await asyncio.sleep(1)
+                cfg_data_cm: bytes = await self.cm_cmd.get_cfg_ddii()
+                await self.cheack_uploaded_cfg(cfg_list_widget, cfg_data_cm)
+                # self.update_parent_data()
+            except Exception as e:
+                self.logger.debug(e)
+        # self.close()
 
-        #     str_b = float(self.lineEdit_pwm_ch.text().replace(',', '.'))
-        #     val: list[int] = self.float_to_byte(str_b)
-        #     data += val
-        #     str_b = float(self.lineEdit_pwm_pips.text().replace(',', '.'))
-        #     val: list[int] = self.float_to_byte(str_b)
-        #     data += val
-        #     str_b = float(self.lineEdit_pwm_sipm.text().replace(',', '.'))
-        #     val: list[int] = self.float_to_byte(str_b)
-        #     data += val
+    @asyncSlot()
+    async def cheack_uploaded_cfg(self, upload_to: list[int], upload_from: bytes):
+        upload_to_b: bytes = b''.join(list(map(lambda x: x.to_bytes(4, 'big'), upload_to)))
+        print(upload_to_b)
+        print("\n\n")
+        print(upload_from)
+        if upload_to_b == upload_from:
+            print("\n")
+            print("OK")
 
-        #     str_b = float(self.lineEdit_hvip_ch.text().replace(',', '.'))
-        #     val: list[int] = self.float_to_byte(str_b)
-        #     data += val
-        #     str_b = float(self.lineEdit_hvip_pips.text().replace(',', '.'))
-        #     val: list[int] = self.float_to_byte(str_b)
-        #     data += val
-        #     str_b = float(self.lineEdit_hvip_sipm.text().replace(',', '.'))
-        #     val: list[int] = self.float_to_byte(str_b)
-        #     data += val
-            
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_cfg_mpp_id.text()))))
-        #     data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_interval.text()))))
-        # except Exception as ex:
-        #     # self.root.logger.debug(ex)
-        #     pass
+    @asyncSlot()
+    async def get_cfg_data_from_widget(self) -> list[int]:
+        try:
+            data = []
+            data.append(0xf10f)
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_1.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_5.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_8.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_1_6.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_3.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_5.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_10.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_30.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_60.text()))))
 
-        # return data
+            str_b = float(self.lineEdit_pwm_ch.text().replace(',', '.'))
+            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+
+            str_b = float(self.lineEdit_pwm_pips.text().replace(',', '.'))
+            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+
+            str_b = float(self.lineEdit_pwm_sipm.text().replace(',', '.'))
+            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+
+            str_b = float(self.lineEdit_hvip_ch.text().replace(',', '.'))
+            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+
+            str_b = float(self.lineEdit_hvip_pips.text().replace(',', '.'))
+            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+
+            str_b = float(self.lineEdit_hvip_sipm.text().replace(',', '.'))
+            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_cfg_mpp_id.text()))))
+            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_interval.text()))))
+
+        except Exception as ex:
+            # self.root.logger.debug(ex)
+            pass
+
+        return data
     
     # def update_parent_data(self):
     #     self.root.v_cfg_pips = float(self.lineEdit_hvip_pips.text())
@@ -238,8 +261,8 @@ if __name__ == "__main__":
     qtmodern.styles.dark(app)
     # light(app)
     logger = log_init()
-    spacer_g = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-    spacer_v = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     w_ser_dialog: SerialConnect = SerialConnect(logger)
     w: MainConfigDialog = MainConfigDialog(logger, w_ser_dialog)
     grBox : QGroupBox = QGroupBox("Подключение")
@@ -252,6 +275,7 @@ if __name__ == "__main__":
     grBox.setFont(font)
     gridL: QGridLayout = QGridLayout()
     w.vLayout_ser_connect.addWidget(grBox)
+    grBox.setMinimumWidth(10)
     grBox.setLayout(gridL)
     gridL.addItem(spacer_g, 0, 0)
     gridL.addItem(spacer_g, 0, 2)

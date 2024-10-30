@@ -19,6 +19,7 @@ class EnviramentVar():
     CMD_DBG_GET_VOLTAGE             = 0x0009
     CMD_DBG_GET_CFG_PWM             = 0x000A
     CMD_DBG_HVIP_ON_OFF             = 0x000B
+    CMD_DBG_GET_CFG                 = 0x000C
 
 
     MB_F_CODE_16                    = 0x10

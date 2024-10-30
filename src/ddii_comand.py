@@ -50,7 +50,23 @@ class ModbusCMComand(EnviramentVar):
     async def get_telemetria(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_TELEMETRIA, 
-                                                                            62, 
+                                                                            58, 
+                                                                            slave=self.CM_ID)
+            await log_s(self.mw.send_handler.mess)
+            if result.isError():
+                self.logger.error('Ошибка crc или неправильная команда')
+                return b'-1'
+            else:
+                return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            return b'-1'
+        
+    @asyncSlot()
+    async def get_cfg_ddii(self) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG, 
+                                                                            38, 
                                                                             slave=self.CM_ID)
             await log_s(self.mw.send_handler.mess)
             if result.isError():
@@ -63,11 +79,13 @@ class ModbusCMComand(EnviramentVar):
             return b'-1'
 
     @asyncSlot()
-    async def set_telemetria(self, data: list[int] | int)  -> None:
+    async def set_cfg_ddii(self, data: list[int] | int)  -> None:
         try:
-            self.client.write_registers(address = self.CMD_DBG_SET_CFG, values = data, slave = self.CM_ID)
+            await self.client.write_registers(address = self.CMD_DBG_SET_CFG, values = data, slave = self.CM_ID)
         except Exception as e:
             self.logger.error(e)
+    
+
 
 
 class ModbusMPPComand(EnviramentVar):
@@ -79,7 +97,7 @@ class ModbusMPPComand(EnviramentVar):
 
     ####### Получение структур MPP ######
     @asyncSlot()
-    async def get_cfg_voltage(self) -> bytes:
+    async def set_level(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_VOLTAGE, 
                                                                             6,
