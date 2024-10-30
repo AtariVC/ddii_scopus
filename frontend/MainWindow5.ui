@@ -440,7 +440,7 @@
                       <x>0</x>
                       <y>0</y>
                       <width>919</width>
-                      <height>1345</height>
+                      <height>1343</height>
                      </rect>
                     </property>
                     <layout class="QVBoxLayout" name="verticalLayout_10">
@@ -799,7 +799,7 @@ font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                               <property name="minimumSize">
                                <size>
                                 <width>0</width>
-                                <height>22</height>
+                                <height>21</height>
                                </size>
                               </property>
                               <property name="alignment">
@@ -815,7 +815,7 @@ font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                               <property name="minimumSize">
                                <size>
                                 <width>40</width>
-                                <height>22</height>
+                                <height>21</height>
                                </size>
                               </property>
                               <property name="readOnly">
@@ -3028,7 +3028,7 @@ font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>899</width>
+                          <width>341</width>
                           <height>1230</height>
                          </rect>
                         </property>

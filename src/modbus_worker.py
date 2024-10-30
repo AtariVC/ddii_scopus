@@ -54,9 +54,13 @@ class ModbusWorker(ModbusWorkerLog):
     def byte_to_float(self, byte_str: bytes) -> float:
         # n0: bytes = self._REV32(byte_str)
         n_i: int = int(byte_str.hex(), 16)
-        b : bytes = n_i.to_bytes(4, byteorder='big')
+        b : bytes = n_i.to_bytes(4, byteorder='little')
         float_t: float = struct.unpack('!f', b)[0]
         return float_t
+    
+    def float_to_byte(self, val: float) -> bytes:
+        byte_str: bytes = struct.pack('<f', val)
+        return b'1'
 
 
 if __name__ == "__main__":

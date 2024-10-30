@@ -97,7 +97,7 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
                 stopbits=1,
                 handle_local_echo=True,
                 )
-            connected = await self.client.connect()
+            connected: bool = await self.client.connect()
             if connected:
                 self.state_serial = 1
                 self.logger.debug(port + " ,Baudrate = " + str(baudrate) +

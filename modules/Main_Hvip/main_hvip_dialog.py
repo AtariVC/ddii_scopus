@@ -420,6 +420,7 @@ if __name__ == "__main__":
     gridL.addItem(spacer_g, 0, 2)
     gridL.addItem(spacer_v, 2, 1, 1, 3)
     gridL.addWidget(w_ser_dialog, 0, 1)
+    grBox.setMinimumWidth(10)
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
