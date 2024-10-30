@@ -5,3 +5,5 @@
 *.csv
 *.xlsx
 poetry.lock
+__pycache__
+/.vscode
