@@ -20,29 +20,32 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.log_config import log_init, log_s  # noqa: E402
-from src.modbus_worker import ModbusWorker  # noqa: E402
-from src.ddii_comand import ModbusCMComand  # noqa: E402
-from src.customComboBox_COMport import CustomComboBox_COMport  # noqa: E402
-from style.styleSheet import widget_led_on, widget_led_off  # noqa: E402
+from src.log_config import log_init, log_s # noqa: E402
+from src.modbus_worker import ModbusWorker # noqa: E402
+from src.ddii_comand import ModbusCMComand # noqa: E402
+from src.customComboBox_COMport import CustomComboBox_COMport # noqa: E402
+from style.styleSheet import widget_led_on, widget_led_off # noqa: E402
 from src.env_var import EnviramentVar  # noqa: E402
 
 
+
+
+
 class SerialConnect(QtWidgets.QWidget, EnviramentVar):
-    pushButton_connect_w: QtWidgets.QPushButton
-    lineEdit_Bauderate_w: QtWidgets.QLineEdit
-    lineEdit_ID_w: QtWidgets.QLineEdit
-    widget_led_w: QtWidgets.QWidget
-    label_state_w: QtWidgets.QLabel
-    horizontalLayout_comport: QtWidgets.QHBoxLayout
+    pushButton_connect_w        : QtWidgets.QPushButton
+    lineEdit_Bauderate_w        : QtWidgets.QLineEdit
+    lineEdit_ID_w               : QtWidgets.QLineEdit
+    widget_led_w                : QtWidgets.QWidget
+    label_state_w               : QtWidgets.QLabel
+    horizontalLayout_comport    : QtWidgets.QHBoxLayout
 
     coroutine_finished = QtCore.pyqtSignal()
 
     def __init__(self, logger, **kwargs) -> None:
         super().__init__(**kwargs)
-        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath("frontend/DialogSerial.ui"), self)
+        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogSerial.ui'), self)
         self.mw = ModbusWorker()
-        self.logger = logger
+        self.logger= logger
         self.comboBox_comm = CustomComboBox_COMport()
         self.horizontalLayout_comport.addWidget(self.comboBox_comm)
         self.size_policy: QSizePolicy = self.comboBox_comm.sizePolicy()
@@ -57,17 +60,17 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
 
     @asyncSlot()
     async def pushButton_connect_Handler(self) -> None:
-        # self.serial_task = asyncio.create_task(self.serialConnect())
+            # self.serial_task = asyncio.create_task(self.serialConnect())
         # while not task.done():
         await self.serialConnect()
         self.coroutine_finished.emit()
-        # await asyncio.sleep(0.1)
+            # await asyncio.sleep(0.1)
 
     @asyncSlot()
     async def serialConnect(self) -> None:
         """Подключкние к ДДИИ
-        Подключение происходит одновременно к ЦМ и МПП.
-        Для подключение к МПП нужно задать ID.
+        Подключение происходит одновременно к ЦМ и МПП. 
+        Для подключение к МПП нужно задать ID. 
         При успешном подключении ЦМ выдаст структуру ddii_mpp_data.
 
         Parameters:
@@ -93,21 +96,14 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
                 parity="N",
                 stopbits=1,
                 handle_local_echo=True,
-
+                )
             connected: bool = await self.client.connect()
             if connected:
                 self.state_serial = 1
-                self.logger.debug(
-                    port
-                    + " ,Baudrate = "
-                    + str(baudrate)
-                    + ", Parity = "
-                    + "None"
-                    + ", Stopbits = "
-                    + "1"
-                    + ", Bytesize = "
-                    + str(self.client.comm_params.bytesize)
-                )
+                self.logger.debug(port + " ,Baudrate = " + str(baudrate) +
+                                ", Parity = "+"None"+
+                                ", Stopbits = "+ "1" +
+                                ", Bytesize = " + str(self.client.comm_params.bytesize))
             else:
                 self.label_state_w.setText("State: COM-порт занят. Попробуйте переподключиться")
                 self.state_serial = 0
@@ -133,13 +129,13 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
         self.status_MPP = 1
 
         #### CM ####
-
+        
         # self.tel_result: ModbusResponse  = self.get_telemetria()
         try:
-            response: ModbusResponse = await self.client.write_registers(
-                address=self.DDII_SWITCH_MODE, values=[self.SILENT_MODE], slave=self.CM_ID
-            )
-
+            response: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
+                                                                        values = [self.SILENT_MODE],
+                                                                        slave = self.CM_ID)
+            
             await log_s(self.mw.send_handler.mess)
             if response.isError():
                 self.logger.debug("Соединение c ЦМ не установлено")
@@ -149,12 +145,12 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
             self.logger.error(e)
             self.status_CM = 0
 
-        ######## MPP #######
-
+        ######## MPP #######  
+        
         try:
             response: ModbusResponse = await self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
             await log_s(self.mw.send_handler.mess)
-            if response.isError():
+            if response.isError(): 
                 self.logger.debug("Соединение c МПП не установлено")
                 self.status_MPP = 0
         except Exception as e:
@@ -164,7 +160,7 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
 
         await self.update_label_connect()
         self.client.close()
-
+    
     @asyncSlot()
     async def update_label_connect(self):
         cheak_st_connect = self.status_CM, self.status_MPP
