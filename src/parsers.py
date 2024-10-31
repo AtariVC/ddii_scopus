@@ -11,7 +11,7 @@ class Parsers(ModbusWorker, EnviramentVar):
     def __init__(self, **kwargs):
         super().__init__()
 
-    async def pars_telemetria(self, tel: bytes) -> dict:
+async def pars_telemetria(self, tel: bytes) -> dict:
         d_tel: dict = {}
         # print(tel)
         tel_b: str = tel[1:2].hex()
@@ -154,7 +154,7 @@ class Parsers(ModbusWorker, EnviramentVar):
             d["interval_measure"] = str(int(self._REV16(b[46:48]).hex(), 16))
         except Exception as e:
             pass
-        return dict()
+        return dict(
 
     def parse_voltage(self, data_v: bytes) -> dict:
         try:

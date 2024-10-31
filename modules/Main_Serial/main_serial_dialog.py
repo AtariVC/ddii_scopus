@@ -93,7 +93,7 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
                 parity="N",
                 stopbits=1,
                 handle_local_echo=True,
-            )
+
             connected: bool = await self.client.connect()
             if connected:
                 self.state_serial = 1
