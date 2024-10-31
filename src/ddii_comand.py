@@ -66,7 +66,7 @@ class ModbusCMComand(EnviramentVar):
     async def get_cfg_ddii(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG, 
-                                                                            38, 
+                                                                            25, 
                                                                             slave=self.CM_ID)
             await log_s(self.mw.send_handler.mess)
             if result.isError():

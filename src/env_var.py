@@ -9,10 +9,10 @@ class EnviramentVar():
 
     CMD_DBG_GET_TELEMETRIA          = 0x0000
     CMD_DBG_SWITCH_MODE             = 0x0001
-    CMD_DBG_SET_CFG                 = 0x0002
+    CMD_DBG_UPDATE_DATA             = 0x0002 # Команла на обновление структуры данных телеметрии
     CMD_DBG_DBG_RESET               = 0x0003    
     CMD_DBG_CSA_TEST_ENABLE         = 0x0004
-    CMD_DBG_UPDATE_CFG              = 0x0005
+    CMD_DBG_SET_CFG                 = 0x0005
     CMD_DBG_SET_VOLTAGE             = 0x0006
     CMD_DBG_GET_CFG_VOLTAGE         = 0x0007    
     CMD_DBG_SET_DEFAULT_CFG         = 0x0008

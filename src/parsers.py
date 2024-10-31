@@ -132,26 +132,26 @@ class Parsers(ModbusWorker, EnviramentVar):
         d = {}
         try:
             ######### УРОВЕНЬ ###########
-            d["01_hh_l"] = str(int(self._REV16(b[2:4]).hex(), 16))
-            d["05_hh_l"] = str(int(self._REV16(b[4:6]).hex(), 16))
-            d["08_hh_l"] = str(int(self._REV16(b[6:8]).hex(), 16))
-            d["1_6_hh_l"] = str(int(self._REV16(b[8:10]).hex(), 16))
-            d["3_hh_l"] = str(int(self._REV16(b[10:12]).hex(), 16))
-            d["5_hh_l"] = str(int(self._REV16(b[12:14]).hex(), 16))
-            d["10_hh_l"] = str(int(self._REV16(b[14:16]).hex(), 16))
-            d["30_hh_l"] = str(int(self._REV16(b[16:18]).hex(), 16))
-            d["60_hh_l"] = str(int(self._REV16(b[18:20]).hex(), 16))
+            d["01_hh_l"] = str(int(self._REV16(b[3:5]).hex(), 16))
+            d["05_hh_l"] = str(int(self._REV16(b[5:7]).hex(), 16))
+            d["08_hh_l"] = str(int(self._REV16(b[7:9]).hex(), 16))
+            d["1_6_hh_l"] = str(int(self._REV16(b[9:11]).hex(), 16))
+            d["3_hh_l"] = str(int(self._REV16(b[11:13]).hex(), 16))
+            d["5_hh_l"] = str(int(self._REV16(b[13:15]).hex(), 16))
+            d["10_hh_l"] = str(int(self._REV16(b[15:17]).hex(), 16))
+            d["30_hh_l"] = str(int(self._REV16(b[17:19]).hex(), 16))
+            d["60_hh_l"] = str(int(self._REV16(b[19:21]).hex(), 16))
             ######### ВИП PWM ###########
-            d["hvip_cfg_pwm_ch"] = "{:.2f}".format(self.byte_to_float(b[20:24]))
-            d["hvip_cfg_pwm_pips"] = "{:.2f}".format(self.byte_to_float(b[24:28]))
-            d["hvip_cfg_pwm_sipm"] = "{:.2f}".format(self.byte_to_float(b[28:32]))
+            d["hvip_cfg_pwm_ch"] = "{:.2f}".format(self.byte_to_float(b[21:25]))
+            d["hvip_cfg_pwm_pips"] = "{:.2f}".format(self.byte_to_float(b[25:29]))
+            d["hvip_cfg_pwm_sipm"] = "{:.2f}".format(self.byte_to_float(b[29:33]))
             ######### ВИП Voltage ###########
-            d["hvip_cfg_vlt_sipm"] = "{:.2f}".format(self.byte_to_float(b[32:36]))
-            d["hvip_cfg_vlt_sipm"] = "{:.2f}".format(self.byte_to_float(b[36:40]))
-            d["hvip_cfg_vlt_sipm"] = "{:.2f}".format(self.byte_to_float(b[40:44]))
+            d["hvip_cfg_vlt_ch"] = "{:.2f}".format(self.byte_to_float(b[33:37]))
+            d["hvip_cfg_vlt_pips"] = "{:.2f}".format(self.byte_to_float(b[37:41]))
+            d["hvip_cfg_vlt_sipm"] = "{:.2f}".format(self.byte_to_float(b[41:45]))
             
-            d["mpp_id"] = str(int(self._REV16(b[44:46]).hex(), 16))
-            d["interval_measure"] = str(int(self._REV16(b[46:48]).hex(), 16))
+            d["mpp_id"] = str(int(self._REV16(b[45:47]).hex(), 16))
+            d["interval_measure"] = str(int(self._REV32(b[47:51]).hex(), 16))
         except Exception as e:
             pass
         return d

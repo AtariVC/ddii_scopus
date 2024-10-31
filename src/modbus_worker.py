@@ -60,7 +60,7 @@ class ModbusWorker(ModbusWorkerLog):
     
     def float_to_byte(self, val: float) -> bytes:
         byte_str: bytes = struct.pack('<f', val)
-        return b'1'
+        return byte_str
 
 
 if __name__ == "__main__":

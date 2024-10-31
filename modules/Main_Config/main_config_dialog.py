@@ -68,6 +68,8 @@ class MainConfigDialog(QtWidgets.QDialog):
     radioButton_mpp                     : QtWidgets.QRadioButton
     radioButton_cm                      : QtWidgets.QRadioButton
 
+    pushButton_Get_Rst                  : QtWidgets.QPushButton
+
     CM_DBG_SET_CFG = 0x0005
     CM_ID = 1
     #CM_DBG_SET_VOLTAGE = 0x0006
@@ -83,6 +85,7 @@ class MainConfigDialog(QtWidgets.QDialog):
         self.logger = logger
         i_validator = QIntValidator()
         d_validator = QDoubleValidator()
+        self.flg_get_rst = 0
         self.initValidator(i_validator, d_validator)
         if __name__ == "__main__":
             self.w_ser_dialog: SerialConnect = args[0]
@@ -91,14 +94,15 @@ class MainConfigDialog(QtWidgets.QDialog):
             self.client: AsyncModbusSerialClient = args[0]
             self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
-        self.pushButton_save_mpp.clicked.connect(self.pushButton_save_mpp_handler)
+        self.pushButton_save_mpp.clicked.connect(self.pushButton_save_cfg_handler)
+        self.pushButton_Get_Rst.clicked.connect(self.pushButton_get_rst_handler)
 
     @asyncSlot()
     async def get_client(self) -> None:
         """Функция перехватывает client и переподключается к нему
         """
         try:
-            if self.w_ser_dialog.state_serial == 1:
+            if self.w_ser_dialog.pushButton_connect_flag == 1:
                 self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
                 await self.client.connect()
                 # print(self.client.is_connected())
@@ -112,7 +116,7 @@ class MainConfigDialog(QtWidgets.QDialog):
     async def update_gui_data(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_cfg_ddii()
-            tel_dict: dict = self.parser.pars_cfg_ddii(answer)
+            tel_dict: dict = await self.parser.pars_cfg_ddii(answer)
             self.lineEdit_lvl_0_1.setText(str(tel_dict["01_hh_l"]))
             self.lineEdit_lvl_0_5.setText(str(tel_dict["05_hh_l"]))
             self.lineEdit_lvl_0_8.setText(str(tel_dict["08_hh_l"]))
@@ -123,16 +127,19 @@ class MainConfigDialog(QtWidgets.QDialog):
             self.lineEdit_lvl_30.setText(str(tel_dict["30_hh_l"]))
             self.lineEdit_lvl_60.setText(str(tel_dict["60_hh_l"]))
 
-            self.lineEdit_pwm_pips.setText(tel_dict["hvip_pwm_pips"])
-            self.lineEdit_hvip_pips.setText(tel_dict["hvip_pips"])
-            self.lineEdit_pwm_sipm .setText(tel_dict["hvip_pwm_sipm"])
-            self.lineEdit_hvip_sipm.setText(tel_dict["hvip_sipm"])
-            self.lineEdit_pwm_ch.setText(tel_dict["hvip_pwm_ch"])
-            self.lineEdit_hvip_ch.setText(tel_dict["hvip_ch"])
+            self.lineEdit_pwm_pips.setText(tel_dict["hvip_cfg_pwm_pips"])
+            self.lineEdit_hvip_pips.setText(tel_dict["hvip_cfg_vlt_pips"])
 
-            self.lineEdit_interval.setText(str(tel_dict["ddii_interval_measure"]))
+            self.lineEdit_pwm_sipm .setText(tel_dict["hvip_cfg_pwm_sipm"])
+            self.lineEdit_hvip_sipm.setText(tel_dict["hvip_cfg_vlt_sipm"])
 
-            self.lineEdit_cfg_mpp_id.setText(str(self.w_ser_dialog.mpp_id))
+            self.lineEdit_pwm_ch.setText(tel_dict["hvip_cfg_pwm_ch"])
+            self.lineEdit_hvip_ch.setText(tel_dict["hvip_cfg_vlt_ch"])
+
+            self.lineEdit_interval.setText(str(tel_dict["interval_measure"]))
+
+            self.lineEdit_cfg_mpp_id.setText(str(tel_dict["mpp_id"]))
+            
         except Exception as e:
             self.logger.error(e)
 
@@ -144,7 +151,7 @@ class MainConfigDialog(QtWidgets.QDialog):
             pass
 
     @asyncSlot()
-    async def pushButton_save_mpp_handler(self) -> None:
+    async def pushButton_save_cfg_handler(self) -> None:
         if self.radioButton_cm.isChecked():
             try:
                 cfg_list_widget: list[int] = await self.get_cfg_data_from_widget()
@@ -156,6 +163,15 @@ class MainConfigDialog(QtWidgets.QDialog):
             except Exception as e:
                 self.logger.debug(e)
         # self.close()
+    
+    @asyncSlot()
+    async def pushButton_get_rst_handler(self) -> None:
+        if self.flg_get_rst == 0:
+            if self.radioButton_cm.isChecked():
+                cfg_data_cm: bytes = await self.cm_cmd.get_cfg_ddii()
+                self.pushButton_Get_Rst.setText("R")
+            else:
+                self.pushButton_Get_Rst.setText("G")
 
     @asyncSlot()
     async def cheack_uploaded_cfg(self, upload_to: list[int], upload_from: bytes):
@@ -201,11 +217,10 @@ class MainConfigDialog(QtWidgets.QDialog):
             data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
 
             data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_cfg_mpp_id.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_interval.text()))))
+            data.append(int.from_bytes(struct.pack('<I', int(self.lineEdit_interval.text()))))
 
         except Exception as ex:
-            # self.root.logger.debug(ex)
-            pass
+            self.logger.error(ex)
 
         return data
     
