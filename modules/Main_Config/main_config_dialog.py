@@ -111,8 +111,8 @@ class MainConfigDialog(QtWidgets.QDialog):
     @asyncSlot()    
     async def update_gui_data(self) -> None:
         try:
-            answer: bytes = await self.cm_cmd.get_telemetria()
-            tel_dict: dict = self.parser.pars_telemetria(answer)
+            answer: bytes = await self.cm_cmd.get_cfg_ddii()
+            tel_dict: dict = self.parser.pars_cfg_ddii(answer)
             self.lineEdit_lvl_0_1.setText(str(tel_dict["01_hh_l"]))
             self.lineEdit_lvl_0_5.setText(str(tel_dict["05_hh_l"]))
             self.lineEdit_lvl_0_8.setText(str(tel_dict["08_hh_l"]))
