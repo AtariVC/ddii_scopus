@@ -29,6 +29,7 @@ pathlib = "^1.0.1"
 asyncio = "^3.4.3"
 qasync = "^0.27.1"
 dynaconf = "^3.2.6"
+pyyaml = "^6.0.2"
 
 
 [build-system]

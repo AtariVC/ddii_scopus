@@ -14,7 +14,7 @@ import qtmodern.styles
 from qtmodern.windows import ModernWindow
 import sys
 from pymodbus.client import AsyncModbusSerialClient
-
+from save_config import ConfigSaver
 
 # from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
@@ -76,7 +76,6 @@ class MainConfigDialog(QtWidgets.QDialog):
     #CM_DBG_GET_VOLTAGE = 0x0009
     #CMD_HVIP_ON_OFF = 0x000B
 
-
     def __init__(self, logger, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogConfig.ui'), self)
@@ -85,6 +84,7 @@ class MainConfigDialog(QtWidgets.QDialog):
         self.logger = logger
         i_validator = QIntValidator()
         d_validator = QDoubleValidator()
+        self.config = ConfigSaver(self)
         self.flg_get_rst = 0
         self.initValidator(i_validator, d_validator)
         if __name__ == "__main__":
@@ -108,9 +108,37 @@ class MainConfigDialog(QtWidgets.QDialog):
                 # print(self.client.is_connected())
                 self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
                 self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
-                await self.update_gui_data()
+                if self.w_ser_dialog.status_CM == 1:
+                    await self.update_gui_data()
+                    if self.w_ser_dialog.status_MPP == 0:
+                        self.radioButton_mpp.setEnabled(False)
+                if self.w_ser_dialog.status_CM == 0:
+                        self.radioButton_mpp.setChecked(True)
+                        self.radioButton_cm.setEnabled(False)
+                
         except Exception:
             pass
+
+    @asyncSlot()
+    async def update_gui_data_mpp(self) -> None:
+        try:
+            answer: bytes = await self.mpp_cmd.get_hh()
+            tel_dict: dict = await self.parser.pars_mpp_hh(answer)
+
+            answ_lvl: bytes = await self.mpp_cmd.get_level()
+            tel_dict_lvl: dict = await self.parser.pars_mpp_lvl(answ_lvl)
+
+            self.lineEdit_lvl_0_1.setText(str(tel_dict_lvl["01_hh_l"]))
+            self.lineEdit_lvl_0_5.setText(str(tel_dict["05_hh_l"]))
+            self.lineEdit_lvl_0_8.setText(str(tel_dict["08_hh_l"]))
+            self.lineEdit_lvl_1_6.setText(str(tel_dict["1_6_hh_l"]))
+            self.lineEdit_lvl_3.setText(str(tel_dict["3_hh_l"]))
+            self.lineEdit_lvl_5.setText(str(tel_dict["5_hh_l"]))
+            self.lineEdit_lvl_10.setText(str(tel_dict["10_hh_l"]))
+            self.lineEdit_lvl_30.setText(str(tel_dict["30_hh_l"]))
+            self.lineEdit_lvl_60.setText(str(tel_dict["60_hh_l"]))
+        except Exception as e:
+            self.logger.error(e)
 
     @asyncSlot()    
     async def update_gui_data(self) -> None:
@@ -162,16 +190,27 @@ class MainConfigDialog(QtWidgets.QDialog):
                 # self.update_parent_data()
             except Exception as e:
                 self.logger.debug(e)
-        # self.close()
+        if self.radioButton_mpp.isChecked():
+            data: list[int] = await self.get_cfg_data_from_widget()
+            await self.mpp_cmd.set_level(data[1])
+            await self.mpp_cmd.set_hh(data[2:10])
     
     @asyncSlot()
     async def pushButton_get_rst_handler(self) -> None:
         if self.flg_get_rst == 0:
-            if self.radioButton_cm.isChecked():
-                cfg_data_cm: bytes = await self.cm_cmd.get_cfg_ddii()
+            if self.radioButton_cm.isChecked() and self.w_ser_dialog.status_CM == 1:
+                await self.update_gui_data()
                 self.pushButton_Get_Rst.setText("R")
-            else:
-                self.pushButton_Get_Rst.setText("G")
+                self.flg_get_rst = 1
+            if self.radioButton_mpp.isChecked() and self.w_ser_dialog.status_MPP == 1:
+                await self.update_gui_data_mpp()
+                self.pushButton_Get_Rst.setText("R")
+                self.flg_get_rst = 1
+            
+        else:
+            self.pushButton_Get_Rst.setText("G")
+            self.config.load_from_config()
+            self.flg_get_rst = 0
 
     @asyncSlot()
     async def cheack_uploaded_cfg(self, upload_to: list[int], upload_from: bytes):
@@ -183,6 +222,12 @@ class MainConfigDialog(QtWidgets.QDialog):
             print("\n")
             print("OK")
 
+    # def rvrs(self, s: str, ltr: str) -> int:
+    #     if ltr == 'big':
+    #         int.from_bytes(struct.pack('>H', int(self.lineEdit_lvl_0_1.text())))
+    #     if ltr == 'little':
+    #         int.from_bytes(int(self.lineEdit_lvl_0_1.text()))
+    
     @asyncSlot()
     async def get_cfg_data_from_widget(self) -> list[int]:
         try:
@@ -199,22 +244,23 @@ class MainConfigDialog(QtWidgets.QDialog):
             data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_60.text()))))
 
             str_b = float(self.lineEdit_pwm_ch.text().replace(',', '.'))
-            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+            data.append(int(self.mw.float_to_byte(str_b), 16))
 
             str_b = float(self.lineEdit_pwm_pips.text().replace(',', '.'))
-            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
+
 
             str_b = float(self.lineEdit_pwm_sipm.text().replace(',', '.'))
-            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
 
             str_b = float(self.lineEdit_hvip_ch.text().replace(',', '.'))
-            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
 
             str_b = float(self.lineEdit_hvip_pips.text().replace(',', '.'))
-            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
 
             str_b = float(self.lineEdit_hvip_sipm.text().replace(',', '.'))
-            data.append(int(self.mw.float_to_byte(str_b).hex(), 16))
+            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
 
             data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_cfg_mpp_id.text()))))
             data.append(int.from_bytes(struct.pack('<I', int(self.lineEdit_interval.text()))))

@@ -133,26 +133,20 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
         # self.tel_result: ModbusResponse  = self.get_telemetria()
         try:
             response: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
-                                                                        values = [self.SILENT_MODE],
+                                                                        values = self.SILENT_MODE,
                                                                         slave = self.CM_ID)
-            
+
             await log_s(self.mw.send_handler.mess)
-            if response.isError():
-                self.logger.debug("Соединение c ЦМ не установлено")
-                self.status_CM = 0
         except Exception as e:
             self.logger.debug("Соединение c ЦМ не установлено")
             self.logger.error(e)
             self.status_CM = 0
+            await asyncio.sleep(0.2) # задержка нужна?
 
         ######## MPP #######  
-        
         try:
             response: ModbusResponse = await self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
             await log_s(self.mw.send_handler.mess)
-            if response.isError(): 
-                self.logger.debug("Соединение c МПП не установлено")
-                self.status_MPP = 0
         except Exception as e:
             self.status_MPP = 0
             self.logger.debug("Соединение c МПП не установлено")
@@ -160,7 +154,7 @@ class SerialConnect(QtWidgets.QWidget, EnviramentVar):
 
         await self.update_label_connect()
         self.client.close()
-    
+
     @asyncSlot()
     async def update_label_connect(self):
         cheak_st_connect = self.status_CM, self.status_MPP

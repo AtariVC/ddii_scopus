@@ -17,7 +17,6 @@
     self.logger.warning('Это сообщение уровня WARNING')
     self.logger.error('Это сообщение уровня ERROR')
     self.logger.critical('Это сообщение уровня CRITICAL')
-
 """
 import pdb
 from PyQt6 import QtWidgets, QtCore

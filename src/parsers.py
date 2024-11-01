@@ -130,33 +130,48 @@ class Parsers(ModbusWorker, EnviramentVar):
 
     async def pars_cfg_ddii(self, b: bytes) -> dict:
         d = {}
-        try:
-            ######### УРОВЕНЬ ###########
-            d["01_hh_l"] = str(int(self._REV16(b[3:5]).hex(), 16))
-            d["05_hh_l"] = str(int(self._REV16(b[5:7]).hex(), 16))
-            d["08_hh_l"] = str(int(self._REV16(b[7:9]).hex(), 16))
-            d["1_6_hh_l"] = str(int(self._REV16(b[9:11]).hex(), 16))
-            d["3_hh_l"] = str(int(self._REV16(b[11:13]).hex(), 16))
-            d["5_hh_l"] = str(int(self._REV16(b[13:15]).hex(), 16))
-            d["10_hh_l"] = str(int(self._REV16(b[15:17]).hex(), 16))
-            d["30_hh_l"] = str(int(self._REV16(b[17:19]).hex(), 16))
-            d["60_hh_l"] = str(int(self._REV16(b[19:21]).hex(), 16))
-            ######### ВИП PWM ###########
-            d["hvip_cfg_pwm_ch"] = "{:.2f}".format(self.byte_to_float(b[21:25]))
-            d["hvip_cfg_pwm_pips"] = "{:.2f}".format(self.byte_to_float(b[25:29]))
-            d["hvip_cfg_pwm_sipm"] = "{:.2f}".format(self.byte_to_float(b[29:33]))
-            ######### ВИП Voltage ###########
-            d["hvip_cfg_vlt_ch"] = "{:.2f}".format(self.byte_to_float(b[33:37]))
-            d["hvip_cfg_vlt_pips"] = "{:.2f}".format(self.byte_to_float(b[37:41]))
-            d["hvip_cfg_vlt_sipm"] = "{:.2f}".format(self.byte_to_float(b[41:45]))
-            
-            d["mpp_id"] = str(int(self._REV16(b[45:47]).hex(), 16))
-            d["interval_measure"] = str(int(self._REV32(b[47:51]).hex(), 16))
-        except Exception as e:
-            pass
+        ######### УРОВЕНЬ ###########
+        d["01_hh_l"] = str(int(self._REV16(b[3:5]).hex(), 16))
+        d["05_hh_l"] = str(int(self._REV16(b[5:7]).hex(), 16))
+        d["08_hh_l"] = str(int(self._REV16(b[7:9]).hex(), 16))
+        d["1_6_hh_l"] = str(int(self._REV16(b[9:11]).hex(), 16))
+        d["3_hh_l"] = str(int(self._REV16(b[11:13]).hex(), 16))
+        d["5_hh_l"] = str(int(self._REV16(b[13:15]).hex(), 16))
+        d["10_hh_l"] = str(int(self._REV16(b[15:17]).hex(), 16))
+        d["30_hh_l"] = str(int(self._REV16(b[17:19]).hex(), 16))
+        d["60_hh_l"] = str(int(self._REV16(b[19:21]).hex(), 16))
+        ######### ВИП PWM ###########
+        d["hvip_cfg_pwm_ch"] = "{:.2f}".format(self.byte_to_float(b[21:25]))
+        d["hvip_cfg_pwm_pips"] = "{:.2f}".format(self.byte_to_float(b[25:29]))
+        d["hvip_cfg_pwm_sipm"] = "{:.2f}".format(self.byte_to_float(b[29:33]))
+        ######### ВИП Voltage ###########
+        d["hvip_cfg_vlt_ch"] = "{:.2f}".format(self.byte_to_float(b[33:37]))
+        d["hvip_cfg_vlt_pips"] = "{:.2f}".format(self.byte_to_float(b[37:41]))
+        d["hvip_cfg_vlt_sipm"] = "{:.2f}".format(self.byte_to_float(b[41:45]))
+        
+        d["mpp_id"] = str(int(self._REV16(b[45:47]).hex(), 16))
+        d["interval_measure"] = str(int(self._REV32(b[47:51]).hex(), 16))
+        return d
+    
+    async def pars_mpp_hh(self, b: bytes) -> dict:
+        d = {}
+        ######### УРОВЕНЬ ###########
+        d["05_hh_l"] = str(int((b[1:3]).hex(), 16))
+        d["08_hh_l"] = str(int((b[3:5]).hex(), 16))
+        d["1_6_hh_l"] = str(int((b[5:7]).hex(), 16))
+        d["3_hh_l"] = str(int((b[7:9]).hex(), 16))
+        d["5_hh_l"] = str(int((b[9:11]).hex(), 16))
+        d["10_hh_l"] = str(int((b[11:13]).hex(), 16))
+        d["30_hh_l"] = str(int((b[13:15]).hex(), 16))
+        d["60_hh_l"] = str(int((b[15:17]).hex(), 16))
+        return d
+    
+    async def pars_mpp_lvl(self, b: bytes) -> dict:
+        d = {}
+        d["01_hh_l"] = str(int((b[1:3]).hex(), 16))
         return d
 
-    def parse_voltage(self, data_v: bytes) -> dict:
+    async def parse_voltage(self, data_v: bytes) -> dict:
         try:
             cherenkov_v = self.byte_to_float(data_v[1:5])
             cherenkov_pwm = self.byte_to_float(data_v[5:9])

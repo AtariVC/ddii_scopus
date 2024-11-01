@@ -6,10 +6,11 @@ class EnviramentVar():
     DDII_UPDATE_DATA                = 0x0002
 
     CM_ID                           = 1
+    MPP_ID                          = 14
 
     CMD_DBG_GET_TELEMETRIA          = 0x0000
     CMD_DBG_SWITCH_MODE             = 0x0001
-    CMD_DBG_UPDATE_DATA             = 0x0002 # Команла на обновление структуры данных телеметрии
+    CMD_DBG_UPDATE_DATA             = 0x0002 # Команда на обновление структуры данных телеметрии
     CMD_DBG_DBG_RESET               = 0x0003    
     CMD_DBG_CSA_TEST_ENABLE         = 0x0004
     CMD_DBG_SET_CFG                 = 0x0005
@@ -20,6 +21,14 @@ class EnviramentVar():
     CMD_DBG_GET_CFG_PWM             = 0x000A
     CMD_DBG_HVIP_ON_OFF             = 0x000B
     CMD_DBG_GET_CFG                 = 0x000C
+
+    REG_MPP_COMAND                  = 0x0000
+    GET_MPP_DATA                    = 0x0006
+    REG_MPP_HH                      = 0x000B
+
+    REG_MPP_LEVEL                   = 0x0079
+
+    MPP_LEVEL_TRIG                  = 0x0001
 
 
     MB_F_CODE_16                    = 0x10
