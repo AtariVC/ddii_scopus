@@ -147,20 +147,15 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
     async def update_gui_data_mpp(self) -> None:
         try:
             answer: bytes = await self.mpp_cmd.get_hh()
-            tel_dict: dict = await self.parser.pars_mpp_hh(answer)
+            tel_dict: dict[str, str] = await self.parser.pars_mpp_hh(answer)
 
             answ_lvl: bytes = await self.mpp_cmd.get_level()
-            tel_dict_lvl: dict = await self.parser.pars_mpp_lvl(answ_lvl)
-
+            tel_dict_lvl: dict[str, str] = await self.parser.pars_mpp_lvl(answ_lvl)
+ 
             self.lineEdit_lvl_0_1.setText(str(tel_dict_lvl["01_hh_l"]))
-            self.lineEdit_lvl_0_5.setText(str(tel_dict["05_hh_l"]))
-            self.lineEdit_lvl_0_8.setText(str(tel_dict["08_hh_l"]))
-            self.lineEdit_lvl_1_6.setText(str(tel_dict["1_6_hh_l"]))
-            self.lineEdit_lvl_3.setText(str(tel_dict["3_hh_l"]))
-            self.lineEdit_lvl_5.setText(str(tel_dict["5_hh_l"]))
-            self.lineEdit_lvl_10.setText(str(tel_dict["10_hh_l"]))
-            self.lineEdit_lvl_30.setText(str(tel_dict["30_hh_l"]))
-            self.lineEdit_lvl_60.setText(str(tel_dict["60_hh_l"]))
+            for i, (key, val) in enumerate(self.le_obj.items()):
+                val.setText(list(tel_dict.values())[i])
+
         except Exception as e:
             self.logger.error(e)
 
@@ -169,29 +164,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
         try:
             answer: bytes = await self.cm_cmd.get_cfg_ddii()
             tel_dict: dict = await self.parser.pars_cfg_ddii(answer)
-            self.lineEdit_lvl_0_1.setText(str(tel_dict["01_hh_l"]))
-            self.lineEdit_lvl_0_5.setText(str(tel_dict["05_hh_l"]))
-            self.lineEdit_lvl_0_8.setText(str(tel_dict["08_hh_l"]))
-            self.lineEdit_lvl_1_6.setText(str(tel_dict["1_6_hh_l"]))
-            self.lineEdit_lvl_3.setText(str(tel_dict["3_hh_l"]))
-            self.lineEdit_lvl_5.setText(str(tel_dict["5_hh_l"]))
-            self.lineEdit_lvl_10.setText(str(tel_dict["10_hh_l"]))
-            self.lineEdit_lvl_30.setText(str(tel_dict["30_hh_l"]))
-            self.lineEdit_lvl_60.setText(str(tel_dict["60_hh_l"]))
-
-            self.lineEdit_pwm_pips.setText(tel_dict["hvip_cfg_pwm_pips"])
-            self.lineEdit_hvip_pips.setText(tel_dict["hvip_cfg_vlt_pips"])
-
-            self.lineEdit_pwm_sipm .setText(tel_dict["hvip_cfg_pwm_sipm"])
-            self.lineEdit_hvip_sipm.setText(tel_dict["hvip_cfg_vlt_sipm"])
-
-            self.lineEdit_pwm_ch.setText(tel_dict["hvip_cfg_pwm_ch"])
-            self.lineEdit_hvip_ch.setText(tel_dict["hvip_cfg_vlt_ch"])
-
-            self.lineEdit_interval.setText(str(tel_dict["interval_measure"]))
-
-            self.lineEdit_cfg_mpp_id.setText(str(tel_dict["mpp_id"]))
-            
+            for i, (key, val) in enumerate(self.le_obj.items()):
+                val.setText(list(tel_dict.values())[i])            
         except Exception as e:
             self.logger.error(e)
 
