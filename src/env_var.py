@@ -2,6 +2,8 @@
 '''
 
 class EnviramentVar():
+    HEAD                           = 0x0FF1
+
     DDII_SWITCH_MODE                = 0x0001
     DDII_UPDATE_DATA                = 0x0002
 

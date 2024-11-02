@@ -38,9 +38,10 @@ from src.parsers import  Parsers
 from modules.Main_Serial.main_serial_dialog import SerialConnect
 from src.log_config import log_init, log_s
 from src.env_var import EnviramentVar
+from src.parsers_pack import LineObj, LineEditPack
 
 
-class MainConfigDialog(QtWidgets.QDialog):
+class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
     lineEdit_pwm_pips                   : QtWidgets.QLineEdit
     lineEdit_hvip_pips                  : QtWidgets.QLineEdit
     lineEdit_pwm_sipm                   : QtWidgets.QLineEdit
@@ -96,6 +97,29 @@ class MainConfigDialog(QtWidgets.QDialog):
             self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
         self.pushButton_save_mpp.clicked.connect(self.pushButton_save_cfg_handler)
         self.pushButton_Get_Rst.clicked.connect(self.pushButton_get_rst_handler)
+        self.le_obj = self.init_linEdit_list()
+
+    def init_linEdit_list(self) -> dict[str, QtWidgets.QLineEdit]:
+        le_obj: dict[str, QtWidgets.QLineEdit] = {
+                    "lineEdit_pwm_ch": self.lineEdit_pwm_ch,
+                    "lineEdit_pwm_pips": self.lineEdit_pwm_pips,
+                    "lineEdit_pwm_sipm": self.lineEdit_pwm_sipm,
+                    "lineEdit_hvip_ch": self.lineEdit_hvip_ch,
+                    "lineEdit_hvip_pips": self.lineEdit_hvip_pips,
+                    "lineEdit_hvip_sipm": self.lineEdit_hvip_sipm,
+                    "lineEdit_interval": self.lineEdit_interval,
+                    "lineEdit_lvl_0_1": self.lineEdit_lvl_0_1,
+                    "lineEdit_lvl_0_5": self.lineEdit_lvl_0_5,
+                    "lineEdit_lvl_0_8": self.lineEdit_lvl_0_8,
+                    "lineEdit_lvl_1_6": self.lineEdit_lvl_1_6,
+                    "lineEdit_lvl_3": self.lineEdit_lvl_3,
+                    "lineEdit_lvl_5": self.lineEdit_lvl_5,
+                    "lineEdit_lvl_10": self.lineEdit_lvl_10,
+                    "lineEdit_lvl_30": self.lineEdit_lvl_30,
+                    "lineEdit_lvl_60": self.lineEdit_lvl_60,
+                    "lineEdit_cfg_mpp_id": self.lineEdit_cfg_mpp_id
+                    }
+        return le_obj
 
     @asyncSlot()
     async def get_client(self) -> None:
@@ -180,20 +204,23 @@ class MainConfigDialog(QtWidgets.QDialog):
 
     @asyncSlot()
     async def pushButton_save_cfg_handler(self) -> None:
+        msg: list[int] = [self.HEAD]
         if self.radioButton_cm.isChecked():
             try:
-                cfg_list_widget: list[int] = await self.get_cfg_data_from_widget()
-                await self.cm_cmd.set_cfg_ddii(cfg_list_widget)
+                data: list[int] = await self.get_cfg_data_from_widget("cm")
+                msg.append(data[13])
+                await self.cm_cmd.set_cfg_ddii(msg +
+                    data[13:14] + data[14:-1] + data[:12] + data[21:-1] + data[13:14])
                 await asyncio.sleep(1)
-                cfg_data_cm: bytes = await self.cm_cmd.get_cfg_ddii()
-                await self.cheack_uploaded_cfg(cfg_list_widget, cfg_data_cm)
-                # self.update_parent_data()
             except Exception as e:
                 self.logger.debug(e)
         if self.radioButton_mpp.isChecked():
-            data: list[int] = await self.get_cfg_data_from_widget()
-            await self.mpp_cmd.set_level(data[1])
-            await self.mpp_cmd.set_hh(data[2:10])
+            try:
+                data: list[int] = await self.get_cfg_data_from_widget("mpp")
+                await self.mpp_cmd.set_level(data[13])
+                await self.mpp_cmd.set_hh(data[14:-1])
+            except Exception as e:
+                self.logger.debug(e)
     
     @asyncSlot()
     async def pushButton_get_rst_handler(self) -> None:
@@ -213,90 +240,16 @@ class MainConfigDialog(QtWidgets.QDialog):
             self.flg_get_rst = 0
 
     @asyncSlot()
-    async def cheack_uploaded_cfg(self, upload_to: list[int], upload_from: bytes):
-        upload_to_b: bytes = b''.join(list(map(lambda x: x.to_bytes(4, 'big'), upload_to)))
-        print(upload_to_b)
-        print("\n\n")
-        print(upload_from)
-        if upload_to_b == upload_from:
-            print("\n")
-            print("OK")
-
-    # def rvrs(self, s: str, ltr: str) -> int:
-    #     if ltr == 'big':
-    #         int.from_bytes(struct.pack('>H', int(self.lineEdit_lvl_0_1.text())))
-    #     if ltr == 'little':
-    #         int.from_bytes(int(self.lineEdit_lvl_0_1.text()))
-    
-    @asyncSlot()
-    async def get_cfg_data_from_widget(self) -> list[int]:
-        try:
-            data = []
-            data.append(0xf10f)
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_1.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_5.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_0_8.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_1_6.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_3.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_5.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_10.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_30.text()))))
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_lvl_60.text()))))
-
-            str_b = float(self.lineEdit_pwm_ch.text().replace(',', '.'))
-            data.append(int(self.mw.float_to_byte(str_b), 16))
-
-            str_b = float(self.lineEdit_pwm_pips.text().replace(',', '.'))
-            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
-
-
-            str_b = float(self.lineEdit_pwm_sipm.text().replace(',', '.'))
-            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
-
-            str_b = float(self.lineEdit_hvip_ch.text().replace(',', '.'))
-            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
-
-            str_b = float(self.lineEdit_hvip_pips.text().replace(',', '.'))
-            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
-
-            str_b = float(self.lineEdit_hvip_sipm.text().replace(',', '.'))
-            data += [int(self.mw.float_to_byte(str_b)[i*2: i*2+2].hex(), 16) for i in range(2)]
-
-            data.append(int.from_bytes(struct.pack('<H', int(self.lineEdit_cfg_mpp_id.text()))))
-            data.append(int.from_bytes(struct.pack('<I', int(self.lineEdit_interval.text()))))
-
-        except Exception as ex:
-            self.logger.error(ex)
-
-        return data
-    
-    # def update_parent_data(self):
-    #     self.root.v_cfg_pips = float(self.lineEdit_hvip_pips.text())
-    #     self.root.v_cfg_sipm = float(self.lineEdit_hvip_sipm.text())
-    #     self.root.v_cfg_cherenkov = float(self.lineEdit_hvip_ch.text())
-        
-    #     self.root.pwm_cfg_pips = float(self.lineEdit_pwm_pips.text())
-    #     self.root.pwm_cfg_sipm = float(self.lineEdit_pwm_sipm.text())
-    #     self.root.pwm_cfg_cherenkov = float(self.lineEdit_pwm_ch.text())
-        
-    #     self.root.lineEdit_01_hh_l.setText(self.lineEdit_lvl_0_1.text())
-    #     self.root.lineEdit_05_hh_l.setText(self.lineEdit_lvl_0_5.text())
-    #     self.root.lineEdit_08_hh_l.setText(self.lineEdit_lvl_0_8.text())
-    #     self.root.lineEdit_1_6_hh_l.setText(self.lineEdit_lvl_1_6.text())
-    #     self.root.lineEdit_3_hh_l.setText(self.lineEdit_lvl_3.text())
-    #     self.root.lineEdit_5_hh_l.setText(self.lineEdit_lvl_5.text())
-    #     self.root.lineEdit_10_hh_l.setText(self.lineEdit_lvl_10.text())
-    #     self.root.lineEdit_30_hh_l.setText(self.lineEdit_lvl_30.text())
-    #     self.root.lineEdit_60_hh_l.setText(self.lineEdit_lvl_60.text())
-
-    #     self.root.ddii_interval_measure = self.lineEdit_interval.text()
-
-    # def float_to_byte(self, float_t) -> list:
-    #     byte_str: bytes = struct.pack('>f', float_t)
-    #     n0: bytes = self.root.swap_bytes(byte_str[0:2])
-    #     n1: bytes = self.root.swap_bytes(byte_str[2:4])
-    #     return [int(n1.hex(), 16), int(n0.hex(), 16)]
-    
+    async def get_cfg_data_from_widget(self, device: str) -> list[int]:
+        pack = [LineObj(key=key, lineobj=value, tp=('f' if i < 6 else 'i')) 
+        for  i, (key, value) in enumerate(self.le_obj.items())]
+        get_data_widget = LineEditPack()
+        if device == 'mpp':
+            return get_data_widget(pack, 'big')
+        if device == 'cm':
+            return get_data_widget(pack, 'little')
+        else:
+            return []
 
 
     def initValidator(self, validator, d_validator) -> None:

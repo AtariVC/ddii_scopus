@@ -102,7 +102,7 @@ class ModbusMPPComand(EnviramentVar):
     async def set_hh(self, data: list[int]) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_HH, 
-                                                                            len(data),
+                                                                            data,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()

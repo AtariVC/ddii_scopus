@@ -2,12 +2,10 @@
 Парсер данных мпп
 Парсер log
 """
-
 from src.modbus_worker import ModbusWorker
-from src.env_var import EnviramentVar
 
 
-class Parsers(ModbusWorker, EnviramentVar):
+class Parsers(ModbusWorker):
     def __init__(self, **kwargs):
         super().__init__()
 
