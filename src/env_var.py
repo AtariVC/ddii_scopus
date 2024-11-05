@@ -26,7 +26,7 @@ class EnviramentVar():
 
     REG_MPP_COMAND                  = 0x0000
     GET_MPP_DATA                    = 0x0006
-    REG_MPP_HH                      = 0x000B
+    REG_MPP_HH                      = 0x000A
 
     REG_MPP_LEVEL                   = 0x0079
 

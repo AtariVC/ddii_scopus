@@ -1,26 +1,15 @@
 from PyQt6 import QtWidgets
 from qtpy.uic import loadUi
-from qasync import QEventLoop, asyncSlot
+from qasync import asyncSlot
 import qasync
-# from engine_trapezoid_dialog import EngineTrapezoidFilter
-import os
-import struct
-# import threading
-from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtWidgets import QWidget, QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
-from PyQt6.QtCore import QTimer
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
 from PyQt6.QtGui import QFont
 import qtmodern.styles
-from qtmodern.windows import ModernWindow
 import sys
 from pymodbus.client import AsyncModbusSerialClient
 from save_config import ConfigSaver
-
-# from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
-import logging
-# from modules.dialog_window.main_hvip_dialog import MainHvipDialog as hvip_dialog
-# from copy import deepcopy
 import asyncio
 from pathlib import Path
 
@@ -38,7 +27,7 @@ from src.parsers import  Parsers
 from modules.Main_Serial.main_serial_dialog import SerialConnect
 from src.log_config import log_init, log_s
 from src.env_var import EnviramentVar
-from src.parsers_pack import LineObj, LineEditPack
+from src.parsers_pack import LineEObj, LineEditPack
 
 
 class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
@@ -60,6 +49,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
     lineEdit_lvl_10                     : QtWidgets.QLineEdit
     lineEdit_lvl_30                     : QtWidgets.QLineEdit
     lineEdit_lvl_60                     : QtWidgets.QLineEdit
+
+    label_cheack_cfg                    : QtWidgets.QLabel
 
     pushButton_save_hvip                : QtWidgets.QPushButton
     pushButton_save_mpp                 : QtWidgets.QPushButton
@@ -87,6 +78,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
         d_validator = QDoubleValidator()
         self.config = ConfigSaver(self)
         self.flg_get_rst = 0
+        self.label_cheack_cfg.setText("Status: ")
         self.initValidator(i_validator, d_validator)
         if __name__ == "__main__":
             self.w_ser_dialog: SerialConnect = args[0]
@@ -101,14 +93,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
 
     def init_linEdit_list(self) -> dict[str, QtWidgets.QLineEdit]:
         le_obj: dict[str, QtWidgets.QLineEdit] = {
-                    "lineEdit_pwm_ch": self.lineEdit_pwm_ch,
-                    "lineEdit_pwm_pips": self.lineEdit_pwm_pips,
-                    "lineEdit_pwm_sipm": self.lineEdit_pwm_sipm,
-                    "lineEdit_hvip_ch": self.lineEdit_hvip_ch,
-                    "lineEdit_hvip_pips": self.lineEdit_hvip_pips,
-                    "lineEdit_hvip_sipm": self.lineEdit_hvip_sipm,
-                    "lineEdit_interval": self.lineEdit_interval,
                     "lineEdit_lvl_0_1": self.lineEdit_lvl_0_1,
+
                     "lineEdit_lvl_0_5": self.lineEdit_lvl_0_5,
                     "lineEdit_lvl_0_8": self.lineEdit_lvl_0_8,
                     "lineEdit_lvl_1_6": self.lineEdit_lvl_1_6,
@@ -117,7 +103,17 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
                     "lineEdit_lvl_10": self.lineEdit_lvl_10,
                     "lineEdit_lvl_30": self.lineEdit_lvl_30,
                     "lineEdit_lvl_60": self.lineEdit_lvl_60,
-                    "lineEdit_cfg_mpp_id": self.lineEdit_cfg_mpp_id
+
+                    "lineEdit_pwm_ch": self.lineEdit_pwm_ch,
+                    "lineEdit_pwm_pips": self.lineEdit_pwm_pips,
+                    "lineEdit_pwm_sipm": self.lineEdit_pwm_sipm,
+
+                    "lineEdit_hvip_ch": self.lineEdit_hvip_ch,
+                    "lineEdit_hvip_pips": self.lineEdit_hvip_pips,
+                    "lineEdit_hvip_sipm": self.lineEdit_hvip_sipm,
+
+                    "lineEdit_cfg_mpp_id": self.lineEdit_cfg_mpp_id,
+                    "lineEdit_interval": self.lineEdit_interval
                     }
         return le_obj
 
@@ -133,12 +129,18 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
                 self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
                 self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
                 if self.w_ser_dialog.status_CM == 1:
-                    await self.update_gui_data()
+                    await self.update_gui_data_cm()
+                    self.radioButton_cm.setChecked(True)
                     if self.w_ser_dialog.status_MPP == 0:
                         self.radioButton_mpp.setEnabled(False)
+                        self.radioButton_mpp.setChecked(False)
                 if self.w_ser_dialog.status_CM == 0:
-                        self.radioButton_mpp.setChecked(True)
+                        self.radioButton_cm.setChecked(False)
                         self.radioButton_cm.setEnabled(False)
+                if self.w_ser_dialog.status_CM == 0 and self.w_ser_dialog.status_MPP == 0:
+                    self.radioButton_cm.setChecked(True)
+                    self.radioButton_cm.setEnabled(False)
+                    self.radioButton_mpp.setEnabled(False)
                 
         except Exception:
             pass
@@ -151,16 +153,18 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
 
             answ_lvl: bytes = await self.mpp_cmd.get_level()
             tel_dict_lvl: dict[str, str] = await self.parser.pars_mpp_lvl(answ_lvl)
- 
+
             self.lineEdit_lvl_0_1.setText(str(tel_dict_lvl["01_hh_l"]))
+
             for i, (key, val) in enumerate(self.le_obj.items()):
-                val.setText(list(tel_dict.values())[i])
+                if 0 < i < 9:
+                    val.setText(list(tel_dict.values())[i-1])
 
         except Exception as e:
             self.logger.error(e)
 
     @asyncSlot()    
-    async def update_gui_data(self) -> None:
+    async def update_gui_data_cm(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_cfg_ddii()
             tel_dict: dict = await self.parser.pars_cfg_ddii(answer)
@@ -178,44 +182,108 @@ class MainConfigDialog(QtWidgets.QDialog, EnviramentVar):
 
     @asyncSlot()
     async def pushButton_save_cfg_handler(self) -> None:
-        msg: list[int] = [self.HEAD]
+        head: list[int] = [int(self.HEAD.to_bytes(2, 'little').hex(), 16)]
         if self.radioButton_cm.isChecked():
             try:
                 data: list[int] = await self.get_cfg_data_from_widget("cm")
-                msg.append(data[13])
-                await self.cm_cmd.set_cfg_ddii(msg +
-                    data[13:14] + data[14:-1] + data[:12] + data[21:-1] + data[13:14])
-                await asyncio.sleep(1)
+                await self.cm_cmd.set_cfg_ddii(head + data)
+                self.config.save_to_config()
+                self.logger.debug("config_dialog.yaml update")
+                self.label_cheack_cfg.setText("Status: CM config writed")
+                # await asyncio.sleep(0.3)
+                # if await self.cheack_writed_cfg(data, "cm"):
+                #     self.label_cheack_cfg.setText("Проверка записи: CM data correct")
+                # else:
+                #     self.label_cheack_cfg.setText("Проверка записи: CM data uncorrect")
             except Exception as e:
                 self.logger.debug(e)
         if self.radioButton_mpp.isChecked():
             try:
                 data: list[int] = await self.get_cfg_data_from_widget("mpp")
-                await self.mpp_cmd.set_level(data[13])
-                await self.mpp_cmd.set_hh(data[14:-1])
+                await self.mpp_cmd.set_level(data[0])
+                await self.mpp_cmd.set_hh(data[1:9])
+                await asyncio.sleep(0.3)
+                if await self.cheack_writed_cfg(data[0:9], "mpp"):
+                    self.label_cheack_cfg.setText("Status: MPP config writed correct")
+                    self.config.save_to_config()
+                    self.logger.debug("config_dialog.yaml update")
+                else:
+                    self.label_cheack_cfg.setText("Status: MPP config writed uncorrect")
             except Exception as e:
                 self.logger.debug(e)
     
     @asyncSlot()
+    async def cheack_writed_cfg(self, data: list[int], device: str) -> bool:
+        """Поверяет записалась ли в память конфигурация
+        Args:
+            data (list[int]): отправленные данные концигурации
+            device (str): 
+            - "cm"
+            - "mpp"
+        Returns:
+            bool: Статус проверки
+        """
+        try:
+            if device == "mpp":
+                cheack_lvl: bytes = await self.mpp_cmd.get_level()
+                cheack_hh: bytes = await self.mpp_cmd.get_hh()
+                d_cheack_lvl: dict[str, str] =  await self.parser.pars_mpp_lvl(cheack_lvl)
+                d_cheack_hh: dict[str, str] = await self.parser.pars_mpp_hh(cheack_hh)
+                if list(map(int, d_cheack_hh.values())) == data[1:9] and \
+                        list(map(int, d_cheack_lvl.values())) == data[:1]:
+                    return True
+                else:
+                    return False
+        except Exception as e:
+            self.logger.error(e)
+
+        try:
+            if device == "cm": # для цм не работает из-за точности float
+                cheack_cfg_ddii: bytes = await self.cm_cmd.get_cfg_ddii()
+                d_cheack_cfg_ddii:list[int] =  [int.from_bytes(cheack_cfg_ddii[i*2:i*2+2], "little") for i in range(2, 24)]
+                if d_cheack_cfg_ddii == data[1:]:
+                    return True
+                else:
+                    return False
+        except Exception as e:
+            self.logger.error(e)
+
+        return False
+
+
+
+    @asyncSlot()
     async def pushButton_get_rst_handler(self) -> None:
         if self.flg_get_rst == 0:
             if self.radioButton_cm.isChecked() and self.w_ser_dialog.status_CM == 1:
-                await self.update_gui_data()
+                await self.update_gui_data_cm()
+                self.label_cheack_cfg.setText("Status: Get CM config")
                 self.pushButton_Get_Rst.setText("R")
                 self.flg_get_rst = 1
             if self.radioButton_mpp.isChecked() and self.w_ser_dialog.status_MPP == 1:
                 await self.update_gui_data_mpp()
                 self.pushButton_Get_Rst.setText("R")
+                self.label_cheack_cfg.setText("Status: Get MMP config")
                 self.flg_get_rst = 1
             
         else:
             self.pushButton_Get_Rst.setText("G")
+            self.label_cheack_cfg.setText("Status: Reset data")
             self.config.load_from_config()
             self.flg_get_rst = 0
 
     @asyncSlot()
     async def get_cfg_data_from_widget(self, device: str) -> list[int]:
-        pack = [LineObj(key=key, lineobj=value, tp=('f' if i < 6 else 'i')) 
+        """Получает данные с виджетов и упаковывает их в пакет
+
+        Args:
+            device (str): Указать модуль:
+            - "cm"
+            - "mpp"
+        Returns:
+            list[int]: Пакет для отправки по ВШ
+        """
+        pack: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp=('f' if 8 < i < 15 else 'i')) 
         for  i, (key, value) in enumerate(self.le_obj.items())]
         get_data_widget = LineEditPack()
         if device == 'mpp':

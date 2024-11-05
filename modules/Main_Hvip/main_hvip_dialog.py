@@ -1,26 +1,15 @@
 from PyQt6 import QtWidgets
 from qtpy.uic import loadUi
-from qasync import QEventLoop, asyncSlot
+from qasync import asyncSlot
 import qasync
-# from engine_trapezoid_dialog import EngineTrapezoidFilter
-import os
-import struct
-# import threading
-from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtWidgets import QWidget, QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
-from PyQt6.QtCore import QTimer
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
 from PyQt6.QtGui import QFont
 import qtmodern.styles
-from qtmodern.windows import ModernWindow
 import sys
 from pymodbus.client import AsyncModbusSerialClient
-
-
-# from PyQt6.QtCore import QThread, pyqtSignal, Qt
+from save_config import ConfigSaver
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
-import logging
-# from modules.dialog_window.main_hvip_dialog import MainHvipDialog as hvip_dialog
-# from copy import deepcopy
 import asyncio
 from pathlib import Path
 
@@ -38,6 +27,7 @@ from src.parsers import  Parsers
 from modules.Main_Serial.main_serial_dialog import SerialConnect
 from src.log_config import log_init, log_s
 from src.env_var import EnviramentVar
+from src.parsers_pack import LineEObj, LineEditPack
 
 
     # def th_measure_voltage(self):
@@ -104,32 +94,32 @@ from src.env_var import EnviramentVar
     #     self.set_voltage_thread.start()
 
 class MainHvipDialog(QtWidgets.QDialog):
-    spinBox_pips_volt: QtWidgets.QDoubleSpinBox
-    spinBox_sipm_volt: QtWidgets.QDoubleSpinBox
-    spinBox_ch_volt: QtWidgets.QDoubleSpinBox
-    label_pips_mes: QtWidgets.QLabel
-    label_sipm_mes: QtWidgets.QLabel
-    label_ch_mes: QtWidgets.QLabel
-    label_pips_cur: QtWidgets.QLabel
-    label_sipm_cur: QtWidgets.QLabel
-    label_ch_cur: QtWidgets.QLabel
-    label_pips_pwm_mes: QtWidgets.QLabel
-    label_sipm_pwm_mes: QtWidgets.QLabel
-    label_ch_pwm_mes:   QtWidgets.QLabel
+    spinBox_pips_volt                   : QtWidgets.QDoubleSpinBox
+    spinBox_sipm_volt                   : QtWidgets.QDoubleSpinBox
+    spinBox_ch_volt                     : QtWidgets.QDoubleSpinBox
+    label_pips_mes                      : QtWidgets.QLabel
+    label_sipm_mes                      : QtWidgets.QLabel
+    label_ch_mes                        : QtWidgets.QLabel
+    label_pips_cur                      : QtWidgets.QLabel
+    label_sipm_cur                      : QtWidgets.QLabel
+    label_ch_cur                        : QtWidgets.QLabel
+    label_pips_pwm_mes                  : QtWidgets.QLabel
+    label_sipm_pwm_mes                  : QtWidgets.QLabel
+    label_ch_pwm_mes                    : QtWidgets.QLabel
 
-    pushButton_ok: QtWidgets.QPushButton
-    pushButton_apply: QtWidgets.QPushButton
-    doubleSpinBox_pips_pwm: QtWidgets.QDoubleSpinBox
-    doubleSpinBox_sipm_pwm: QtWidgets.QDoubleSpinBox
-    doubleSpinBox_ch_pwm: QtWidgets.QDoubleSpinBox
-    pushButton_pips_on: QtWidgets.QPushButton
-    pushButton_sipm_on: QtWidgets.QPushButton
-    pushButton_ch_on: QtWidgets.QPushButton
-    led_pips: QtWidgets.QWidget
-    led_sipm: QtWidgets.QWidget
-    led_ch: QtWidgets.QWidget
+    pushButton_ok                       : QtWidgets.QPushButton
+    pushButton_apply                    : QtWidgets.QPushButton
+    doubleSpinBox_pips_pwm              : QtWidgets.QDoubleSpinBox
+    doubleSpinBox_sipm_pwm              : QtWidgets.QDoubleSpinBox
+    doubleSpinBox_ch_pwm                : QtWidgets.QDoubleSpinBox
+    pushButton_pips_on                  : QtWidgets.QPushButton
+    pushButton_sipm_on                  : QtWidgets.QPushButton
+    pushButton_ch_on                    : QtWidgets.QPushButton
+    led_pips                            : QtWidgets.QWidget
+    led_sipm                            : QtWidgets.QWidget
+    led_ch                              : QtWidgets.QWidget
 
-    vLayout_ser_connect: QtWidgets.QVBoxLayout
+    vLayout_ser_connect                 : QtWidgets.QVBoxLayout
 
     PIPS_CH_VOLTAGE = 1
     SIPM_CH_VOLTAGE = 2
@@ -142,7 +132,8 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
-
+        self.config = ConfigSaver(self)
+        self.flg_get_rst = 0
         if __name__ == "__main__":
             self.w_ser_dialog: SerialConnect = args[0]
             self.w_ser_dialog.coroutine_finished.connect(self.get_client)
@@ -160,6 +151,7 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
         self.flag_measure = 1
 
+
     @asyncSlot()
     async def get_client(self) -> None:
         """Функция перехватывает client от SerialConnect и переподключается к нему
@@ -170,6 +162,13 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.cm_cmd: ModbusCMComand = ModbusCMComand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPComand = ModbusMPPComand(self.client, self.logger)
             await self.update_gui_data()
+    
+    def init_linEdit_list(self) -> dict[str, QtWidgets.QLineEdit]:
+        spin_boxes: dict[str, QtWidgets.QLineEdit] = {
+            
+    }
+        
+        return le_obj
 
     async def update_gui_data(self):      
         self.spinBox_pips_volt.setValue(self.root.v_cfg_pips)
@@ -399,8 +398,8 @@ if __name__ == "__main__":
     qtmodern.styles.dark(app)
     # light(app)
     logger = log_init()
-    spacer_g = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-    spacer_v = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     w_ser_dialog: SerialConnect = SerialConnect(logger)
     w: MainHvipDialog = MainHvipDialog(logger, w_ser_dialog)
     grBox : QGroupBox = QGroupBox("Подключение")
@@ -413,12 +412,12 @@ if __name__ == "__main__":
     grBox.setFont(font)
     gridL: QGridLayout = QGridLayout()
     w.vLayout_ser_connect.addWidget(grBox)
+    grBox.setMinimumWidth(10)
     grBox.setLayout(gridL)
     gridL.addItem(spacer_g, 0, 0)
     gridL.addItem(spacer_g, 0, 2)
     gridL.addItem(spacer_v, 2, 1, 1, 3)
     gridL.addWidget(w_ser_dialog, 0, 1)
-    grBox.setMinimumWidth(10)
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)

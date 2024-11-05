@@ -416,7 +416,7 @@
                 <string notr="true"/>
                </property>
                <property name="currentIndex">
-                <number>0</number>
+                <number>2</number>
                </property>
                <widget class="QWidget" name="tab_4">
                 <property name="sizePolicy">
@@ -3027,8 +3027,8 @@ font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                         <property name="geometry">
                          <rect>
                           <x>0</x>
-                          <y>0</y>
-                          <width>341</width>
+                          <y>-771</y>
+                          <width>899</width>
                           <height>1230</height>
                          </rect>
                         </property>
@@ -4033,6 +4033,9 @@ font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                                  <widget class="QLineEdit" name="lineEdit_comparator">
                                   <property name="text">
                                    <string>0.1</string>
+                                  </property>
+                                  <property name="alignment">
+                                   <set>Qt::AlignCenter</set>
                                   </property>
                                  </widget>
                                 </item>
