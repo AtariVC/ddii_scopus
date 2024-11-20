@@ -12,7 +12,6 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel("Нажмите кнопку, чтобы начать корутину.")
         self.button = QPushButton("Запустить корутину")
         self.button.clicked.connect(self.on_button_click)
-
         # Настройка макета
         layout = QVBoxLayout()
         layout.addWidget(self.status_label)
@@ -27,18 +26,22 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Корутину запущено...")
         
         # Запускаем корутину и отслеживаем ее завершение
-        task = asyncio.create_task(self.example_coroutine())
+        task: asyncio.Task[None] = asyncio.create_task(self.example_coroutine())
 
         # Обновляем интерфейс до завершения корутины
         while not task.done():
-            self.status_label.setText("Корутину выполняется...")
-            await asyncio.sleep(0.2)
+            # self.status_label.setText("Корутину выполняется...")
+            await asyncio.sleep(0.1)
 
         # После завершения корутины обновляем интерфейс
         self.status_label.setText("Корутину завершена!")
 
     async def example_coroutine(self):
-        await asyncio.sleep(2)  # Симуляция длительной операции
+        i = 0
+        while 1:
+            await asyncio.sleep(2)  # Симуляция длительной операции
+            i += 1
+            self.status_label.setText(f'Counter: {i}')
         print("Корутину завершена!")
 
 app = QApplication(sys.argv)

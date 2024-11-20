@@ -1,6 +1,4 @@
 
-from PyQt6.QtWidgets import QLineEdit
-from src.parsers import  Parsers
 from src.modbus_worker import ModbusWorker
 import struct
 from dataclasses import dataclass
@@ -21,7 +19,7 @@ class LineEObj:
 
 class LineEditPack:
     """
-    Извлекает все значения из QLineEdit и упаковывает их в list для отправки
+    Извлекает все значения из lineobj_txt и упаковывает их в list[int] для отправки по модбас
 
     ln_objects: list[LineObj] - список объектов QLineEdit
 

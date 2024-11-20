@@ -1,7 +1,7 @@
 from PyQt6 import QtWidgets, QtCore
 from qtpy.uic import loadUi
 from qasync import asyncSlot
-from PyQt6.QtWidgets import QSizePolicy, QApplication
+from PyQt6.QtWidgets import QSizePolicy
 import qtmodern.styles
 from qtmodern.windows import ModernWindow
 import sys
@@ -20,18 +20,17 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.log_config import log_init, log_s # noqa: E402
-from src.modbus_worker import ModbusWorker # noqa: E402
-from src.ddii_comand import ModbusCMComand # noqa: E402
-from src.customComboBox_COMport import CustomComboBox_COMport # noqa: E402
-from style.styleSheet import widget_led_on, widget_led_off # noqa: E402
-from src.env_var import EnviramentVar  # noqa: E402
+from src.log_config import log_init, log_s                          # noqa: E402
+from src.modbus_worker import ModbusWorker                          # noqa: E402
+from src.customComboBox_COMport import CustomComboBox_COMport       # noqa: E402
+from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
+from src.env_var import EnvironmentVar                               # noqa: E402
 
 
 
 
 
-class SerialConnect(QtWidgets.QWidget, EnviramentVar):
+class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     pushButton_connect_w        : QtWidgets.QPushButton
     lineEdit_Bauderate_w        : QtWidgets.QLineEdit
     lineEdit_ID_w               : QtWidgets.QLineEdit

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>685</width>
-    <height>313</height>
+    <width>707</width>
+    <height>399</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -69,8 +69,22 @@
           <property name="horizontalSpacing">
            <number>10</number>
           </property>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label">
+          <item row="6" column="0">
+           <widget class="QLabel" name="label_pips_a_i">
+            <property name="text">
+             <string>a_i:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="0">
+           <widget class="QLabel" name="label_pips_b_i">
+            <property name="text">
+             <string>b_i:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="12" column="1">
+           <widget class="QLabel" name="label_pips_v_mes">
             <property name="font">
              <font>
               <family>MS Shell Dlg 2</family>
@@ -81,14 +95,14 @@
              </font>
             </property>
             <property name="text">
-             <string>Напр., В:</string>
+             <string>0</string>
             </property>
             <property name="alignment">
-             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+             <set>Qt::AlignCenter</set>
             </property>
            </widget>
           </item>
-          <item row="3" column="0">
+          <item row="12" column="0">
            <widget class="QLabel" name="label_2">
             <property name="font">
              <font>
@@ -107,47 +121,14 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
-           <widget class="QLabel" name="label_pips_mes">
-            <property name="font">
-             <font>
-              <family>MS Shell Dlg 2</family>
-              <pointsize>12</pointsize>
-              <weight>50</weight>
-              <italic>false</italic>
-              <bold>false</bold>
-             </font>
-            </property>
-            <property name="text">
-             <string>0</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="spinBox_pips_volt">
-            <property name="decimals">
-             <number>1</number>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="label_5">
-            <property name="text">
-             <string>k, pwm:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
+          <item row="13" column="0">
            <widget class="QLabel" name="label_10">
             <property name="text">
              <string>Измер. I, A:</string>
             </property>
            </widget>
           </item>
-          <item row="4" column="1">
+          <item row="13" column="1">
            <widget class="QLabel" name="label_pips_cur">
             <property name="text">
              <string>0</string>
@@ -157,21 +138,14 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
-           <widget class="QDoubleSpinBox" name="doubleSpinBox_pips_pwm">
-            <property name="singleStep">
-             <double>0.010000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="0">
+          <item row="15" column="0">
            <widget class="QPushButton" name="pushButton_pips_on">
             <property name="text">
              <string>Включить</string>
             </property>
            </widget>
           </item>
-          <item row="6" column="1">
+          <item row="15" column="1">
            <layout class="QGridLayout" name="gridLayout_4">
             <item row="0" column="0">
              <widget class="QWidget" name="led_pips" native="true">
@@ -190,20 +164,157 @@
             </item>
            </layout>
           </item>
-          <item row="5" column="0">
+          <item row="14" column="0">
            <widget class="QLabel" name="label_11">
             <property name="text">
              <string>Измер. k, pwm:</string>
             </property>
            </widget>
           </item>
-          <item row="5" column="1">
+          <item row="14" column="1">
            <widget class="QLabel" name="label_pips_pwm_mes">
             <property name="text">
              <string>0</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="label_pips_b_u">
+            <property name="text">
+             <string>b_u:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="label_pips_a_u">
+            <property name="text">
+             <string>a_u:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="0">
+           <widget class="Line" name="line_7">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="1">
+           <widget class="Line" name="line_8">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="0">
+           <widget class="QLabel" name="label">
+            <property name="font">
+             <font>
+              <family>MS Shell Dlg 2</family>
+              <pointsize>12</pointsize>
+              <weight>50</weight>
+              <italic>false</italic>
+              <bold>false</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Напр., В:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="1">
+           <widget class="QDoubleSpinBox" name="doubleSpinBox_pips_pwm">
+            <property name="singleStep">
+             <double>0.010000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_pips_volt">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>k, pwm:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_pips_a_u">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_pips_a_i">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_pips_b_u">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>0.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_pips_b_i">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="0">
+           <widget class="Line" name="line">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="1">
+           <widget class="Line" name="line_4">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -232,8 +343,8 @@
        <layout class="QGridLayout" name="gridLayout_6">
         <item row="0" column="1">
          <layout class="QGridLayout" name="gridLayout_5">
-          <item row="3" column="1">
-           <widget class="QLabel" name="label_sipm_mes">
+          <item row="13" column="1">
+           <widget class="QLabel" name="label_sipm_v_mes">
             <property name="text">
              <string>0</string>
             </property>
@@ -242,42 +353,28 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_3">
-            <property name="text">
-             <string>Напр., В:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
+          <item row="13" column="0">
            <widget class="QLabel" name="label_4">
             <property name="text">
              <string>Измер. V, В:</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="spinBox_sipm_volt">
-            <property name="decimals">
-             <number>1</number>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="label_8">
-            <property name="text">
-             <string>k, pwm:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="0">
+          <item row="16" column="0">
            <widget class="QPushButton" name="pushButton_sipm_on">
             <property name="text">
              <string>Включить</string>
             </property>
            </widget>
           </item>
-          <item row="4" column="1">
+          <item row="14" column="0">
+           <widget class="QLabel" name="label_12">
+            <property name="text">
+             <string>Измер. I, A:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="14" column="1">
            <widget class="QLabel" name="label_sipm_cur">
             <property name="text">
              <string>0</string>
@@ -287,14 +384,7 @@
             </property>
            </widget>
           </item>
-          <item row="4" column="0">
-           <widget class="QLabel" name="label_12">
-            <property name="text">
-             <string>Измер. I, A:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="1">
+          <item row="16" column="1">
            <layout class="QGridLayout" name="gridLayout_10">
             <item row="0" column="0">
              <widget class="QWidget" name="led_sipm" native="true">
@@ -313,23 +403,152 @@
             </item>
            </layout>
           </item>
-          <item row="2" column="1">
-           <widget class="QDoubleSpinBox" name="doubleSpinBox_sipm_pwm"/>
-          </item>
-          <item row="5" column="0">
+          <item row="15" column="0">
            <widget class="QLabel" name="label_15">
             <property name="text">
              <string>Измер. k, pwm:</string>
             </property>
            </widget>
           </item>
-          <item row="5" column="1">
+          <item row="15" column="1">
            <widget class="QLabel" name="label_sipm_pwm_mes">
             <property name="text">
              <string>0</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="label_sipm_b_u">
+            <property name="text">
+             <string>b_u:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="0">
+           <widget class="QLabel" name="label_sipm_b_i">
+            <property name="text">
+             <string>b_i:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="0">
+           <widget class="QLabel" name="label_sipm_a_i">
+            <property name="text">
+             <string>a_i:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="12" column="0">
+           <widget class="Line" name="line_9">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="12" column="1">
+           <widget class="Line" name="line_10">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Напр., В:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="0">
+           <widget class="QLabel" name="label_8">
+            <property name="text">
+             <string>k, pwm:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_sipm_volt">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="1">
+           <widget class="QDoubleSpinBox" name="doubleSpinBox_sipm_pwm"/>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="label_sipm_a_u">
+            <property name="text">
+             <string>a_u:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_sipm_b_u">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_sipm_a_u">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_sipm_a_i">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_sipm_b_i">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="0">
+           <widget class="Line" name="line_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="1">
+           <widget class="Line" name="line_5">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -358,15 +577,22 @@
        <layout class="QGridLayout" name="gridLayout_8">
         <item row="0" column="0">
          <layout class="QGridLayout" name="gridLayout_7">
-          <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="spinBox_ch_volt">
-            <property name="decimals">
-             <number>1</number>
+          <item row="7" column="0">
+           <widget class="QLabel" name="label_ch_b_i">
+            <property name="text">
+             <string>b_i:</string>
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
-           <widget class="QLabel" name="label_ch_mes">
+          <item row="4" column="0">
+           <widget class="QLabel" name="label_ch_a_u">
+            <property name="text">
+             <string>a_u:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="12" column="1">
+           <widget class="QLabel" name="label_ch_v_mes">
             <property name="text">
              <string>0</string>
             </property>
@@ -375,28 +601,21 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="0">
+          <item row="12" column="0">
            <widget class="QLabel" name="label_7">
             <property name="text">
              <string>Измер. V, В:</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_6">
+          <item row="13" column="0">
+           <widget class="QLabel" name="label_14">
             <property name="text">
-             <string>Напр., В:</string>
+             <string>Измер. I, A:</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
-           <widget class="QDoubleSpinBox" name="doubleSpinBox_ch_pwm">
-            <property name="singleStep">
-             <double>0.010000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="1">
+          <item row="13" column="1">
            <widget class="QLabel" name="label_ch_cur">
             <property name="text">
              <string>0</string>
@@ -406,14 +625,14 @@
             </property>
            </widget>
           </item>
-          <item row="4" column="0">
-           <widget class="QLabel" name="label_14">
+          <item row="15" column="0">
+           <widget class="QPushButton" name="pushButton_ch_on">
             <property name="text">
-             <string>Измер. I, A:</string>
+             <string>Включить</string>
             </property>
            </widget>
           </item>
-          <item row="6" column="1">
+          <item row="15" column="1">
            <layout class="QGridLayout" name="gridLayout_11">
             <item row="0" column="0">
              <widget class="QWidget" name="led_ch" native="true">
@@ -432,28 +651,7 @@
             </item>
            </layout>
           </item>
-          <item row="6" column="0">
-           <widget class="QPushButton" name="pushButton_ch_on">
-            <property name="text">
-             <string>Включить</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="label_9">
-            <property name="text">
-             <string>k, pwm:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="0">
-           <widget class="QLabel" name="label_19">
-            <property name="text">
-             <string>Измер. k, pwm:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="1">
+          <item row="14" column="1">
            <widget class="QLabel" name="label_ch_pwm_mes">
             <property name="text">
              <string>0</string>
@@ -463,13 +661,178 @@
             </property>
            </widget>
           </item>
+          <item row="14" column="0">
+           <widget class="QLabel" name="label_19">
+            <property name="text">
+             <string>Измер. k, pwm:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="label_ch_a_i">
+            <property name="text">
+             <string>a_i:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="label_ch_b_u">
+            <property name="text">
+             <string>b_u:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="1">
+           <widget class="Line" name="line_12">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="0">
+           <widget class="Line" name="line_11">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="0">
+           <widget class="QLabel" name="label_6">
+            <property name="text">
+             <string>Напр., В:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_ch_volt">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="0">
+           <widget class="QLabel" name="label_9">
+            <property name="text">
+             <string>k, pwm:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_ch_a_u">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_ch_b_u">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="1">
+           <widget class="QDoubleSpinBox" name="doubleSpinBox_ch_pwm">
+            <property name="singleStep">
+             <double>0.010000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_ch_b_i">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_ch_a_i">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="0">
+           <widget class="Line" name="line_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="1">
+           <widget class="Line" name="line_6">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
          </layout>
         </item>
        </layout>
       </widget>
      </item>
      <item row="1" column="2">
-      <layout class="QHBoxLayout" name="horizontalLayout">
+      <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0">
+       <item>
+        <widget class="QPushButton" name="pushButton_get_rst">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>30</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>G</string>
+         </property>
+         <property name="checkable">
+          <bool>false</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
        <item>
         <widget class="QPushButton" name="pushButton_apply">
          <property name="font">
@@ -479,6 +842,9 @@
          </property>
          <property name="text">
           <string>Применить</string>
+         </property>
+         <property name="checkable">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -492,9 +858,24 @@
          <property name="text">
           <string>ОК</string>
          </property>
+         <property name="checkable">
+          <bool>false</bool>
+         </property>
         </widget>
        </item>
       </layout>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_status">
+       <property name="font">
+        <font>
+         <pointsize>12</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Status:</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>

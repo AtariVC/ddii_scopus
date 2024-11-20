@@ -3,11 +3,15 @@
 Парсер log
 """
 from src.modbus_worker import ModbusWorker
+from src.parsers_pack import LineEObj
+import struct
 
 
 class Parsers(ModbusWorker):
     def __init__(self, **kwargs):
         super().__init__()
+
+    
 
     async def pars_telemetria(self, tel: bytes) -> dict[str, str]:
         d_tel: dict = {}
@@ -130,80 +134,116 @@ class Parsers(ModbusWorker):
         d = {}
         
         ######## УРОВЕНЬ ###########
-        d["01_hh_l"] = str(int(self._REV16(b[3:5]).hex(), 16))
-        d["05_hh_l"] = str(int(self._REV16(b[5:7]).hex(), 16))
-        d["08_hh_l"] = str(int(self._REV16(b[7:9]).hex(), 16))
-        d["1_6_hh_l"] = str(int(self._REV16(b[9:11]).hex(), 16))
-        d["3_hh_l"] = str(int(self._REV16(b[11:13]).hex(), 16))
-        d["5_hh_l"] = str(int(self._REV16(b[13:15]).hex(), 16))
-        d["10_hh_l"] = str(int(self._REV16(b[15:17]).hex(), 16))
-        d["30_hh_l"] = str(int(self._REV16(b[17:19]).hex(), 16))
-        d["60_hh_l"] = str(int(self._REV16(b[19:21]).hex(), 16))
-        
+        d["01_hh_l"]              =     str(int(self._REV16(b[3:5]).hex(), 16))
+        d["05_hh_l"]              =     str(int(self._REV16(b[5:7]).hex(), 16))
+        d["08_hh_l"]              =     str(int(self._REV16(b[7:9]).hex(), 16))
+        d["1_6_hh_l"]             =     str(int(self._REV16(b[9:11]).hex(), 16))
+        d["3_hh_l"]               =     str(int(self._REV16(b[11:13]).hex(), 16))
+        d["5_hh_l"]               =     str(int(self._REV16(b[13:15]).hex(), 16))
+        d["10_hh_l"]              =     str(int(self._REV16(b[15:17]).hex(), 16))
+        d["30_hh_l"]              =     str(int(self._REV16(b[17:19]).hex(), 16))
+        d["60_hh_l"]              =     str(int(self._REV16(b[19:21]).hex(), 16))
+    
         ######### ВИП PWM ###########
-        d["hvip_cfg_pwm_ch"] = "{:.2f}".format(self.byte_to_float(b[21:25]))
-        d["hvip_cfg_pwm_pips"] = "{:.2f}".format(self.byte_to_float(b[25:29]))
-        d["hvip_cfg_pwm_sipm"] = "{:.2f}".format(self.byte_to_float(b[29:33]))
+        d["hvip_cfg_pwm_ch"]      =     "{:.2f}".format(self.byte_to_float(b[21:25]))
+        d["hvip_cfg_pwm_pips"]    =     "{:.2f}".format(self.byte_to_float(b[25:29]))
+        d["hvip_cfg_pwm_sipm"]    =     "{:.2f}".format(self.byte_to_float(b[29:33]))
         ######### ВИП Voltage ###########
-        d["hvip_cfg_vlt_ch"] = "{:.2f}".format(self.byte_to_float(b[33:37]))
-        d["hvip_cfg_vlt_pips"] = "{:.2f}".format(self.byte_to_float(b[37:41]))
-        d["hvip_cfg_vlt_sipm"] = "{:.2f}".format(self.byte_to_float(b[41:45]))
+        d["hvip_cfg_vlt_ch"]      =     "{:.2f}".format(self.byte_to_float(b[33:37]))
+        d["hvip_cfg_vlt_pips"]    =     "{:.2f}".format(self.byte_to_float(b[37:41]))
+        d["hvip_cfg_vlt_sipm"]    =     "{:.2f}".format(self.byte_to_float(b[41:45]))
 
         d["mpp_id"] = str(int(self._REV16(b[45:47]).hex(), 16))
-        d["interval_measure"] = str(int(self._REV32(b[47:51]).hex(), 16))
+        d["interval_measure"]     =     str(int(self._REV32(b[47:51]).hex(), 16))
         return d
     
     async def pars_mpp_hh(self, b: bytes) -> dict[str, str]:
         d: dict[str, str] = {}
         ######### УРОВЕНЬ ###########
-        d["05_hh_l"] = str(int((b[1:3]).hex(), 16))
-        d["08_hh_l"] = str(int((b[3:5]).hex(), 16))
-        d["1_6_hh_l"] = str(int((b[5:7]).hex(), 16))
-        d["3_hh_l"] = str(int((b[7:9]).hex(), 16))
-        d["5_hh_l"] = str(int((b[9:11]).hex(), 16))
-        d["10_hh_l"] = str(int((b[11:13]).hex(), 16))
-        d["30_hh_l"] = str(int((b[13:15]).hex(), 16))
-        d["60_hh_l"] = str(int((b[15:17]).hex(), 16))
+        d["05_hh_l"]              =     str(int((b[1:3]).hex(), 16))
+        d["08_hh_l"]              =     str(int((b[3:5]).hex(), 16))
+        d["1_6_hh_l"]             =     str(int((b[5:7]).hex(), 16))
+        d["3_hh_l"]               =     str(int((b[7:9]).hex(), 16))
+        d["5_hh_l"]               =     str(int((b[9:11]).hex(), 16))
+        d["10_hh_l"]              =     str(int((b[11:13]).hex(), 16))
+        d["30_hh_l"]              =     str(int((b[13:15]).hex(), 16))
+        d["60_hh_l"]              =     str(int((b[15:17]).hex(), 16))
         return d
     
     async def pars_mpp_lvl(self, b: bytes) -> dict[str, str]:
         d: dict[str, str] = {}
-        d["01_hh_l"] = str(int((b[1:3]).hex(), 16))
+        d["01_hh_l"]              =     str(int((b[1:3]).hex(), 16))
         return d
 
-    async def parse_voltage(self, data_v: bytes) -> dict:
-        try:
-            cherenkov_v = self.byte_to_float(data_v[1:5])
-            cherenkov_pwm = self.byte_to_float(data_v[5:9])
-            cherenkov_cur = self.byte_to_float(data_v[9:13])
-            cherenkov_mode = int(data_v[13:14].hex(), 16)
+    async def pars_voltage(self, data_v: bytes) -> dict[str, str]:
+        d: dict[str, str] = {}
 
-            pips_v = self.byte_to_float(data_v[15:19])
-            pips_pwm = self.byte_to_float(data_v[19:23])
-            pips_cur = self.byte_to_float(data_v[23:27])
-            pips_mode = int(data_v[27:28].hex(), 16)
+        d["label_ch_v_mes"]       =     str(self.byte_to_float(data_v[1:5]))
+        d["label_ch_pwm_mes"]     =     str(self.byte_to_float(data_v[5:9]))
+        d["label_ch_cur"]         =     str(self.byte_to_float(data_v[9:13]))
+        d["hvip_mode_ch"]         =     str(int(data_v[13:14].hex(), 16))
 
-            sipm_mode = int(data_v[41:42].hex(), 16)
-            sipm_v = self.byte_to_float(data_v[29:33])
-            sipm_pwm = self.byte_to_float(data_v[33:37])
-            sipm_cur = self.byte_to_float(data_v[37:41])
+        d["label_pips_v_mes"]     =     str(self.byte_to_float(data_v[15:19]))
+        d["label_pips_pwm_mes"]   =     str(self.byte_to_float(data_v[19:23]))
+        d["label_pips_cur"]       =     str(self.byte_to_float(data_v[23:27]))
+        d["hvip_mode_pips"]       =     str(int(data_v[27:28].hex(), 16))
 
-            data_out = {
-                pips_v,
-                pips_pwm,
-                pips_cur,
-                pips_mode,
-                sipm_v,
-                sipm_pwm,
-                sipm_cur,
-                sipm_mode,
-                cherenkov_v,
-                cherenkov_pwm,
-                cherenkov_cur,
-                cherenkov_mode,
-            }
-            return data_out
-        except Exception as ex:
-            self.logger.debug(ex)
-            self.logger.exception("message")
-            return (0,)
+        d["label_sipm_v_mes"]     =     str(self.byte_to_float(data_v[29:33]))
+        d["label_sipm_pwm_mes"]   =     str(self.byte_to_float(data_v[33:37]))
+        d["label_sipm_cur"]       =     str(self.byte_to_float(data_v[37:41]))
+        d["hvip_mode_sipm"]       =     str(int(data_v[41:42].hex(), 16))
+        return d
+    
+    async def pars_cfg_volt(self, data_v: bytes) -> dict[str, str]:
+        d: dict[str, str] = {}
+
+        d["spinBox_ch_volt"]     =     str(self.byte_to_float(data_v[1:5]))
+        d["spinBox_pips_volt"]   =     str(self.byte_to_float(data_v[5:9]))
+        d["spinBox_sipm_volt"]   =     str(self.byte_to_float(data_v[9:13]))
+        return d
+
+    async def pars_cfg_pwm(self, data_v: bytes) -> dict[str, str]:
+        d: dict[str, str] = {}
+
+        d["doubleSpinBox_ch_pwm"]      =     str(self.byte_to_float(data_v[1:5]))
+        d["doubleSpinBox_pips_pwm"]    =     str(self.byte_to_float(data_v[5:9]))
+        d["doubleSpinBox_sipm_pwm"]    =     str(self.byte_to_float(data_v[9:13]))
+        return d
+
+    async def pars_cfg_a_b(self, data_v: bytes) -> dict[str, str]:
+        d: dict[str, str] = {}
+
+        d["spinBox_ch_a_u"]         =     str(self.byte_to_float(data_v[1:5]))
+        d["spinBox_ch_b_u"]         =     str(self.byte_to_float(data_v[5:9]))
+        d["spinBox_ch_a_i"]         =     str(self.byte_to_float(data_v[9:13]))
+        d["spinBox_ch_b_i"]         =     str(self.byte_to_float(data_v[13:17]))
+
+        d["spinBox_pips_a_u"]       =     str(self.byte_to_float(data_v[17:21]))
+        d["spinBox_pips_b_u"]       =     str(self.byte_to_float(data_v[21:25]))
+        d["spinBox_pips_a_i"]       =     str(self.byte_to_float(data_v[25:29]))
+        d["spinBox_pips_b_i"]       =     str(self.byte_to_float(data_v[29:33]))
+
+        d["spinBox_sipm_a_u"]       =     str(self.byte_to_float(data_v[33:37]))
+        d["spinBox_sipm_b_u"]       =     str(self.byte_to_float(data_v[37:41]))
+        d["spinBox_sipm_a_i"]       =     str(self.byte_to_float(data_v[41:45]))
+        d["spinBox_sipm_b_i"]       =     str(self.byte_to_float(data_v[45:49]))
+        return d
+
+    async def pars_everything(self, dataObj: list[LineEObj], bytes_data: bytes, endian: str) -> dict[str, str]:
+        d: dict[str, str] = {}
+        for i, obj in enumerate(dataObj):
+            if obj.tp == "i":
+                if endian == "big":
+                    d[obj.key] = str(int(bytes_data[i*2+1:i*2+2+1].hex(), 16))
+                if endian == "little":
+                    d[obj.key] = str(int(self._REV16(bytes_data[i*2+1:i*2+2+1]).hex(), 16))
+
+            if obj.tp == "f":
+                n_i: int = int(bytes_data[i*4+1:i*4+4+1].hex(), 16)
+                b : bytes = n_i.to_bytes(4, byteorder = endian) # type: ignore
+                float_t: float = struct.unpack('!f', b)[0]
+                if float_t < -1E6:
+                    d[obj.key] = "0"
+                else:
+                    d[obj.key] = "{:.2f}".format(float_t)
+        return d
