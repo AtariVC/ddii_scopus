@@ -243,22 +243,37 @@
          </item>
          <item>
           <widget class="QPushButton" name="pushButton_3">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
            <property name="text">
-            <string>Запуск непр. осциллограм</string>
+            <string>Запустить непр. измерение</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QPushButton" name="pushButton_2">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
            <property name="text">
-            <string>Запуск измерения</string>
+            <string>Запустить едн. измерение</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QPushButton" name="pushButton">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
            <property name="text">
-            <string>Остановить опрос потоков</string>
+            <string>Остановить опроc</string>
            </property>
           </widget>
          </item>
