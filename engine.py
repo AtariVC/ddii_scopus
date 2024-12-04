@@ -667,7 +667,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         #     self.start_accumulation_wave_start_action.setToolTip("Продолжить накопление")
         #     self.start_accumulation_flag = 1
 
-    
     def stop_accumulation_wave_stop_action_toolbar_triggered(self) -> None:
         self.stop_accumulation_wave_stop_action.setIcon(QIcon("./icon/stop_notVisible.svg"))
         self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/start.svg"))
@@ -679,7 +678,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.start_accumulation_wave_start_action.setToolTip("Начать накопление")
         # if self.start_accumulation_flag == 0:
         #     self.start_accumulation_wave_start_action_toolbar_triggered()
-    
 
     def thread_write_reg_not_answer(self, adr, val, slv):
         self.client.write_registers(address = adr, values = val, slave = slv)
@@ -822,7 +820,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             if self.flag_readWaveform_trig != 1:
                 self.start_measure_mpp()
             else:
-                self.client.write_registers(address=0x0000, values=[0x0009, 0x0000], slave=self.mpp_id) # запуск регистрации
+                self.client.write_registers(address=0x0000, values=[0x0009], slave=self.mpp_id) # запуск регистрации
                 self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id) # начать измерение
                 log_s(self.send_handler.mess)
             waveformA = self.readWaveform_adcA()
