@@ -337,7 +337,7 @@
                <string notr="true"/>
               </property>
               <property name="title">
-               <string>Потоки по энергиям</string>
+               <string>Гистограмма МПП</string>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_17">
                <property name="spacing">
