@@ -1,7 +1,7 @@
 from PyQt6 import QtWidgets, QtCore
 from qtpy.uic import loadUi
 from qasync import asyncSlot
-import qasync
+import asyncio
 from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
 from PyQt6.QtGui import QFont
 import qtmodern.styles
@@ -9,9 +9,8 @@ import sys
 from pymodbus.client import AsyncModbusSerialClient
 # from save_config import ConfigSaver
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
-import asyncio
 from pathlib import Path
-import pyqtgraph as pg
+from dataclasses import dataclass
 
 ####### импорты из других директорий ######
 # /src
@@ -29,6 +28,9 @@ from src.log_config import log_init, log_s                          # noqa: E402
 from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 
+
+
+
 class Main_Graph_Widget(QtWidgets.QDialog):
     vLayout_gist_EdE            : QtWidgets.QVBoxLayout
     vLayout_gist_pips           : QtWidgets.QVBoxLayout
@@ -38,24 +40,26 @@ class Main_Graph_Widget(QtWidgets.QDialog):
 
     vLayout_ser_connect         : QtWidgets.QVBoxLayout
 
-
-
-
     def __init__(self, logger, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).resolve().parent.parent.parent.parent.joinpath('frontend/engineWidget/WidgetGraph.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
-        self.flg_get_rst = 0
-        if __name__ == "__main__":
-            self.w_ser_dialog: SerialConnect = args[0]
-            self.w_ser_dialog.coroutine_finished.connect(self.get_client)
-        else:
-            self.client: AsyncModbusSerialClient = args[0]
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
+        # self.flg_get_rst = 0
+        # if __name__ == "__main__":
+        #     self.w_ser_dialog: SerialConnect = args[0]
+        #     self.w_ser_dialog.coroutine_finished.connect(self.get_client)
+        # else:
+        # self.client: AsyncModbusSerialClient = args[0]
+        # self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
+        # self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         self.task = None # type: ignore
+
+        gp_pips = GraphPen(self.vLayout_pips)
+        gp_sipm = GraphPen(self.vLayout_sipm)
+        HistPen(self.plot_gist_pips)
+        HistPen(self.plot_gist_sipm)
         self.plot_pips = pg.PlotWidget()
         self.plot_sipm = pg.PlotWidget()
         self.plot_gist_EdE = pg.PlotWidget()
@@ -67,23 +71,44 @@ class Main_Graph_Widget(QtWidgets.QDialog):
         self.vLayout_gist_pips.addWidget(self.plot_gist_pips)
         self.vLayout_gist_sipm.addWidget(self.plot_gist_sipm)
 
+
+
+
     @asyncSlot()
-    async def get_client(self) -> None:
-        """Перехватывает client от SerialConnect и переподключается к нему"""
-        # self.label_status.setText("Status:")
-        if self.w_ser_dialog.pushButton_connect_flag == 1:
-            self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
-            await self.client.connect()
-            self.cm_cmd = ModbusCMCommand(self.client, self.logger)
-            self.flg_get_rst = 1
-            # await self.update_gui_data_label()
-            # await self.update_gui_data_spinbox()
-        if self.w_ser_dialog.pushButton_connect_flag == 0:
-            if self.task:
-                self.task.cancel()
-        if self.w_ser_dialog.status_CM == 1:
-            # self.coroutine_get_client_finished.emit()
-            pass
+    async def graph_data_processing(self, data: list[int | float]) -> tuple[list[int|float], list[int|float]]:
+        x: list = []
+        y: list = []
+        for index, value in enumerate(data):
+            try:
+                if value > 4000:
+                    decimal_value = 0
+                x.append(index)
+                y.append(decimal_value)
+            except Exception as e:
+                self.logger.debug(e)
+        return x, y
+
+
+
+
+
+    # @asyncSlot()
+    # async def get_client(self) -> None:
+    #     """Перехватывает client от SerialConnect и переподключается к нему"""
+    #     # self.label_status.setText("Status:")
+    #     if self.w_ser_dialog.pushButton_connect_flag == 1:
+    #         self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
+    #         await self.client.connect()
+    #         self.cm_cmd = ModbusCMCommand(self.client, self.logger)
+    #         self.flg_get_rst = 1
+    #         # await self.update_gui_data_label()
+    #         # await self.update_gui_data_spinbox()
+    #     if self.w_ser_dialog.pushButton_connect_flag == 0:
+    #         if self.task:
+    #             self.task.cancel()
+    #     if self.w_ser_dialog.status_CM == 1:
+    #         # self.coroutine_get_client_finished.emit()
+    #         pass
     
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
