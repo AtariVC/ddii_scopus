@@ -1411,7 +1411,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         Returns:
             A list containing the waveform data.
         """
-        amount_read_reg = 126 # так как потом умножается на 2
+        amount_read_reg = 32 # так как потом умножается на 2
         # start_measure_comand: int = (self.mpp_id << 40) + (self.f_comand_write << 32) + (self.start_measure << 0)
         # num_bytes, data_crc = self.sendModbus(start_measure_comand)
         # self.reciveModbus(num_bytes*2)
