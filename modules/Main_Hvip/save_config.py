@@ -33,9 +33,9 @@ class ConfigSaver():
             config_data = yaml.safe_load(file)
 
         for (key, val) in wd_dict.items():
-            if type(val) == type(PyQt6.QtWidgets.QDoubleSpinBox):
+            if str(type(val)) == "<class 'PyQt6.QtWidgets.QDoubleSpinBox'>": # type: ignore
                 val.setValue(config_data.get(key, "")) # type: ignore
-            if type(val) == type(QLineEdit):
+            if str(type(val)) == "<class 'PyQt6.QtWidgets.QLineEdit'>":
                 val.setText(config_data.get(key, "")) # type: ignore
         file.close()
 

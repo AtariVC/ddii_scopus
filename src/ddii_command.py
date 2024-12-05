@@ -26,6 +26,19 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.error(e)
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
+        
+    @asyncSlot()
+    async def get_desired_voltage(self) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.CM_DBG_GET_DESIRED_HVIP, 
+                                                                            6, 
+                                                                            slave=self.CM_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
 
     @asyncSlot()
     async def get_cfg_pwm(self) -> bytes:

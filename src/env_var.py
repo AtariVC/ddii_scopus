@@ -26,6 +26,8 @@ class EnvironmentVar():
     CM_DBG_SET_HVIP_AB              = 0x000D
     CM_DBG_GET_HVIP_AB              = 0x000E
     CM_GET_TERM                     = 0x000F
+    CM_DBG_GET_DESIRED_HVIP         = 0x0011
+    
 
     REG_MPP_COMMAND                  = 0x0000
     GET_MPP_DATA                    = 0x0006

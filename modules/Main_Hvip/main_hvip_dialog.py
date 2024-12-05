@@ -79,6 +79,10 @@ class MainHvipDialog(QtWidgets.QDialog):
     led_sipm                            : QtWidgets.QWidget
     led_ch                              : QtWidgets.QWidget
 
+    label_desired_v_pips                : QtWidgets.QLabel
+    label_desired_v_sipm                : QtWidgets.QLabel
+    label_desired_v_ch                  : QtWidgets.QLabel
+
     vLayout_ser_connect                 : QtWidgets.QVBoxLayout
 
     PIPS_CH_VOLTAGE = 1
@@ -105,7 +109,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         self.task = None # type: ignore
-        # self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
+        self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
         self.pushButton_get_rst.clicked.connect(self.pushButton_get_rst_handler)
         self.pushButton_apply.clicked.connect(self.pushButton_apply_handler)
 
@@ -114,15 +118,17 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
         self.coroutine_get_client_finished.connect(self.creator_task)
         self.flag_measure = 1
+        self.label_status.setText("Status:")
 
     @asyncSlot()
     async def get_client(self) -> None:
         """Перехватывает client от SerialConnect и переподключается к нему"""
-        self.label_status.setText("Status:")
         if self.w_ser_dialog.pushButton_connect_flag == 1:
             self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
             await self.client.connect()
             self.cm_cmd = ModbusCMCommand(self.client, self.logger)
+            self.pushButton_get_rst.setText("R")
+            self.flg_get_rst = 1
             await self.update_gui_data_label()
             await self.update_gui_data_spinbox()
         if self.w_ser_dialog.pushButton_connect_flag == 0:
@@ -170,6 +176,14 @@ class MainHvipDialog(QtWidgets.QDialog):
             "label_sipm_cur"                : self.label_sipm_cur,
             "hvip_mode_sipm"                : 1
         }
+
+        self.label_desired_v: dict[str, QtWidgets.QLabel] = {
+            "label_desired_v_ch"            : self.label_desired_v_ch,
+            "label_desired_v_pips"          : self.label_desired_v_pips,
+            "label_desired_v_sipm"          : self.label_desired_v_sipm
+        }
+        self.label_desired_v_T: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp="f") 
+            for  i, (key, value) in enumerate(self.label_desired_v.items())]
 
         self.spin_box_A_B: dict[str, QtWidgets.QDoubleSpinBox] = {
             "spinBox_ch_a_u"                : self.spinBox_ch_a_u,
@@ -242,7 +256,11 @@ class MainHvipDialog(QtWidgets.QDialog):
     async def update_gui_data_label(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_voltage()
+            desired_v: bytes = await self.cm_cmd.get_desired_voltage()
             data: dict[str, str] = await self.parser.pars_voltage(answer)
+            data_desired_v: dict[str, str] = await self.parser.pars_everything(self.label_desired_v_T, desired_v, endian="little")
+            for key, val in self.label_desired_v.items():
+                val.setText(data_desired_v[key])
             for i, (key, val) in enumerate(self.label_meas.items()):
                 if "mode" in key:
                     if key == "hvip_mode_ch":
@@ -307,6 +325,9 @@ class MainHvipDialog(QtWidgets.QDialog):
         await asyncio.sleep(0.1)
         await self.cm_cmd.set_cfg_a_b(cfg_a_b_data)
         self.label_status.setText("Status: cfg was written")
+        # self.save_gui_data()
+
+    def save_gui_data(self):
         loaded_cfg: list[dict[str, float|int|str]] = [
             {key: spin_box.value() for key, spin_box in item.items()}
             for item in [self.spin_box_cfg_volt,
@@ -323,11 +344,11 @@ class MainHvipDialog(QtWidgets.QDialog):
     async def pushButton_get_rst_handler(self) -> None:
         if self.flg_get_rst == 0:
             await self.update_gui_data_spinbox()
-            self.label_status.setText("Status: Get data")
+            self.label_status.setText("Status: Data configuration is get")
             self.pushButton_get_rst.setText("R")
             self.flg_get_rst = 1
         else:
-            self.label_status.setText("Status: Reset data")
+            self.label_status.setText("Status: Config loaded from file")
             self.pushButton_get_rst.setText("G")
             for_updt: list[dict[str, QtWidgets.QDoubleSpinBox]] = [self.spin_box_cfg_volt,
                     self.spin_box_cfg_pwm,
@@ -342,6 +363,7 @@ class MainHvipDialog(QtWidgets.QDialog):
                 self.client.close()
         except Exception as VErr:
             self.logger.debug(VErr)
+        self.save_gui_data()
         self.close()
 
 
