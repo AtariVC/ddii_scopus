@@ -4,7 +4,8 @@
 *.log
 *.csv
 *.xlsx
-*.pyc
 poetry.lock
-/__pycache__
 /.vscode
+__pycache__/
+*.pyc
+*.sqlite3
