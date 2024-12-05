@@ -6,7 +6,7 @@ authors = ["Komarov V.I."]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "3.11"
+python = "^3.11"
 numpy = "1.26.2"
 pyqt6 = "6.6.1"
 loguru = "0.7.2"
