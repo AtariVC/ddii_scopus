@@ -90,26 +90,27 @@ if __name__ == "__main__":
     qtmodern.styles.dark(app)
     # light(app)
     logger = log_init()
-    spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-    spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     w_ser_dialog: SerialConnect = SerialConnect(logger)
     w: Main_Graph_Widget = Main_Graph_Widget(logger, w_ser_dialog)
-    grBox : QGroupBox = QGroupBox("Подключение")
-    # Настройка шрифта для QGroupBox
-    font = QFont()
-    font.setFamily("Arial")         # Шрифт
-    font.setPointSize(12)           # Размер шрифта
-    font.setBold(False)             # Жирный текст
-    font.setItalic(False)           # Курсив
-    grBox.setFont(font)
-    gridL: QGridLayout = QGridLayout()
-    w.vLayout_ser_connect.addWidget(grBox)
-    grBox.setMinimumWidth(10)
-    grBox.setLayout(gridL)
-    gridL.addItem(spacer_g, 0, 0)
-    gridL.addItem(spacer_g, 0, 2)
-    gridL.addItem(spacer_v, 2, 1, 1, 3)
-    gridL.addWidget(w_ser_dialog, 0, 1)
+
+    # spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    # spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    # grBox : QGroupBox = QGroupBox("Подключение")
+    # # Настройка шрифта для QGroupBox
+    # font = QFont()
+    # font.setFamily("Arial")         # Шрифт
+    # font.setPointSize(12)           # Размер шрифта
+    # font.setBold(False)             # Жирный текст
+    # font.setItalic(False)           # Курсив
+    # grBox.setFont(font)
+    # gridL: QGridLayout = QGridLayout()
+    # w.vLayout_ser_connect.addWidget(grBox)
+    # grBox.setMinimumWidth(10)
+    # grBox.setLayout(gridL)
+    # gridL.addItem(spacer_g, 0, 0)
+    # gridL.addItem(spacer_g, 0, 2)
+    # gridL.addItem(spacer_v, 2, 1, 1, 3)
+    # gridL.addWidget(w_ser_dialog, 0, 1)
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)

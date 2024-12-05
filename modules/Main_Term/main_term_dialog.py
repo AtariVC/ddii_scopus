@@ -125,10 +125,11 @@ if __name__ == "__main__":
     qtmodern.styles.dark(app)
     # light(app)
     logger = log_init()
-    spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-    spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     w_ser_dialog: SerialConnect = SerialConnect(logger)
     w: MainTermDialog = MainTermDialog(logger, w_ser_dialog)
+    
+    spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     grBox : QGroupBox = QGroupBox("Подключение")
     # Настройка шрифта для QGroupBox
     font = QFont()
