@@ -242,7 +242,7 @@
                 <number>2</number>
                </property>
                <item>
-                <layout class="QVBoxLayout" name="vLayout_gist_pips">
+                <layout class="QVBoxLayout" name="vLayout_hist_pips">
                  <property name="spacing">
                   <number>0</number>
                  </property>
@@ -299,7 +299,7 @@
                 <number>2</number>
                </property>
                <item>
-                <layout class="QVBoxLayout" name="vLayout_gist_sipm">
+                <layout class="QVBoxLayout" name="vLayout_hist_sipm">
                  <property name="spacing">
                   <number>0</number>
                  </property>
@@ -356,7 +356,7 @@
                 <number>2</number>
                </property>
                <item>
-                <layout class="QVBoxLayout" name="vLayout_gist_EdE">
+                <layout class="QVBoxLayout" name="vLayout_hist_EdE">
                  <property name="spacing">
                   <number>0</number>
                  </property>
