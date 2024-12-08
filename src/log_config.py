@@ -24,7 +24,7 @@ def log_init():
 
     time_now = datetime.now()
     form_time = time_now.strftime("%Y-%m-%d %H_%M_%S")
-    home_dir = str(Path(__file__).parent.parent.parent.resolve())
+    home_dir = str(Path().resolve())
     log_path_debug =    home_dir + "./log/debug/" + str(form_time) + ".log"
     log_path_serial =   home_dir + "./log/serial/" + str(form_time) + ".log"
     log_path_emulator = home_dir + "./log/emulator/" + str(form_time) + ".log"
@@ -37,18 +37,18 @@ def log_init():
     log_format_emulator = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <1}</level> | \
 <w>{message}</w>"
 
-    logger.add(sys.stderr, level="DEBUG", format=log_format_debug, 
+    logger.add(sys.stderr, level="DEBUG", format=log_format_debug,
             colorize=True, backtrace=True, diagnose=True, filter=debug_filter)
-    logger.add(sys.stderr, level="ERROR", format=log_format_debug, 
+    logger.add(sys.stderr, level="ERROR", format=log_format_debug,
             colorize=True, backtrace=True, diagnose=True, filter=error_filter)
     # логирование serial rx
-    logger.add(sys.stdout,level=rx_level.name, format=log_format_rx, 
+    logger.add(sys.stdout,level=rx_level.name, format=log_format_rx,
             colorize=True, backtrace=True, diagnose=True, filter=rx_filter)
     # логирование serial tx
-    logger.add(sys.stdout,level=tx_level.name, format=log_format_tx, 
+    logger.add(sys.stdout,level=tx_level.name, format=log_format_tx,
             colorize=True, backtrace=True, diagnose=True, filter=tx_filter)
     # эмулятор
-    logger.add(sys.stdout,level=emulator_level.name, format=log_format_emulator, 
+    logger.add(sys.stdout,level=emulator_level.name, format=log_format_emulator,
             colorize=True, backtrace=True, diagnose=True, filter=emulator_filter)
     # логирование в файл
     logger.add(log_path_debug, level="DEBUG", format=log_format_debug, rotation="100 MB", enqueue=True, filter=debug_filter)
@@ -149,7 +149,7 @@ async def log_s(message: list):
 #     print(mass)
 #     new_mass = ""
 #     for i in range(0, len(mass)):
-#         new_mass = new_mass + mass[i] + " " 
+#         new_mass = new_mass + mass[i] + " "
 #     logger.log("INFO", new_mass)
 
 
