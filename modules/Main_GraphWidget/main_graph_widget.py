@@ -34,9 +34,9 @@ from src.plot_renderer import GraphPen, HistPen                     # noqa: E402
 
 
 class Main_Graph_Widget(QtWidgets.QDialog):
-    vLayout_gist_EdE            : QtWidgets.QVBoxLayout
-    vLayout_gist_pips           : QtWidgets.QVBoxLayout
-    vLayout_gist_sipm           : QtWidgets.QVBoxLayout
+    vLayout_hist_EdE            : QtWidgets.QVBoxLayout
+    vLayout_hist_pips           : QtWidgets.QVBoxLayout
+    vLayout_hist_sipm           : QtWidgets.QVBoxLayout
     vLayout_pips                : QtWidgets.QVBoxLayout
     vLayout_sipm                : QtWidgets.QVBoxLayout
 
@@ -57,37 +57,12 @@ class Main_Graph_Widget(QtWidgets.QDialog):
         # self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
         # self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         self.task = None # type: ignore
-        gp_pips = GraphPen(self.vLayout_pips, name = " -- pips")
-        gp_sipm = GraphPen(self.vLayout_sipm)
-        hp_pips = HistPen(self.plot_gist_pips)
-        hp_sipm = HistPen(self.plot_gist_sipm)
-        self.plot_pips = pg.PlotWidget()
-        self.plot_sipm = pg.PlotWidget()
-        self.plot_gist_EdE = pg.PlotWidget()
-        self.plot_gist_pips = pg.PlotWidget()
-        self.plot_gist_sipm = pg.PlotWidget()
-        self.vLayout_pips.addWidget(self.plot_pips)
-        self.vLayout_sipm.addWidget(self.plot_sipm)
-        self.vLayout_gist_EdE.addWidget(self.plot_gist_EdE)
-        self.vLayout_gist_pips.addWidget(self.plot_gist_pips)
-        self.vLayout_gist_sipm.addWidget(self.plot_gist_sipm)
+        gp_pips = GraphPen(self.vLayout_pips, name = " -- pips", color = (255, 255, 0))
+        gp_sipm = GraphPen(self.vLayout_sipm, name = " -- sipm", color = (0, 255, 255))
+        hp_pips = HistPen(self.vLayout_hist_pips, name = " -- h_pips", color = (0, 0, 255, 150))
+        hp_sipm = HistPen(self.vLayout_hist_sipm, name = " -- h_sipm", color = (255, 0, 0, 150))
 
 
-
-
-    @asyncSlot()
-    async def graph_data_processing(self, data: list[int | float]) -> tuple[list[int|float], list[int|float]]:
-        x: list = []
-        y: list = []
-        for index, value in enumerate(data):
-            try:
-                if value > 4000:
-                    decimal_value = 0
-                x.append(index)
-                y.append(decimal_value)
-            except Exception as e:
-                self.logger.debug(e)
-        return x, y
 
 
 
@@ -110,7 +85,7 @@ class Main_Graph_Widget(QtWidgets.QDialog):
     #     if self.w_ser_dialog.status_CM == 1:
     #         # self.coroutine_get_client_finished.emit()
     #         pass
-    
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
@@ -143,7 +118,7 @@ if __name__ == "__main__":
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
     w.show()
-    
+
 
     with event_loop:
         try:
