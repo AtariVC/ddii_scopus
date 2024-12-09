@@ -27,15 +27,11 @@ from src.log_config import log_init                                 # noqa: E402
 from src.parsers_pack import LineEObj                               # noqa: E402
 
 
-
-class MainTermDialog(QtWidgets.QDialog):
+class MainGraphWidget(QtWidgets.QDialog):
     lineEdit_T_cher                     : QtWidgets.QLineEdit
     lineEdit_T_sipm                     : QtWidgets.QLineEdit
-
     pushButton_OK                       : QtWidgets.QPushButton
-
     vLayout_ser_connect                 : QtWidgets.QVBoxLayout
-
     coroutine_get_temp_finished         = QtCore.pyqtSignal()
 
     CM_DBG_SET_CFG = 0x0005
@@ -46,7 +42,7 @@ class MainTermDialog(QtWidgets.QDialog):
 
     def __init__(self, logger, *args) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogTerm.ui'), self)
+        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogGraphWidget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
@@ -65,60 +61,7 @@ class MainTermDialog(QtWidgets.QDialog):
         # инициализация структур обновляемых полей приложения
         self.le_obj: list[LineEObj] = self.init_linEdit_list()
 
-    def creator_task(self) -> None:
-        try:
-            if self.task is None or self.task.done():
-                self.task: asyncio.Task[None] = asyncio.create_task(self.asyncio_loop_request())
-        except Exception as e:
-            self.logger.error(f"Error in creating task: {str(e)}")
-        if self.w_ser_dialog.pushButton_connect_flag == 0:
-            # Если соединение закрыто, отменяем задачу
-            if self.task:
-                self.task.cancel()
 
-    async def asyncio_loop_request(self) -> None:
-        try:
-            while 1:
-                await self.update_gui_data_label()
-                await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            ...
-
-    @asyncSlot()
-    async def update_gui_data_label(self) -> None:
-        try:
-            answer: bytes = await self.cm_cmd.get_term()
-            data: dict[str, str] = await self.parser.pars_everything(self.le_obj, answer, "little")
-            for i, (key, val) in enumerate(data.items()):
-                self.le_T[key].setText(val)
-        except Exception as e:
-            self.logger.error(e)
-
-    @asyncSlot()
-    async def get_client(self) -> None:
-        """Перехватывает client от SerialConnect и переподключается к нему"""
-        if self.w_ser_dialog.pushButton_connect_flag == 1:
-            self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
-            await self.client.connect()
-            self.cm_cmd = ModbusCMCommand(self.client, self.logger)
-        if self.w_ser_dialog.pushButton_connect_flag == 0:
-            if self.task:
-                self.task.cancel()
-
-        if self.w_ser_dialog.status_CM == 1:
-            self.coroutine_get_temp_finished.emit()
-
-    def init_linEdit_list(self) -> list[LineEObj]:
-        self.le_T: dict[str, QtWidgets.QLineEdit] = {
-                    "lineEdit_T_sipm": self.lineEdit_T_sipm,
-                    "lineEdit_T_cher": self.lineEdit_T_cher,
-                    }
-        pack_T: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp="f")
-            for  i, (key, value) in enumerate(self.le_T.items())]
-        return pack_T
-
-    def pushButton_OK_handler(self) -> None:
-        self.close()
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
