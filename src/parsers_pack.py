@@ -10,10 +10,10 @@ class LineEObj:
 
     lineobj: QLineEdit - объект QLineEdit
 
-    tp: str - тип данных записанный в QLineEdit, 
+    tp: str - тип данных записанный в QLineEdit,
     нужно чтобы правильно извлечь значение QLineEdit
     '''
-    key: str 
+    key: str
     lineobj_txt: str
     tp: str
 
@@ -34,10 +34,10 @@ class LineEditPack:
         data: list[int] = []
         for obj in ln_objects:
             if obj.tp == "i":
-                data.append(int.from_bytes(struct.pack((">H" if endian=='big' else "<H"), int(obj.lineobj_txt))))
+                data.append(int.from_bytes(struct.pack((">H" if endian=='big' else "<H"), int(obj.lineobj_txt)))) # type: ignore
             if obj.tp == "f":
                 data += [
                     int(struct.pack((">f" if endian=='big' else "<f"),
-                                    float(obj.lineobj_txt))[i*2: i*2+2].hex(), 
+                                    float(obj.lineobj_txt))[i*2: i*2+2].hex(),
                     16) for i in range(2)]
         return data

@@ -25,11 +25,12 @@ pandas = "^2.2.1"
 openpyxl = "^3.1.2"
 pymodbus = "=3.6.8"
 colorlog = "^6.8.2"
-pathlib = "^1.0.1"
+pathlib = "=1.0.1"
 asyncio = "^3.4.3"
 qasync = "^0.27.1"
 dynaconf = "^3.2.6"
 pyyaml = "^6.0.2"
+h5py = "^3.12.1"
 
 
 [build-system]
