@@ -466,7 +466,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # config log
         self.logger = log_init()
 
-
         # Заполнить modulename!!! Добавление сторонних модулей (плагинов).
         for module in self.modulename:
             if module not in sys.modules:

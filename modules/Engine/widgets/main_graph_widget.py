@@ -64,10 +64,10 @@ if __name__ == "__main__":
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
     w.show()
-    data: list[int] = [1, 34, 324 , 32, 89, 233, 234, 2344 ,234]
+    data: list = [1.4, 34.34, 324.4, 32.4, 89.4, 233.4, 234.4, 2344.4, 234.4]
     w.gp_pips.draw_graph(data, "test", clear=False) # type: ignore
-    data: list[int] = [1, 34, 45, 435, 234, 234, 2344 ,234, 23423, 324, 324234]
-    w.gp_pips.draw_graph(data, "test", clear=False) # type: ignore
+    data1: list[int] = [1, 34, 45, 435, 234, 234, 2344 ,234, 23423, 324, 324234]
+    w.gp_pips.draw_graph(data1, "test", clear=False) # type: ignore
 
     with event_loop:
         try:
