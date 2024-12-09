@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
 from PyQt6.QtGui import QFont
 import qtmodern.styles
 import sys
+import qasync
 from pymodbus.client import AsyncModbusSerialClient
 # from save_config import ConfigSaver
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
@@ -27,6 +28,7 @@ from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.log_config import log_init, log_s                          # noqa: E402
 from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
+from src.plot_renderer import GraphPen, HistPen                     # noqa: E402
 
 
 
@@ -55,11 +57,10 @@ class Main_Graph_Widget(QtWidgets.QDialog):
         # self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
         # self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         self.task = None # type: ignore
-
-        gp_pips = GraphPen(self.vLayout_pips)
+        gp_pips = GraphPen(self.vLayout_pips, name = " -- pips")
         gp_sipm = GraphPen(self.vLayout_sipm)
-        HistPen(self.plot_gist_pips)
-        HistPen(self.plot_gist_sipm)
+        hp_pips = HistPen(self.plot_gist_pips)
+        hp_sipm = HistPen(self.plot_gist_sipm)
         self.plot_pips = pg.PlotWidget()
         self.plot_sipm = pg.PlotWidget()
         self.plot_gist_EdE = pg.PlotWidget()

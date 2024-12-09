@@ -21,7 +21,7 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
 from src.modbus_worker import ModbusWorker                          # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand         # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
 from src.parsers import  Parsers                                    # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.log_config import log_init, log_s                          # noqa: E402
@@ -29,7 +29,7 @@ from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 
 
-class MainHvipDialog(QtWidgets.QDialog):
+class MainHvipDialog(QtWidgets.QWidget):
     spinBox_ch_volt                     : QtWidgets.QDoubleSpinBox
     spinBox_pips_volt                   : QtWidgets.QDoubleSpinBox
     spinBox_sipm_volt                   : QtWidgets.QDoubleSpinBox
