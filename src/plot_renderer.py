@@ -2,7 +2,7 @@ import pyqtgraph as pg
 from PyQt6 import QtWidgets
 from qasync import asyncSlot
 import asyncio
-from src.write_data_to_file import writer_graph_data
+from src.write_data_to_file import writer_graph_data, write_to_hdf5_file, read_hdf5_file, hdf5_to_txt
 from pathlib import Path
 import os
 import datetime
@@ -23,16 +23,17 @@ class GraphPen():
         self.plt_widget = pg.PlotWidget()
         layout.addWidget(self.plt_widget)
         self.pen = pg.mkPen(color)
-        self.name_frame_data: str = name
+        self.name_frame: str = name
         #### Path ####
         self.parent_path: Path = Path("./log/graph_data").resolve()
         current_datetime = datetime.datetime.now()
         time: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
-        self.path_to_save: str = str(self.parent_path / time)
+        self.path_to_save: Path = self.parent_path / time
 
     @asyncSlot()
     async def draw_graph(self,
                         data: list[int | float],
+                        name_file_save_data: str = "",
                         clear: bool = True) -> None:
         '''Обновляет поле графика
         Parameters:
@@ -41,8 +42,9 @@ class GraphPen():
         x, y = await self.graph_data_complit(data)
         if clear:
             self.plt_widget.clear()
-        writer_graph_data(x, y, self.name_frame_data, str(self.path_to_save))
-
+        if name_file_save_data:
+            write_to_hdf5_file([x, y], self.name_frame, self.parent_path, name_file_save_data)
+            hdf5_to_txt(self.parent_path/Path(f"{name_file_save_data}.phd5"))
         data_line = self.plt_widget.plot(x, y, pen=self.pen)
         data_line.setData(x, y)  # обновляем данные графика
         # self.plt_widget.addItem(v_line) # линия уровня
