@@ -29,7 +29,7 @@ from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 
 
-class MainHvipDialog(QtWidgets.QWidget):
+class MainHvipDialog(QtWidgets.QDialog):
     spinBox_ch_volt                     : QtWidgets.QDoubleSpinBox
     spinBox_pips_volt                   : QtWidgets.QDoubleSpinBox
     spinBox_sipm_volt                   : QtWidgets.QDoubleSpinBox
@@ -288,32 +288,33 @@ class MainHvipDialog(QtWidgets.QWidget):
             self.pips_on = 1
             self.pushButton_pips_on.setText("Отключить")
             self.led_pips.setStyleSheet(widget_led_on())
+
     @asyncSlot()    
-    async def pushButton_sipm_on_handler(self):
-        if self.pips_on == 1:
+    async def pushButton_sipm_on_handler(self) -> None:
+        if self.sipm_on == 1:
             await self.cm_cmd.switch_power([self.SIPM_CH_VOLTAGE, 0])
-            self.pips_on = 0
-            self.pushButton_pips_on.setText("Включить")
+            self.sipm_on = 0
+            self.pushButton_sipm_on.setText("Включить")
             self.led_sipm.setStyleSheet(widget_led_off())
             
         else:
             await self.cm_cmd.switch_power([self.SIPM_CH_VOLTAGE, 1])
-            self.pips_on = 1
-            self.pushButton_pips_on.setText("Отключить")
+            self.sipm_on = 1
+            self.pushButton_sipm_on.setText("Отключить")
             self.led_sipm.setStyleSheet(widget_led_on())
     
     @asyncSlot() 
-    async def pushButton_ch_on_handler(self):
-        if self.pips_on == 1:
+    async def pushButton_ch_on_handler(self) -> None:
+        if self.ch_on == 1:
             await self.cm_cmd.switch_power([self.CHERENKOV_CH_VOLTAGE, 0])
-            self.pips_on = 0
-            self.pushButton_pips_on.setText("Включить")
+            self.ch_on = 0
+            self.pushButton_ch_on.setText("Включить")
             self.led_ch.setStyleSheet(widget_led_off())
             
         else:
             await self.cm_cmd.switch_power([self.CHERENKOV_CH_VOLTAGE, 1])
-            self.pips_on = 1
-            self.pushButton_pips_on.setText("Отключить")
+            self.ch_on = 1
+            self.pushButton_ch_on.setText("Отключить")
             self.led_ch.setStyleSheet(widget_led_on())
 
     @asyncSlot() 
@@ -358,13 +359,13 @@ class MainHvipDialog(QtWidgets.QWidget):
             self.flg_get_rst = 0
 
     def pushButton_ok_handler(self) -> None:
-        try:
-            if self.client.connected:
-                self.client.close()
-        except Exception as VErr:
-            self.logger.debug(VErr)
+        # try:
+        #     if self.client.connected:
+        #         self.client.close()
+        # except Exception as VErr:
+        #     self.logger.debug(VErr)
         self.save_gui_data()
-        self.close()
+        # self.close()
 
 
     ############# update label ###############

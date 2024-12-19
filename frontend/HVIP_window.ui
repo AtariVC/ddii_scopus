@@ -907,7 +907,7 @@
           </font>
          </property>
          <property name="text">
-          <string>ОК</string>
+          <string>Сохранить</string>
          </property>
          <property name="checkable">
           <bool>false</bool>
