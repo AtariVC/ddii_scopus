@@ -15,9 +15,11 @@ from pathlib import Path
 # /src
 src_path = Path(__file__).resolve().parent.parent.parent
 modules_path = Path(__file__).resolve().parent.parent
+widgets_path = Path(__file__).resolve().parent.joinpath("Engine/widgets")
 # Добавляем папку src в sys.path
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
+sys.path.append(str(widgets_path))
 
 from src.modbus_worker import ModbusWorker                          # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
@@ -25,17 +27,15 @@ from src.parsers import  Parsers                                    # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.log_config import log_init                                 # noqa: E402
 from src.parsers_pack import LineEObj                               # noqa: E402
+from Engine.widgets.graph_widget import GraphWidget                               # noqa: E402
 
 
-
-class MainTermDialog(QtWidgets.QDialog):
+class MainGraphWidget(QtWidgets.QDialog):
     lineEdit_T_cher                     : QtWidgets.QLineEdit
     lineEdit_T_sipm                     : QtWidgets.QLineEdit
-
     pushButton_OK                       : QtWidgets.QPushButton
-
     vLayout_ser_connect                 : QtWidgets.QVBoxLayout
-
+    verticalLayout_graph               : QtWidgets.QVBoxLayout
     coroutine_get_temp_finished         = QtCore.pyqtSignal()
 
     CM_DBG_SET_CFG = 0x0005
@@ -46,7 +46,7 @@ class MainTermDialog(QtWidgets.QDialog):
 
     def __init__(self, logger, *args) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogTerm.ui'), self)
+        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogGraphWidget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
@@ -60,39 +60,11 @@ class MainTermDialog(QtWidgets.QDialog):
             self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         self.task = None # type: ignore
-        self.pushButton_OK.clicked.connect(self.pushButton_OK_handler)
-        self.coroutine_get_temp_finished.connect(self.creator_task)
-        # инициализация структур обновляемых полей приложения
-        self.le_obj: list[LineEObj] = self.init_linEdit_list()
+        # self.pushButton_OK.clicked.connect(self.pushButton_OK_handler)
+        # self.coroutine_get_temp_finished.connect(self.creator_task)
+        # # инициализация структур обновляемых полей приложения
+        # self.le_obj: list[LineEObj] = self.init_linEdit_list()
 
-    def creator_task(self) -> None:
-        try:
-            if self.task is None or self.task.done():
-                self.task: asyncio.Task[None] = asyncio.create_task(self.asyncio_loop_request())
-        except Exception as e:
-            self.logger.error(f"Error in creating task: {str(e)}")
-        if self.w_ser_dialog.pushButton_connect_flag == 0:
-            # Если соединение закрыто, отменяем задачу
-            if self.task:
-                self.task.cancel()
-
-    async def asyncio_loop_request(self) -> None:
-        try:
-            while 1:
-                await self.update_gui_data_label()
-                await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            ...
-
-    @asyncSlot()
-    async def update_gui_data_label(self) -> None:
-        try:
-            answer: bytes = await self.cm_cmd.get_term()
-            data: dict[str, str] = await self.parser.pars_everything(self.le_obj, answer, "little")
-            for i, (key, val) in enumerate(data.items()):
-                self.le_T[key].setText(val)
-        except Exception as e:
-            self.logger.error(e)
 
     @asyncSlot()
     async def get_client(self) -> None:
@@ -108,25 +80,14 @@ class MainTermDialog(QtWidgets.QDialog):
         if self.w_ser_dialog.status_CM == 1:
             self.coroutine_get_temp_finished.emit()
 
-    def init_linEdit_list(self) -> list[LineEObj]:
-        self.le_T: dict[str, QtWidgets.QLineEdit] = {
-                    "lineEdit_T_sipm": self.lineEdit_T_sipm,
-                    "lineEdit_T_cher": self.lineEdit_T_cher,
-                    }
-        pack_T: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp="f")
-            for  i, (key, value) in enumerate(self.le_T.items())]
-        return pack_T
-
-    def pushButton_OK_handler(self) -> None:
-        self.close()
-
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
     # light(app)
     logger = log_init()
     w_ser_dialog: SerialConnect = SerialConnect(logger)
-    w: MainTermDialog = MainTermDialog(logger, w_ser_dialog)
+    graph_widget: GraphWidget = GraphWidget()
+    w: MainGraphWidget = MainGraphWidget(logger, w_ser_dialog)
 
     spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
@@ -146,6 +107,7 @@ if __name__ == "__main__":
     gridL.addItem(spacer_g, 0, 2)
     gridL.addItem(spacer_v, 2, 1, 1, 3)
     gridL.addWidget(w_ser_dialog, 0, 1)
+    w.verticalLayout_graph.addWidget(graph_widget)
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)

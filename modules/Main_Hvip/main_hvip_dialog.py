@@ -29,7 +29,7 @@ from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 
 
-class MainHvipDialog(QtWidgets.QDialog):
+class MainHvipDialog(QtWidgets.QWidget):
     spinBox_ch_volt                     : QtWidgets.QDoubleSpinBox
     spinBox_pips_volt                   : QtWidgets.QDoubleSpinBox
     spinBox_sipm_volt                   : QtWidgets.QDoubleSpinBox

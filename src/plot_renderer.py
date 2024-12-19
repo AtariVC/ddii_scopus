@@ -44,7 +44,11 @@ class GraphPen():
             self.plt_widget.clear()
         if name_file_save_data:
             write_to_hdf5_file([x, y], self.name_frame, self.parent_path, name_file_save_data)
+<<<<<<< HEAD
             hdf5_to_txt(self.parent_path/Path(f"{name_file_save_data}.phd5"))
+=======
+            hdf5_to_txt(self.parent_path/Path(f"{name_file_save_data}.hdf5"))
+>>>>>>> ce8331184dca39f4299b6a04fcf6feeacc230a73
         data_line = self.plt_widget.plot(x, y, pen=self.pen)
         data_line.setData(x, y)  # обновляем данные графика
         # self.plt_widget.addItem(v_line) # линия уровня
