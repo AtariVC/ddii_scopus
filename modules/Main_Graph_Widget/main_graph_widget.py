@@ -27,7 +27,7 @@ from src.parsers import  Parsers                                    # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.log_config import log_init                                 # noqa: E402
 from src.parsers_pack import LineEObj                               # noqa: E402
-from Engine.widgets.graph_widget import GraphWidget                               # noqa: E402
+from Engine.widgets.graph_widget import GraphWidget                 # noqa: E402
 
 
 class MainGraphWidget(QtWidgets.QDialog):
@@ -35,8 +35,9 @@ class MainGraphWidget(QtWidgets.QDialog):
     lineEdit_T_sipm                     : QtWidgets.QLineEdit
     pushButton_OK                       : QtWidgets.QPushButton
     vLayout_ser_connect                 : QtWidgets.QVBoxLayout
-    verticalLayout_graph               : QtWidgets.QVBoxLayout
-    coroutine_get_temp_finished         = QtCore.pyqtSignal()
+    verticalLayout_graph                : QtWidgets.QVBoxLayout
+
+    coroutine_get_temp_finished = QtCore.pyqtSignal()
 
     CM_DBG_SET_CFG = 0x0005
     CM_ID = 1

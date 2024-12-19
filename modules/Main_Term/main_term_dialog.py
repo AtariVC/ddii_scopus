@@ -27,7 +27,6 @@ from src.log_config import log_init                                 # noqa: E402
 from src.parsers_pack import LineEObj                               # noqa: E402
 
 
-
 class MainTermDialog(QtWidgets.QDialog):
     lineEdit_T_cher                     : QtWidgets.QLineEdit
     lineEdit_T_sipm                     : QtWidgets.QLineEdit
@@ -37,12 +36,6 @@ class MainTermDialog(QtWidgets.QDialog):
     vLayout_ser_connect                 : QtWidgets.QVBoxLayout
 
     coroutine_get_temp_finished         = QtCore.pyqtSignal()
-
-    CM_DBG_SET_CFG = 0x0005
-    CM_ID = 1
-    #CM_DBG_SET_VOLTAGE = 0x0006
-    #CM_DBG_GET_VOLTAGE = 0x0009
-    #CMD_HVIP_ON_OFF = 0x000B
 
     def __init__(self, logger, *args) -> None:
         super().__init__()

@@ -2,14 +2,10 @@ from PyQt6 import QtWidgets, QtCore
 from qtpy.uic import loadUi
 from qasync import asyncSlot
 import asyncio
-from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
-from PyQt6.QtGui import QFont
 import qtmodern.styles
 import sys
 import qasync
-from pymodbus.client import AsyncModbusSerialClient
 # from save_config import ConfigSaver
-from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -26,7 +22,6 @@ from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
 from src.parsers import  Parsers                                    # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.log_config import log_init, log_s                          # noqa: E402
-from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 from src.plot_renderer import GraphPen, HistPen                     # noqa: E402
 
