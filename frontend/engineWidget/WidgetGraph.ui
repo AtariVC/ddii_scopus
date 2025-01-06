@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>667</width>
-    <height>424</height>
+    <width>621</width>
+    <height>403</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -56,38 +56,41 @@
          <number>1</number>
         </property>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="5,3">
+         <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="10,7">
+          <property name="spacing">
+           <number>3</number>
+          </property>
           <property name="leftMargin">
-           <number>5</number>
+           <number>1</number>
           </property>
           <property name="topMargin">
-           <number>5</number>
+           <number>1</number>
           </property>
           <property name="rightMargin">
-           <number>5</number>
+           <number>1</number>
           </property>
           <property name="bottomMargin">
-           <number>5</number>
+           <number>1</number>
           </property>
           <item>
            <layout class="QVBoxLayout" name="verticalLayout_5" stretch="1,1">
             <property name="spacing">
-             <number>3</number>
+             <number>2</number>
             </property>
             <property name="sizeConstraint">
              <enum>QLayout::SetDefaultConstraint</enum>
             </property>
             <property name="leftMargin">
-             <number>3</number>
+             <number>2</number>
             </property>
             <property name="topMargin">
-             <number>3</number>
+             <number>2</number>
             </property>
             <property name="rightMargin">
-             <number>3</number>
+             <number>2</number>
             </property>
             <property name="bottomMargin">
-             <number>3</number>
+             <number>2</number>
             </property>
             <item>
              <widget class="QGroupBox" name="groupBox_4">
@@ -125,7 +128,23 @@
                 <number>2</number>
                </property>
                <item>
-                <layout class="QHBoxLayout" name="vLayout_pips"/>
+                <layout class="QHBoxLayout" name="vLayout_pips">
+                 <property name="spacing">
+                  <number>0</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>2</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>2</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>2</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>2</number>
+                 </property>
+                </layout>
                </item>
               </layout>
              </widget>
@@ -337,7 +356,7 @@
                <string notr="true"/>
               </property>
               <property name="title">
-               <string>Гистограмма МПП</string>
+               <string>МПП</string>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_17">
                <property name="spacing">
@@ -383,17 +402,20 @@
         </item>
         <item>
          <layout class="QVBoxLayout" name="vLayout_ser_connect">
+          <property name="spacing">
+           <number>0</number>
+          </property>
           <property name="leftMargin">
-           <number>5</number>
+           <number>0</number>
           </property>
           <property name="topMargin">
-           <number>5</number>
+           <number>0</number>
           </property>
           <property name="rightMargin">
-           <number>5</number>
+           <number>0</number>
           </property>
           <property name="bottomMargin">
-           <number>5</number>
+           <number>0</number>
           </property>
          </layout>
         </item>

@@ -25,7 +25,8 @@ from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
 from src.parsers import  Parsers                                    # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.log_config import log_init, log_s                          # noqa: E402
-from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
+from style.styleSheet import widget_led_on, widget_led_off # noqa: E402
+from src.craft_custom_widget import  add_serial_widget
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 
 
@@ -148,7 +149,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             # Если соединение закрыто, отменяем задачу
             if self.task:
                 self.task.cancel()
-    
+
     def init_QObjects(self) -> None:
         self.spin_box_cfg_volt: dict[str, QtWidgets.QDoubleSpinBox] = {
             "spinBox_ch_volt"               : self.spinBox_ch_volt,
@@ -182,7 +183,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             "label_desired_v_pips"          : self.label_desired_v_pips,
             "label_desired_v_sipm"          : self.label_desired_v_sipm
         }
-        self.label_desired_v_T: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp="f") 
+        self.label_desired_v_T: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp="f")
             for  i, (key, value) in enumerate(self.label_desired_v.items())]
 
         self.spin_box_A_B: dict[str, QtWidgets.QDoubleSpinBox] = {
@@ -193,11 +194,11 @@ class MainHvipDialog(QtWidgets.QDialog):
             "spinBox_ch_b_u"                : self.spinBox_ch_b_u,
             "spinBox_pips_b_u"              : self.spinBox_pips_b_u,
             "spinBox_sipm_b_u"              : self.spinBox_sipm_b_u,
-            
+
             "spinBox_ch_a_i"                : self.spinBox_ch_a_i,
             "spinBox_pips_a_i"              : self.spinBox_pips_a_i,
             "spinBox_sipm_a_i"              : self.spinBox_sipm_a_i,
-            
+
             "spinBox_ch_b_i"                : self.spinBox_ch_b_i,
             "spinBox_pips_b_i"              : self.spinBox_pips_b_i,
             "spinBox_sipm_b_i"              : self.spinBox_sipm_b_i,
@@ -211,14 +212,14 @@ class MainHvipDialog(QtWidgets.QDialog):
         except asyncio.CancelledError:
             ...
 
-    @asyncSlot()  
+    @asyncSlot()
     async def get_cfg_data_from_widget(self, d_struct: dict, tp : str) -> list[int]:
-        pack: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.value(), tp=tp) 
+        pack: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.value(), tp=tp)
             for  i, (key, value) in enumerate(d_struct.items())]
         get_data_widget = LineEditPack()
         return get_data_widget(pack, 'little')
-    
-    @asyncSlot()    
+
+    @asyncSlot()
     async def update_gui_data_spinbox(self) -> None:
         err_cfg_volt = 0
         err_cfg_pwm = 0
@@ -282,42 +283,42 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.pips_on = 0
             self.pushButton_pips_on.setText("Включить")
             self.led_pips.setStyleSheet(widget_led_off())
-            
+
         else:
             await self.cm_cmd.switch_power([self.PIPS_CH_VOLTAGE, 1])
             self.pips_on = 1
             self.pushButton_pips_on.setText("Отключить")
             self.led_pips.setStyleSheet(widget_led_on())
 
-    @asyncSlot()    
+    @asyncSlot()
     async def pushButton_sipm_on_handler(self) -> None:
         if self.sipm_on == 1:
             await self.cm_cmd.switch_power([self.SIPM_CH_VOLTAGE, 0])
             self.sipm_on = 0
             self.pushButton_sipm_on.setText("Включить")
             self.led_sipm.setStyleSheet(widget_led_off())
-            
+
         else:
             await self.cm_cmd.switch_power([self.SIPM_CH_VOLTAGE, 1])
             self.sipm_on = 1
             self.pushButton_sipm_on.setText("Отключить")
             self.led_sipm.setStyleSheet(widget_led_on())
-    
-    @asyncSlot() 
+
+    @asyncSlot()
     async def pushButton_ch_on_handler(self) -> None:
         if self.ch_on == 1:
             await self.cm_cmd.switch_power([self.CHERENKOV_CH_VOLTAGE, 0])
             self.ch_on = 0
             self.pushButton_ch_on.setText("Включить")
             self.led_ch.setStyleSheet(widget_led_off())
-            
+
         else:
             await self.cm_cmd.switch_power([self.CHERENKOV_CH_VOLTAGE, 1])
             self.ch_on = 1
             self.pushButton_ch_on.setText("Отключить")
             self.led_ch.setStyleSheet(widget_led_on())
 
-    @asyncSlot() 
+    @asyncSlot()
     async def pushButton_apply_handler(self) -> None:
         vlt_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_volt, 'f')
         pwm_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, 'f')
@@ -416,33 +417,15 @@ if __name__ == "__main__":
     qtmodern.styles.dark(app)
     # light(app)
     logger = log_init()
-    spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-    spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     w_ser_dialog: SerialConnect = SerialConnect(logger)
     w: MainHvipDialog = MainHvipDialog(logger, w_ser_dialog)
-    grBox : QGroupBox = QGroupBox("Подключение")
-    # Настройка шрифта для QGroupBox
-    font = QFont()
-    font.setFamily("Arial")         # Шрифт
-    font.setPointSize(12)           # Размер шрифта
-    font.setBold(False)             # Жирный текст
-    font.setItalic(False)           # Курсив
-    grBox.setFont(font)
-    gridL: QGridLayout = QGridLayout()
-    w.vLayout_ser_connect.addWidget(grBox)
-    grBox.setMinimumWidth(10)
-    grBox.setLayout(gridL)
-    gridL.addItem(spacer_g, 0, 0)
-    gridL.addItem(spacer_g, 0, 2)
-    gridL.addItem(spacer_v, 2, 1, 1, 3)
-    gridL.addWidget(w_ser_dialog, 0, 1)
-
+    add_serial_widget(w.vLayout_ser_connect, w_ser_dialog)
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
     w.show()
-    
+
 
     with event_loop:
         try:

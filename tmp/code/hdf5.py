@@ -32,7 +32,7 @@ def read_from_single_hdf5_file(input_file, name_group: str):
             print(f"Прочитаны данные из набора: {dataset_name}")
     return all_data
 
-def hdf5_to_txt(hdf5_file, output_dir):
+def hdf5_to_csv(hdf5_file, output_dir):
     """
     Преобразует данные из HDF5-файла в текстовые файлы.
 
@@ -78,5 +78,5 @@ if __name__ == "__main__":
     output_path = Path("./txt_output")  # Укажите папку для текстовых файлов
 
     print("Преобразование данных из HDF5 в TXT...")
-    hdf5_to_txt(hdf5_path, output_path)
+    hdf5_to_csv(hdf5_path, output_path)
     print("Преобразование завершено.")

@@ -2,7 +2,7 @@ import pyqtgraph as pg
 from PyQt6 import QtWidgets
 from qasync import asyncSlot
 import asyncio
-from src.write_data_to_file import writer_graph_data, write_to_hdf5_file, read_hdf5_file, hdf5_to_txt
+from src.write_data_to_file import writer_graph_data, write_to_hdf5_file, read_hdf5_file, hdf5_to_csv
 from pathlib import Path
 import os
 import datetime
@@ -44,11 +44,7 @@ class GraphPen():
             self.plt_widget.clear()
         if name_file_save_data:
             write_to_hdf5_file([x, y], self.name_frame, self.parent_path, name_file_save_data)
-<<<<<<< HEAD
-            hdf5_to_txt(self.parent_path/Path(f"{name_file_save_data}.phd5"))
-=======
-            hdf5_to_txt(self.parent_path/Path(f"{name_file_save_data}.hdf5"))
->>>>>>> ce8331184dca39f4299b6a04fcf6feeacc230a73
+            # hdf5_to_csv(self.parent_path/Path(f"{name_file_save_data}.phd5"))
         data_line = self.plt_widget.plot(x, y, pen=self.pen)
         data_line.setData(x, y)  # обновляем данные графика
         # self.plt_widget.addItem(v_line) # линия уровня

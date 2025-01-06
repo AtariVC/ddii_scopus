@@ -19,11 +19,8 @@ def writer_graph_data(x: list[int|float], y: list[int|float], name: str, folder_
         frame.to_csv(file, index = False, sep=" ")
     file.close()
 
-<<<<<<< HEAD
-def write_to_hdf5_file(data: list, 
-=======
 def write_to_hdf5_file(data: list,
->>>>>>> ce8331184dca39f4299b6a04fcf6feeacc230a73
+
                         name_group: str,
                         path_hdf5 : Path,
                         name_file_hdf5: str,) -> None:
@@ -40,11 +37,9 @@ def write_to_hdf5_file(data: list,
     # if loc:
     #     data = [list(map(locale.str, data_col)) for data_col in data]
     # Преобразование строк в массив байтов для совместимости с HDF5
-<<<<<<< HEAD
-=======
     if not Path(path_hdf5).exists():
             os.makedirs(str(path_hdf5), exist_ok=True)
->>>>>>> ce8331184dca39f4299b6a04fcf6feeacc230a73
+
     with h5py.File(path_hdf5/Path(f"{name_file_hdf5}.hdf5"), "a") as hdf5_file: # w-перезаписывает, a-добавляет
         # Создаем группу для хранения всех наборов данныхtmp/code/hdf5.py
         if name_group not in hdf5_file:
@@ -58,11 +53,8 @@ def write_to_hdf5_file(data: list,
         dataset_name = f"{time} -- {name_group}"
         data_np = np.array(data).T
         data_np.squeeze()
-<<<<<<< HEAD
-        dataset = data_group.create_dataset(dataset_name, data=data_np)
-=======
         data_group.create_dataset(dataset_name, data=data_np) # type: ignore
->>>>>>> ce8331184dca39f4299b6a04fcf6feeacc230a73
+
 
 def read_hdf5_file(file_path_hdf5 : Path, name_group: str):
     with h5py.File(file_path_hdf5, "r") as hdf5_file:
@@ -77,7 +69,7 @@ def read_hdf5_file(file_path_hdf5 : Path, name_group: str):
             all_data[dataset_name] = name_group[dataset_name][:] # type: ignore
     return all_data
 
-def hdf5_to_txt(path_hdf5_file: Path) -> None:
+def hdf5_to_csv(path_hdf5_file: Path) -> None:
     """
     Преобразует данные из HDF5-файла в текстовые файлы.
     :param path_hdf5_file: Путь к HDF5-файлу
@@ -88,7 +80,7 @@ def hdf5_to_txt(path_hdf5_file: Path) -> None:
     with h5py.File(path_hdf5_file, "r") as hdf5_file: # type: ignore
         for group_name in hdf5_file:
             group = hdf5_file[group_name] # type: ignore
-            for dataset_name in group:
+            for dataset_name in group: # type: ignore
                 data: pd = group[dataset_name][:] # type: ignore
                 # Формируем имя текстового файла
                 path_output_dir =  output_dir / group_name # type: ignore
@@ -112,23 +104,23 @@ def hdf5_converter(path_to_folder: Path) -> None:
                 data_list = [data["y_numeric"].tolist()]
                 # if loc:
                 #     data_list = [list(map(locale.str, data_col)) for data_col in data_list]
-                write_to_hdf5_file(data_list, name_group, path_to_folder, path_to_folder.name)
+                write_to_hdf5_file(data_list, name_group, path_to_folder, path_to_folder.name) # type: ignore
 
 #print(read_hdf5_file(Path.cwd() / "data.hdf5", name_group = "sensor_data"))
 
-# hdf5_to_txt(Path.cwd() / "data.hdf5")
+# hdf5_to_csv(Path.cwd() / "data.hdf5")
 
-<<<<<<< HEAD
-path = Path("D:\ddii_project\ddii_scopus\log\data_flow/08-10-2024_17-52-54-261")
 
-hdf5_converter(path)
-hdf5_to_txt(Path("D:\ddii_project\ddii_scopus\log\data_flow/08-10-2024_17-52-54-261/08-10-2024_17-52-54-261.hdf5"))
-=======
 # path = Path("D:\ddii_project\ddii_scopus\log\data_flow/08-10-2024_17-52-54-261")
 
 # hdf5_converter(path)
-# hdf5_to_txt(Path("D:\ddii_project\ddii_scopus\log\data_flow/08-10-2024_17-52-54-261/08-10-2024_17-52-54-261.hdf5"))
->>>>>>> ce8331184dca39f4299b6a04fcf6feeacc230a73
+# hdf5_to_csv(Path("D:\ddii_project\ddii_scopus\log\data_flow/08-10-2024_17-52-54-261/08-10-2024_17-52-54-261.hdf5"))
+
+# path = Path("D:\ddii_project\ddii_scopus\log\data_flow/08-10-2024_17-52-54-261")
+
+# hdf5_converter(path)
+# hdf5_to_csv(Path("D:\ddii_project\ddii_scopus\log\data_flow/08-10-2024_17-52-54-261/08-10-2024_17-52-54-261.hdf5"))
+
 
 
 # value = 3.1415

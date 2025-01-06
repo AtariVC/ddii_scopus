@@ -6,13 +6,19 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>707</width>
-    <height>399</height>
+    <width>778</width>
+    <height>478</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="minimumSize">
    <size>
-    <width>650</width>
+    <width>0</width>
     <height>0</height>
    </size>
   </property>
@@ -22,6 +28,9 @@
   <layout class="QVBoxLayout" name="verticalLayout_3">
    <item>
     <layout class="QGridLayout" name="gridLayout_9">
+     <property name="sizeConstraint">
+      <enum>QLayout::SetDefaultConstraint</enum>
+     </property>
      <property name="leftMargin">
       <number>5</number>
      </property>
@@ -36,6 +45,12 @@
      </property>
      <item row="0" column="0">
       <widget class="QGroupBox" name="groupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="font">
         <font>
          <family>MS Shell Dlg 2</family>
@@ -69,6 +84,30 @@
           <property name="horizontalSpacing">
            <number>10</number>
           </property>
+          <item row="12" column="1">
+           <widget class="QLabel" name="label_desired_v_pips">
+            <property name="text">
+             <string>0</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="label_pips_a_u">
+            <property name="text">
+             <string>a_u:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="label_pips_b_u">
+            <property name="text">
+             <string>b_u:</string>
+            </property>
+           </widget>
+          </item>
           <item row="6" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_pips_a_i">
             <property name="decimals">
@@ -82,29 +121,8 @@
             </property>
            </widget>
           </item>
-          <item row="5" column="0">
-           <widget class="QLabel" name="label_pips_b_u">
-            <property name="text">
-             <string>b_u:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <widget class="QLabel" name="label_pips_a_u">
-            <property name="text">
-             <string>a_u:</string>
-            </property>
-           </widget>
-          </item>
           <item row="11" column="0">
            <widget class="Line" name="line_7">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="11" column="1">
-           <widget class="Line" name="line_8">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -136,6 +154,13 @@
             </property>
            </widget>
           </item>
+          <item row="11" column="1">
+           <widget class="Line" name="line_8">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
           <item row="9" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_pips_volt">
             <property name="decimals">
@@ -156,13 +181,6 @@
             </property>
            </widget>
           </item>
-          <item row="10" column="0">
-           <widget class="QLabel" name="label_5">
-            <property name="text">
-             <string>k, pwm:</string>
-            </property>
-           </widget>
-          </item>
           <item row="7" column="0">
            <widget class="QLabel" name="label_pips_b_i">
             <property name="text">
@@ -174,6 +192,13 @@
            <widget class="QLabel" name="label_pips_a_i">
             <property name="text">
              <string>a_i:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>k, pwm:</string>
             </property>
            </widget>
           </item>
@@ -222,10 +247,26 @@
             </property>
            </widget>
           </item>
-          <item row="16" column="0">
-           <widget class="QPushButton" name="pushButton_pips_on">
+          <item row="15" column="0">
+           <widget class="QLabel" name="label_11">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="text">
-             <string>Включить</string>
+             <string>Измер. k, pwm:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="15" column="1">
+           <widget class="QLabel" name="label_pips_pwm_mes">
+            <property name="text">
+             <string>0</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
             </property>
            </widget>
           </item>
@@ -239,20 +280,16 @@
             </property>
            </widget>
           </item>
-          <item row="15" column="0">
-           <widget class="QLabel" name="label_11">
-            <property name="text">
-             <string>Измер. k, pwm:</string>
+          <item row="7" column="1">
+           <widget class="QDoubleSpinBox" name="spinBox_pips_b_i">
+            <property name="decimals">
+             <number>1</number>
             </property>
-           </widget>
-          </item>
-          <item row="15" column="1">
-           <widget class="QLabel" name="label_pips_pwm_mes">
-            <property name="text">
-             <string>0</string>
+            <property name="minimum">
+             <double>-1000.000000000000000</double>
             </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -275,16 +312,10 @@
             </item>
            </layout>
           </item>
-          <item row="7" column="1">
-           <widget class="QDoubleSpinBox" name="spinBox_pips_b_i">
-            <property name="decimals">
-             <number>1</number>
-            </property>
-            <property name="minimum">
-             <double>-1000.000000000000000</double>
-            </property>
-            <property name="maximum">
-             <double>1000.000000000000000</double>
+          <item row="12" column="0">
+           <widget class="QLabel" name="label_13">
+            <property name="text">
+             <string>Устан. V, В:</string>
             </property>
            </widget>
           </item>
@@ -318,20 +349,28 @@
             </property>
            </widget>
           </item>
-          <item row="12" column="0">
-           <widget class="QLabel" name="label_13">
-            <property name="text">
-             <string>Устан. V, В:</string>
+          <item row="16" column="0">
+           <widget class="QPushButton" name="pushButton_pips_on">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
-           </widget>
-          </item>
-          <item row="12" column="1">
-           <widget class="QLabel" name="label_desired_v_pips">
-            <property name="text">
-             <string>0</string>
+            <property name="minimumSize">
+             <size>
+              <width>106</width>
+              <height>0</height>
+             </size>
             </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
+            <property name="maximumSize">
+             <size>
+              <width>126</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Включить</string>
             </property>
            </widget>
           </item>
@@ -342,6 +381,12 @@
      </item>
      <item row="0" column="1">
       <widget class="QGroupBox" name="groupBox_2">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="font">
         <font>
          <family>MS Shell Dlg 2</family>
@@ -360,6 +405,9 @@
        <layout class="QGridLayout" name="gridLayout_6">
         <item row="0" column="1">
          <layout class="QGridLayout" name="gridLayout_5">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetDefaultConstraint</enum>
+          </property>
           <item row="14" column="0">
            <widget class="QLabel" name="label_4">
             <property name="text">
@@ -369,6 +417,24 @@
           </item>
           <item row="17" column="0">
            <widget class="QPushButton" name="pushButton_sipm_on">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>106</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>126</width>
+              <height>16777215</height>
+             </size>
+            </property>
             <property name="text">
              <string>Включить</string>
             </property>
@@ -439,6 +505,12 @@
           </item>
           <item row="16" column="0">
            <widget class="QLabel" name="label_15">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="text">
              <string>Измер. k, pwm:</string>
             </property>
@@ -593,6 +665,12 @@
      </item>
      <item row="0" column="2">
       <widget class="QGroupBox" name="groupBox_3">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="font">
         <font>
          <family>MS Shell Dlg 2</family>
@@ -637,6 +715,18 @@
           </item>
           <item row="16" column="0">
            <widget class="QPushButton" name="pushButton_ch_on">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>126</width>
+              <height>16777215</height>
+             </size>
+            </property>
             <property name="text">
              <string>Включить</string>
             </property>
@@ -711,6 +801,12 @@
           </item>
           <item row="15" column="0">
            <widget class="QLabel" name="label_19">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="text">
              <string>Измер. k, pwm:</string>
             </property>
@@ -886,6 +982,18 @@
        </item>
        <item>
         <widget class="QPushButton" name="pushButton_apply">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="font">
           <font>
            <pointsize>12</pointsize>
@@ -901,6 +1009,18 @@
        </item>
        <item>
         <widget class="QPushButton" name="pushButton_ok">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="font">
           <font>
            <pointsize>12</pointsize>

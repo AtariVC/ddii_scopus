@@ -25,6 +25,7 @@ class RunMaesWidget(QtWidgets.QDialog):
     pushButton_run_trig_pips     : QtWidgets.QPushButton
     pushButton_autorun           : QtWidgets.QPushButton
     checkBox_enable_test_csa     : QtWidgets.QCheckBox
+    groupBox_run_meas            : QtWidgets.QGroupBox
 
     pushButton_autorun_signal           = QtCore.pyqtSignal()
     pushButton_run_trig_pips_signal     = QtCore.pyqtSignal()
@@ -32,16 +33,18 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path().resolve().joinpath('frontend/engineWidget/WidgetRunMeas.ui'), self)
+        loadUi(Path().resolve().joinpath('frontend/engineWidget/WidgetRunMeasure.ui'), self)
+        self.groupBox_run_meas.setMaximumHeight(self.groupBox_run_meas.minimumWidth() + 20)
+        self.groupBox_run_meas.setMinimumWidth(self.groupBox_run_meas.height() + 20)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.task = None
-        self.pushButton_autorun.clicked.connect(self.pushButton_autorun_handler)
+        # self.pushButton_autorun.clicked.connect(self.pushButton_autorun_handler)
         self.pushButton_run_trig_pips.clicked.connect(self.pushButton_run_trig_pips_handler)
         self.checkBox_enable_test_csa.clicked.connect(self.checkBox_enable_test_csa_handler)
 
-    def pushButton_autorun_handler(self) -> None:
-        self.pushButton_autorun_signal.emit()
+    # def pushButton_autorun_handler(self) -> None:
+    #     self.pushButton_autorun_signal.emit()
 
     def pushButton_run_trig_pips_handler(self) -> None:
         self.pushButton_run_trig_pips_signal.emit()

@@ -54,6 +54,8 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.mpp_id: int = 14
         self.state_serial: int = 0
         self.serial_task = None
+        self.status_CM = 1
+        self.status_MPP = 1
 
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
 
@@ -68,8 +70,8 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     @asyncSlot()
     async def serialConnect(self) -> None:
         """Подключкние к ДДИИ
-        Подключение происходит одновременно к ЦМ и МПП. 
-        Для подключение к МПП нужно задать ID. 
+        Подключение происходит одновременно к ЦМ и МПП.
+        Для подключение к МПП нужно задать ID.
         При успешном подключении ЦМ выдаст структуру ddii_mpp_data.
 
         Parameters:
@@ -128,7 +130,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.status_MPP = 1
 
         #### CM ####
-        
+
         # self.tel_result: ModbusResponse  = self.get_telemetria()
         try:
             response: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
@@ -142,7 +144,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.status_CM = 0
             await asyncio.sleep(0.2) # задержка нужна?
 
-        ######## MPP #######  
+        ######## MPP #######
         try:
             response: ModbusResponse = await self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
             await log_s(self.mw.send_handler.mess)
@@ -185,9 +187,9 @@ if __name__ == "__main__":
     app.aboutToQuit.connect(app_close_event.set)
 
     # w.show()
-    mw: ModernWindow = ModernWindow(w)
-    mw.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)  # fix flickering on resize window
-    mw.show()
+    # mw: ModernWindow = ModernWindow(w)
+    w.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)  # fix flickering on resize window
+    w.show()
 
     with event_loop:
         try:
