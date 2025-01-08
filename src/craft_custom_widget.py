@@ -29,8 +29,11 @@ def add_serial_widget(vlayout_ser_connect: QtWidgets.QVBoxLayout , w_ser_dialog)
     gridL.addItem(spacer_g, 0, 2)
     gridL.addWidget(w_ser_dialog, 0, 1)
 
-    grBox.setMaximumHeight(w_ser_dialog.height() + 35)
-    grBox.setMinimumWidth(w_ser_dialog.width() + 20)
+    grBox.setMaximumHeight(w_ser_dialog.minimumHeight() + 20)
+    grBox.setMinimumWidth(w_ser_dialog.minimumWidth() + 20)
+
+    # grBox.setMaximumHeight(w_ser_dialog.height() + 35)
+    # grBox.setMinimumWidth(w_ser_dialog.width() + 20)
 
 
 

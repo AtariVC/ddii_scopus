@@ -3,8 +3,8 @@ from qtpy.uic import loadUi
 from qasync import asyncSlot
 import qasync
 import asyncio
-from PyQt6.QtWidgets import QWidget, QGroupBox, QGridLayout, QSpacerItem, QSizePolicy, QSplitter
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QSpacerItem, QSizePolicy, QSplitter, QTabWidget, QScrollArea
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont
 import qtmodern.styles
 import sys
@@ -34,10 +34,7 @@ from modules.Engine.widgets.run_meas_widget import RunMaesWidget         # noqa:
 from src.craft_custom_widget import add_serial_widget
 
 class Engine(QtWidgets.QMainWindow):
-    # vLayout_graph                : QtWidgets.QVBoxLayout
-    # vLayout_menu                 : QtWidgets.QVBoxLayout
-    # vLayout_ser_connect          : QtWidgets.QVBoxLayout
-    # vLayout_menu_item_1          : QtWidgets.QVBoxLayout
+
     gridLayout_main_split        : QtWidgets.QGridLayout
 
     coroutine_get_client_finished = QtCore.pyqtSignal()
@@ -45,6 +42,7 @@ class Engine(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/MainWindiwEngine.ui'), self)
+        self.resize(1300, 800)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = log_init()
@@ -54,37 +52,89 @@ class Engine(QtWidgets.QMainWindow):
 
     def init_widgets(self) -> None:
         # Виджеты
-        # spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        w_ser_dialog: SerialConnect = SerialConnect(self.logger)
         w_graph_widget: GraphWidget = GraphWidget()
-        w_graph_widget.setMinimumWidth(w_graph_widget.sizeHint().width() - 500)
-        w_graph_widget.setMinimumHeight(w_graph_widget.sizeHint().height() -400)
+        tab_widget = self.create_tab_widget_items()
         splitter = QSplitter()
         self.gridLayout_main_split.addWidget(splitter)
-        run_meas_widget: RunMaesWidget = RunMaesWidget()
-
-        # Оборачиваем меню в виджет
-        menu_widget = QWidget()
-        menu_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
-        vLayout_menu = QtWidgets.QVBoxLayout(menu_widget)
-        vLayout_ser_connect = QtWidgets.QVBoxLayout()
-        vLayout_menu.setContentsMargins(5, 0, 15, 16) # (left, top, right, bottom)
-        # добавляем виджеты в vLayout_menu
-        vLayout_menu.addWidget(run_meas_widget)
-        run_meas_widget.setMaximumHeight(run_meas_widget.groupBox_run_meas.width())
-        vLayout_menu.addStretch()
-        vLayout_menu.addLayout(vLayout_ser_connect)
-        add_serial_widget(vLayout_ser_connect, w_ser_dialog)
-        #######################
 
         splitter.addWidget(w_graph_widget)
-        splitter.addWidget(menu_widget)
+        splitter.addWidget(tab_widget)
 
-    def init_tab_widget_item_meas() -> None:
-        pass
+    def create_tab_widget_items(self) -> QTabWidget:
+        """
+        Создает QTabWidget с вкладками, возвращая все вкладки через фабрику.
+        """
+        def build_grBox(widget: QWidget, name: str) -> QGroupBox:
+            grBox_widget: QGroupBox = QGroupBox(name)
+            vLayout_grBox_widget: QVBoxLayout = QVBoxLayout(grBox_widget)
+            grBox_widget.setMaximumHeight(widget.minimumHeight() + 40)
+            grBox_widget.setMinimumWidth(widget.minimumWidth() + 20)
+            vLayout_grBox_widget.addWidget(widget)
+            font = QFont()
+            font.setFamily("Arial")
+            font.setPointSize(12)
+            grBox_widget.setFont(font)
+            return grBox_widget
 
-    def init_tab_widget_item_parser() -> None:
-        pass
+        # Фабрика функций для инициализации вкладок
+        def build_tab_factories():
+            return {
+                "Осциллограф": init_tab_widget_item_meas,
+                "Парсер": init_tab_widget_item_parser,
+                # Добавьте сюда другие вкладки
+            }
+
+        # Функция для создания вкладки "Осциллограф"
+        def init_tab_widget_item_meas() -> QWidget:
+            # Создание виджетов
+            w_ser_dialog = SerialConnect(self.logger)
+            run_meas_widget = RunMaesWidget()
+            ######################
+            spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            spacer_v_scroll = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            # Создание виджетов в grBox
+            grBox_run_meas_widget = build_grBox(run_meas_widget, name="Запуск по триггеру")
+            ######################
+            # Создаем QScrollArea для прокручиваемого содержимого
+            scroll_area_menu = QScrollArea()
+            scroll_area_menu.setWidgetResizable(True)
+            scroll_content_widget = QWidget()
+            scroll_content_layout = QVBoxLayout(scroll_content_widget)
+            # Добавляем виджеты в scroll_content_layout
+            scroll_content_layout.addWidget(grBox_run_meas_widget)
+            ######################
+            scroll_content_layout.addItem(spacer_v_scroll)
+            scroll_area_menu.setWidget(scroll_content_widget)
+            menu_widget = QWidget()
+            menu_layout = QVBoxLayout(menu_widget)
+            menu_layout.addWidget(scroll_area_menu)
+            # Создаем макет для подключения
+            vLayout_ser_connect = QVBoxLayout()
+            add_serial_widget(vLayout_ser_connect, w_ser_dialog)
+            menu_layout.addItem(spacer_v)
+            menu_layout.addLayout(vLayout_ser_connect)
+            return menu_widget
+
+        # Функция для создания вкладки "Парсер"
+        def init_tab_widget_item_parser() -> QWidget:
+            parser_widget = QWidget()
+            # vLayout_parser = QVBoxLayout(parser_widget)
+            return parser_widget
+
+        tab_widget = QTabWidget()
+        tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        # Настройка шрифта для вкладок
+        tab_font = QFont()
+        tab_font.setFamily("Arial")
+        tab_font.setPointSize(12)
+        tab_widget.setFont(tab_font)
+
+        # Используем фабрику для добавления вкладок
+        factories = build_tab_factories()
+        for tab_name, factory in factories.items():
+            tab_widget.addTab(factory(), tab_name)
+        return tab_widget
 
 
 
@@ -99,6 +149,7 @@ if __name__ == "__main__":
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
+
     mw.show()
 
 
