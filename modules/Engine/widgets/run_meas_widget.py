@@ -16,8 +16,9 @@ modules_path = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.modbus_worker import ModbusWorker       # noqa: E402
-from src.parsers import  Parsers                 # noqa: E402
+from src.modbus_worker import ModbusWorker                          # noqa: E402
+from src.parsers import  Parsers                                    # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
 
 
 class RunMaesWidget(QtWidgets.QDialog):
@@ -32,12 +33,16 @@ class RunMaesWidget(QtWidgets.QDialog):
     pushButton_run_trig_pips_signal     = QtCore.pyqtSignal()
     checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
 
-    def __init__(self) -> None:
+    def __init__(self, client, logger) -> None:
         super().__init__()
         loadUi(Path().resolve().joinpath('frontend/engineWidget/WidgetRunMeasure.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.task = None
+        self.client = client
+        self.logger = logger
+        self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
+        self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         # self.pushButton_autorun.clicked.connect(self.pushButton_autorun_handler)
         self.pushButton_run_trig_pips.clicked.connect(self.pushButton_run_trig_pips_handler)
         self.checkBox_enable_test_csa.clicked.connect(self.checkBox_enable_test_csa_handler)
@@ -47,6 +52,7 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     def pushButton_run_trig_pips_handler(self) -> None:
         self.pushButton_run_trig_pips_signal.emit()
+        self.
 
     def checkBox_enable_test_csa_handler(self, state) -> None:
         print(state)

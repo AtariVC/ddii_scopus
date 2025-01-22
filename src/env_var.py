@@ -29,13 +29,16 @@ class EnvironmentVar():
     CM_DBG_GET_DESIRED_HVIP         = 0x0011
     
 
-    REG_MPP_COMMAND                  = 0x0000
+    REG_MPP_COMMAND                 = 0x0000
     GET_MPP_DATA                    = 0x0006
     REG_MPP_HH                      = 0x000A
 
     REG_MPP_LEVEL                   = 0x0079
 
     MPP_LEVEL_TRIG                  = 0x0001
+
+    MPP_START_MEASURE: list[int]     = [0x0002, 0x0001]
+    MPP_STOP_MEASURE: list[int]      = [0x0002, 0x0000]
 
 
 

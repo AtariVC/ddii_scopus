@@ -187,12 +187,38 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
             return b'-1'
+    
+    @asyncSlot()
+    async def start_measure(self) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            24,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+
+    @asyncSlot()
+    async def stop_measure(self) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            self.MPP_START_MEASURE,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
 
     @asyncSlot()
     async def set_hh(self, data: list[int]) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_HH, 
-                                                                            data,
+                                                                            self.MPP_STOP_MEASURE,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()
