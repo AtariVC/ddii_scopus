@@ -45,7 +45,10 @@ class Engine(QtWidgets.QMainWindow):
         self.resize(1300, 800)
         self.mw = ModbusWorker()
         self.parser = Parsers()
-        self.logger = log_init()
+        self.logger= log_init()
+        self.w_ser_dialog = SerialConnect(self.logger)
+        self.client = self.w_ser_dialog.client
+        self.run_meas_widget = RunMaesWidget(self.client, self.logger)
         # self.init_QObjects()
         # self.config = ConfigSaver()
         self.init_widgets()
@@ -86,14 +89,12 @@ class Engine(QtWidgets.QMainWindow):
 
         # Функция для создания вкладки "Осциллограф"
         def init_tab_widget_item_meas() -> QWidget:
-            # Создание виджетов
-            w_ser_dialog = SerialConnect(self.logger)
-            run_meas_widget = RunMaesWidget()
+    
             ######################
             spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             spacer_v_scroll = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             # Создание виджетов в grBox
-            grBox_run_meas_widget = build_grBox(run_meas_widget, name="Запуск по триггеру")
+            grBox_run_meas_widget = build_grBox(self.run_meas_widget, name="Запуск по триггеру")
             ######################
             # Создаем QScrollArea для прокручиваемого содержимого
             scroll_area_menu = QScrollArea()
@@ -110,7 +111,7 @@ class Engine(QtWidgets.QMainWindow):
             menu_layout.addWidget(scroll_area_menu)
             # Создаем макет для подключения
             vLayout_ser_connect = QVBoxLayout()
-            add_serial_widget(vLayout_ser_connect, w_ser_dialog)
+            add_serial_widget(vLayout_ser_connect, self.w_ser_dialog)
             menu_layout.addItem(spacer_v)
             menu_layout.addLayout(vLayout_ser_connect)
             return menu_widget

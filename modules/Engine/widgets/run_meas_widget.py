@@ -52,7 +52,7 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     def pushButton_run_trig_pips_handler(self) -> None:
         self.pushButton_run_trig_pips_signal.emit()
-        self.
+        # self.
 
     def checkBox_enable_test_csa_handler(self, state) -> None:
         print(state)

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../ddii_scopus_reserv/ddii_scopus"
+		},
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"cortex-debug.variableUseNaturalFormat": false
+	}
+}

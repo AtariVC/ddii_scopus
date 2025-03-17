@@ -224,7 +224,7 @@
           <item row="14" column="0">
            <widget class="QLabel" name="label_10">
             <property name="text">
-             <string>Измер. I, A:</string>
+             <string>Измер. I, мA:</string>
             </property>
            </widget>
           </item>
@@ -453,7 +453,7 @@
           <item row="15" column="0">
            <widget class="QLabel" name="label_12">
             <property name="text">
-             <string>Измер. I, A:</string>
+             <string>Измер. I, мA:</string>
             </property>
            </widget>
           </item>
@@ -692,7 +692,7 @@
           <item row="14" column="0">
            <widget class="QLabel" name="label_14">
             <property name="text">
-             <string>Измер. I, A:</string>
+             <string>Измер. I, мA:</string>
             </property>
            </widget>
           </item>
