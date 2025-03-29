@@ -155,12 +155,17 @@ class MainHvipDialog(QtWidgets.QDialog):
             "spinBox_ch_volt"               : self.spinBox_ch_volt,
             "spinBox_pips_volt"             : self.spinBox_pips_volt,
             "spinBox_sipm_volt"             : self.spinBox_sipm_volt,
-    }
+        }
         self.spin_box_cfg_pwm: dict[str, QtWidgets.QDoubleSpinBox] = {
             "doubleSpinBox_ch_pwm"          : self.doubleSpinBox_ch_pwm,
             "doubleSpinBox_pips_pwm"        : self.doubleSpinBox_pips_pwm,
             "doubleSpinBox_sipm_pwm"        : self.doubleSpinBox_sipm_pwm
-    }
+        }
+        self.spin_box_cfg_pwm: dict[str, QtWidgets.QDoubleSpinBox] = {
+            "doubleSpinBox_ch_pwm"          : self.doubleSpinBox_ch_pwm,
+            "doubleSpinBox_pips_pwm"        : self.doubleSpinBox_pips_pwm,
+            "doubleSpinBox_sipm_pwm"        : self.doubleSpinBox_sipm_pwm
+        }
         self.label_meas: dict[str, QtWidgets.QLabel | int] = {
             "label_ch_v_mes"                : self.label_ch_v_mes,
             "label_ch_pwm_mes"              : self.label_ch_pwm_mes,
@@ -322,6 +327,7 @@ class MainHvipDialog(QtWidgets.QDialog):
     async def pushButton_apply_handler(self) -> None:
         vlt_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_volt, 'f')
         pwm_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, 'f')
+        pwm_max_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, 'i')
         await self.cm_cmd.set_voltage_pwm(vlt_data + pwm_data)
         cfg_a_b_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_A_B, 'f')
         await asyncio.sleep(0.1)

@@ -114,11 +114,28 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 self.pushButton_connect_flag = 1
                 await self.cheack_connect()
         else:
+            await log_s(self.mw.send_handler.mess)
             self.pushButton_connect_w.setText("Подключить")
             self.pushButton_connect_flag = 0
             self.widget_led_w.setStyleSheet(widget_led_off())
-            self.client.close()
             self.label_state_w.setText("State: ")
+            # try:
+            #     await self.client.write_registers(address = self.DDII_SWITCH_MODE,
+            #                                                                 values = self.SILENT_MODE,
+            #                                                                 slave = self.CM_ID)
+            #     await log_s(self.mw.send_handler.mess)
+            #     await asyncio.sleep(0.03)
+            # except Exception as e:
+            #     self.logger.error(e)
+            # try:
+            #     await self.client.write_registers(address = self.DDII_SWITCH_MODE,
+            #                                             values = self.COMBAT_MODE,
+            #                                             slave = self.CM_ID)
+            #     await log_s(self.mw.send_handler.mess)
+            # except Exception as e:
+            #     self.logger.error(e)
+            # await asyncio.sleep(0.3)
+            self.client.close()
 
     @asyncSlot()
     async def cheack_connect(self) -> None:
@@ -133,10 +150,9 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
         # self.tel_result: ModbusResponse  = self.get_telemetria()
         try:
-            response: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
+            await self.client.write_registers(address = self.DDII_SWITCH_MODE,
                                                                         values = self.SILENT_MODE,
                                                                         slave = self.CM_ID)
-
             await log_s(self.mw.send_handler.mess)
         except Exception as e:
             self.logger.debug("Соединение c ЦМ не установлено")

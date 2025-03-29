@@ -34,7 +34,12 @@ class ConfigSaver():
             "hvip_cfg_vlt_ch": float(self.wd.lineEdit_hvip_ch.text()),
 
             "interval_measure": int(self.wd.lineEdit_interval.text()),
-            "mpp_id": int(self.wd.lineEdit_cfg_mpp_id.text())
+            "mpp_id": int(self.wd.lineEdit_cfg_mpp_id.text()),
+
+            "lineEdit_pwm_max_ch"   : float(self.wd.lineEdit_pwm_max_ch.text()),
+            "lineEdit_pwm_max_pips" : float(self.wd.lineEdit_pwm_max_pips.text()),
+            "lineEdit_pwm_max_sipm" : float(self.wd.lineEdit_pwm_max_sipm.text())    
+
         }
         settings_path = Path(__file__).parent.joinpath("config_dialog.yaml")
         if not settings_path.exists():
@@ -75,5 +80,8 @@ class ConfigSaver():
         self.wd.lineEdit_interval.setText(str(config_data.get("interval_measure", "")))
         self.wd.lineEdit_cfg_mpp_id.setText(str(config_data.get("mpp_id", "")))
 
+        self.wd.lineEdit_pwm_max_ch.setText(str(config_data.get("lineEdit_pwm_max_ch", "")))
+        self.wd.lineEdit_pwm_max_pips.setText(str(config_data.get("lineEdit_pwm_max_pips", "")))
+        self.wd.lineEdit_pwm_max_sipm.setText(str(config_data.get("lineEdit_pwm_max_sipm", "")))
         file.close()
 

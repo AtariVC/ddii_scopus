@@ -27,6 +27,20 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
         
+
+    @asyncSlot()
+    async def set_mode(self, mode) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
+                                                                        values = mode,
+                                                                        slave = self.CM_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
+        
     @asyncSlot()
     async def get_desired_voltage(self) -> bytes:
         try:
@@ -96,7 +110,7 @@ class ModbusCMCommand(EnvironmentVar):
     async def get_cfg_ddii(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG, 
-                                                                            25, 
+                                                                            32, 
                                                                             slave=self.CM_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()

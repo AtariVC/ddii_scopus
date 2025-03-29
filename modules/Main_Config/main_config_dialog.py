@@ -30,13 +30,19 @@ from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 
 
 class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
-    lineEdit_pwm_pips                   : QtWidgets.QLineEdit
-    lineEdit_hvip_pips                  : QtWidgets.QLineEdit
-    lineEdit_pwm_sipm                   : QtWidgets.QLineEdit
-    lineEdit_hvip_sipm                  : QtWidgets.QLineEdit
-    lineEdit_pwm_ch                     : QtWidgets.QLineEdit
-    lineEdit_hvip_ch                    : QtWidgets.QLineEdit
     lineEdit_interval                   : QtWidgets.QLineEdit
+
+    lineEdit_hvip_pips                  : QtWidgets.QLineEdit
+    lineEdit_hvip_sipm                  : QtWidgets.QLineEdit
+    lineEdit_hvip_ch                    : QtWidgets.QLineEdit
+
+    lineEdit_pwm_sipm                   : QtWidgets.QLineEdit
+    lineEdit_pwm_pips                   : QtWidgets.QLineEdit
+    lineEdit_pwm_ch                     : QtWidgets.QLineEdit
+
+    lineEdit_pwm_max_sipm                   : QtWidgets.QLineEdit
+    lineEdit_pwm_max_pips                   : QtWidgets.QLineEdit
+    lineEdit_pwm_max_ch                     : QtWidgets.QLineEdit
 
     lineEdit_lvl_0_1                    : QtWidgets.QLineEdit
     lineEdit_lvl_0_5                    : QtWidgets.QLineEdit
@@ -88,9 +94,16 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
             self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         self.pushButton_save_mpp.clicked.connect(self.pushButton_save_cfg_handler)
         self.pushButton_Get_Rst.clicked.connect(self.pushButton_get_rst_handler)
-        self.le_obj: dict[str, QLineEdit] = self.init_linEdit_list()
+        self.le_obj, self.le_obj_pwm_max = self.init_linEdit_list()
+        self.update_pack_from_widget()
 
-    def init_linEdit_list(self) -> dict[str, QtWidgets.QLineEdit]:
+    def update_pack_from_widget(self):
+        self.pack: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp=('f' if 8 < i < 15 else 'i'))
+        for  i, (key, value) in enumerate(self.le_obj.items())]
+        self.pack_pwm_max: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp='f')
+        for  i, (key, value) in enumerate(self.le_obj_pwm_max.items())]
+
+    def init_linEdit_list(self) -> tuple[dict[str, QLineEdit], dict[str, QLineEdit]]:
         le_obj: dict[str, QtWidgets.QLineEdit] = {
                     "lineEdit_lvl_0_1": self.lineEdit_lvl_0_1,
 
@@ -113,8 +126,14 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
                     "lineEdit_cfg_mpp_id": self.lineEdit_cfg_mpp_id,
                     "lineEdit_interval": self.lineEdit_interval
-                    }
-        return le_obj
+        }
+
+        le_obj_pwm_max: dict[str, QtWidgets.QLineEdit] = {
+                    "lineEdit_pwm_max_ch"   : self.lineEdit_pwm_max_ch,
+                    "lineEdit_pwm_max_pips" : self.lineEdit_pwm_max_pips,
+                    "lineEdit_pwm_max_sipm" : self.lineEdit_pwm_max_sipm
+        }
+        return le_obj, le_obj_pwm_max
 
     @asyncSlot()
     async def get_client(self) -> None:
@@ -169,9 +188,10 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
     async def update_gui_data_cm(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_cfg_ddii()
-            tel_dict: dict = await self.parser.pars_cfg_ddii(answer)
-            for i, (key, val) in enumerate(self.le_obj.items()):
-                val.setText(list(tel_dict.values())[i])            
+            tel_dict: dict = await self.parser.pars_everything(self.pack+self.pack_pwm_max, answer[3:], "little") # отбрасываем 0x0FF1
+            total_struct = self.le_obj | self.le_obj_pwm_max
+            for i, (key, val) in enumerate(total_struct.items()):
+                val.setText(list(tel_dict.values())[i])        
         except Exception as e:
             self.logger.error(e)
 
@@ -185,6 +205,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
     @asyncSlot()
     async def pushButton_save_cfg_handler(self) -> None:
         head: list[int] = [int(self.HEAD.to_bytes(2, 'little').hex(), 16)]
+        # await self.cm_cmd.set_mode(self.SILENT_MODE)
+        # await asyncio.sleep(0.5)
         if self.radioButton_cm.isChecked():
             try:
                 data: list[int] = await self.get_cfg_data_from_widget("cm")
@@ -213,6 +235,9 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                     self.label_check_cfg.setText("Status: MPP config writed uncorrect")
             except Exception as e:
                 self.logger.debug(e)
+        # await asyncio.sleep(0.5)
+        # await self.cm_cmd.set_mode(self.COMBAT_MODE)
+
     
     @asyncSlot()
     async def check_writed_cfg(self, data: list[int], device: str) -> bool:
@@ -225,6 +250,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         Returns:
             bool: Статус проверки
         """
+        # await self.cm_cmd.set_mode(self.SILENT_MODE)
+        # await asyncio.sleep(0.5)
         try:
             if device == "mpp":
                 cheack_lvl: bytes = await self.mpp_cmd.get_level()
@@ -249,7 +276,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                     return False
         except Exception as e:
             self.logger.error(e)
-
+        # await asyncio.sleep(0.5)
+        # await self.cm_cmd.set_mode(self.COMBAT_MODE)
         return False
 
 
@@ -274,6 +302,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
             self.config.load_from_config()
             self.flg_get_rst = 0
 
+
     @asyncSlot()
     async def get_cfg_data_from_widget(self, device: str) -> list[int]:
         """Получает данные с виджетов и упаковывает их в пакет
@@ -284,8 +313,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         Returns:
             list[int]: Пакет для отправки по ВШ
         """
-        pack: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp=('f' if 8 < i < 15 else 'i')) 
-        for  i, (key, value) in enumerate(self.le_obj.items())]
+        self.update_pack_from_widget()
+        pack = self.pack + self.pack_pwm_max
         get_data_widget = LineEditPack()
         if device == 'mpp':
             return get_data_widget(pack, 'big')

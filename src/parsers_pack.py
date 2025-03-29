@@ -35,6 +35,8 @@ class LineEditPack:
         for obj in ln_objects:
             if obj.tp == "i":
                 data.append(int.from_bytes(struct.pack((">H" if endian=='big' else "<H"), int(obj.lineobj_txt)))) # type: ignore
+            if obj.tp == "l":
+                data.append(int.from_bytes(struct.pack((">I" if endian=='big' else "<I"), int(obj.lineobj_txt)))) # type: ignore
             if obj.tp == "f":
                 data += [
                     int(struct.pack((">f" if endian=='big' else "<f"),
