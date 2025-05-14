@@ -56,7 +56,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.serial_task = None
         self.status_CM = 1
         self.status_MPP = 1
-
+        self.serial: AsyncModbusSerialClient = None
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
 
     @asyncSlot()
