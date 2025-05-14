@@ -1,16 +1,16 @@
-from PyQt6 import QtWidgets, QtCore
-from qtpy.uic import loadUi
-from qasync import asyncSlot
-from PyQt6.QtWidgets import QSizePolicy
-import qtmodern.styles
-from qtmodern.windows import ModernWindow
-import sys
-import qasync
-from pymodbus.client import AsyncModbusSerialClient
-from pymodbus.pdu import ModbusResponse
 import asyncio
+import sys
 from pathlib import Path
 
+import qasync
+import qtmodern.styles
+from pymodbus.client import AsyncModbusSerialClient
+from pymodbus.pdu import ModbusResponse
+from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtWidgets import QSizePolicy
+from qasync import asyncSlot
+from qtmodern.windows import ModernWindow
+from qtpy.uic import loadUi
 
 ####### импорты из других директорий ######
 # /src
@@ -20,14 +20,11 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.log_config import log_init, log_s                          # noqa: E402
-from src.modbus_worker import ModbusWorker                          # noqa: E402
-from src.customComboBox_COMport import CustomComboBox_COMport       # noqa: E402
-from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
-from src.env_var import EnvironmentVar                               # noqa: E402
-
-
-
+from src.customComboBox_COMport import CustomComboBox_COMport  # noqa: E402
+from src.env_var import EnvironmentVar  # noqa: E402
+from src.log_config import log_init, log_s  # noqa: E402
+from src.modbus_worker import ModbusWorker  # noqa: E402
+from style.styleSheet import widget_led_off, widget_led_on  # noqa: E402
 
 
 class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
@@ -56,7 +53,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.serial_task = None
         self.status_CM = 1
         self.status_MPP = 1
-        self.serial: AsyncModbusSerialClient = None
+        self.serial: AsyncModbusSerialClient = None  # type:ignore
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
 
     @asyncSlot()
