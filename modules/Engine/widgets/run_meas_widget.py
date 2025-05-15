@@ -35,7 +35,7 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     def __init__(self, *args) -> None:
         super().__init__()
-        loadUi(Path().resolve().joinpath('frontend/engineWidget/WidgetRunMeasure.ui'), self)
+        loadUi(Path(__file__).parent.joinpath('run_meas_widget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.task = None

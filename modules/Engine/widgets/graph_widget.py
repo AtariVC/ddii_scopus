@@ -39,7 +39,7 @@ class GraphWidget(QtWidgets.QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path().resolve().joinpath('frontend/engineWidget/WidgetGraph.ui'), self)
+        loadUi(Path(__file__).parent.joinpath('graph_widget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.task = None # type: ignore

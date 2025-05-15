@@ -1,15 +1,15 @@
-from PyQt6 import QtWidgets, QtCore
-from qtpy.uic import loadUi
-from qasync import asyncSlot
-import qasync
-from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy, QLineEdit
-from PyQt6.QtGui import QFont
-import qtmodern.styles
-import sys
-from pymodbus.client import AsyncModbusSerialClient
-from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import asyncio
+import sys
 from pathlib import Path
+
+import qasync
+import qtmodern.styles
+from pymodbus.client import AsyncModbusSerialClient
+from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
+from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
+from qasync import asyncSlot
+from qtpy.uic import loadUi
 
 ####### импорты из других директорий ######
 # /src
@@ -21,13 +21,13 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 sys.path.append(str(widgets_path))
 
-from src.modbus_worker import ModbusWorker                          # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
-from src.parsers import  Parsers                                    # noqa: E402
-from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
-from src.log_config import log_init                                 # noqa: E402
-from src.parsers_pack import LineEObj                               # noqa: E402
-from Engine.widgets.graph_widget import GraphWidget                 # noqa: E402
+from Engine.widgets.graph_widget import GraphWidget  # noqa: E402
+from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from src.log_config import log_init  # noqa: E402
+from src.modbus_worker import ModbusWorker  # noqa: E402
+from src.parsers import Parsers  # noqa: E402
+from src.parsers_pack import LineEObj  # noqa: E402
 
 
 class MainGraphWidget(QtWidgets.QDialog):
@@ -47,7 +47,7 @@ class MainGraphWidget(QtWidgets.QDialog):
 
     def __init__(self, logger, *args) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogGraphWidget.ui'), self)
+        loadUi(Path(__file__).resolve().parent.joinpath('DialogGraphWidget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
@@ -90,24 +90,25 @@ if __name__ == "__main__":
     graph_widget: GraphWidget = GraphWidget()
     w: MainGraphWidget = MainGraphWidget(logger, w_ser_dialog)
 
-    spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-    spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-    grBox : QGroupBox = QGroupBox("Подключение")
+    # spacer_g = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    # spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+    # grBox : QGroupBox = QGroupBox("Подключение")
     # Настройка шрифта для QGroupBox
-    font = QFont()
-    font.setFamily("Arial")         # Шрифт
-    font.setPointSize(12)           # Размер шрифта
-    font.setBold(False)             # Жирный текст
-    font.setItalic(False)           # Курсив
-    grBox.setFont(font)
-    gridL: QGridLayout = QGridLayout()
-    w.vLayout_ser_connect.addWidget(grBox)
-    grBox.setMinimumWidth(10)
-    grBox.setLayout(gridL)
-    gridL.addItem(spacer_g, 0, 0)
-    gridL.addItem(spacer_g, 0, 2)
-    gridL.addItem(spacer_v, 2, 1, 1, 3)
-    gridL.addWidget(w_ser_dialog, 0, 1)
+    # font = QFont()
+    # font.setFamily("Arial")         # Шрифт
+    # font.setPointSize(12)           # Размер шрифта
+    # font.setBold(False)             # Жирный текст
+    # font.setItalic(False)           # Курсив
+    # grBox.setFont(font)
+    # gridL: QGridLayout = QGridLayout()
+    # w.vLayout_ser_connect.addWidget(grBox)
+    # grBox.setMinimumWidth(10)
+    # grBox.setLayout(gridL)
+    # gridL.addItem(spacer_g, 0, 0)
+    # gridL.addItem(spacer_g, 0, 2)
+    # gridL.addItem(spacer_v, 2, 1, 1, 3)
+    # gridL.addWidget(w_ser_dialog, 0, 1)
+    
     w.verticalLayout_graph.addWidget(graph_widget)
 
     event_loop = qasync.QEventLoop(app)

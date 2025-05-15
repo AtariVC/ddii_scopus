@@ -41,7 +41,7 @@ class Engine(QtWidgets.QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/MainWindiwEngine.ui'), self)
+        loadUi(Path(__file__).parent.joinpath('engine.ui'), self)
         self.resize(1300, 800)
         self.mw = ModbusWorker()
         self.parser = Parsers()

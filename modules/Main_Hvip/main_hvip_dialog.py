@@ -95,7 +95,7 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     def __init__(self, logger, *args) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/HVIP_window.ui'), self)
+        loadUi(Path(__file__).resolve().parent.joinpath('HVIP_window.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger

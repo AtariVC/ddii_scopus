@@ -34,7 +34,8 @@ class GraphPen():
     async def draw_graph(self,
                         data: list[int | float],
                         name_file_save_data: str = "",
-                        clear: bool = True) -> None:
+                        clear: bool = True,
+                        save_log: bool) -> None:
         '''Обновляет поле графика
         Parameters:
         clear (bool) = True: если False, то перед отрисовкой графика поле графика не очищается
@@ -42,7 +43,7 @@ class GraphPen():
         x, y = await self.graph_data_complit(data)
         if clear:
             self.plt_widget.clear()
-        if name_file_save_data:
+        if save_log:
             write_to_hdf5_file([x, y], self.name_frame, self.parent_path, name_file_save_data)
             # hdf5_to_csv(self.parent_path/Path(f"{name_file_save_data}.phd5"))
         data_line = self.plt_widget.plot(x, y, pen=self.pen)

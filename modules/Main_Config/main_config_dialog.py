@@ -75,7 +75,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
     def __init__(self, logger, *args) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.parent.parent.joinpath('frontend/DialogConfig.ui'), self)
+        loadUi(Path(__file__).resolve().parent.joinpath('DialogConfig.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger

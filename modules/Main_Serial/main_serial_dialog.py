@@ -39,7 +39,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
     def __init__(self, logger, **kwargs) -> None:
         super().__init__(**kwargs)
-        loadUi(Path(__file__).parents[2].joinpath('frontend/DialogSerial.ui'), self)
+        loadUi(Path(__file__).parents[0].joinpath('DialogSerial.ui'), self)
         self.mw = ModbusWorker()
         self.logger= logger
         self.comboBox_comm = CustomComboBox_COMport()
@@ -53,7 +53,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.serial_task = None
         self.status_CM = 1
         self.status_MPP = 1
-        self.serial: AsyncModbusSerialClient = None  # type:ignore
+        self.client: AsyncModbusSerialClient = None  # type:ignore
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
 
     @asyncSlot()
