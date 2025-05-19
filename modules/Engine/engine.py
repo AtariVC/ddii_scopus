@@ -46,7 +46,7 @@ class Engine(QtWidgets.QMainWindow):
         self.resize(1300, 800)
         self.mw = ModbusWorker()
         self.parser = Parsers()
-        self.logger= log_init()
+        self.logger = log_init()
         self.w_ser_dialog = SerialConnect(self.logger)
         self.client = self.w_ser_dialog.client
         self.run_meas_widget = RunMaesWidget(self.w_ser_dialog, self.logger)

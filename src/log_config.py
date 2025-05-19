@@ -37,6 +37,8 @@ def log_init():
     log_format_emulator = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <1}</level> | \
 <w>{message}</w>"
 
+    logger.add(sys.stderr, level="WARNING", format=log_format_debug,
+            colorize=True, backtrace=True, diagnose=True, filter=warning_filter)
     logger.add(sys.stderr, level="DEBUG", format=log_format_debug,
             colorize=True, backtrace=True, diagnose=True, filter=debug_filter)
     logger.add(sys.stderr, level="ERROR", format=log_format_debug,
@@ -74,6 +76,9 @@ def debug_filter(record):
 
 def error_filter(record):
     return record["level"].name == "ERROR"
+
+def warning_filter(record):
+    return record["level"].name == "WARNING"
 
 async def log_s(message: list):
     mess: list[str]= [r'']

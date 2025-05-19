@@ -8,7 +8,8 @@ import qasync
 # from save_config import ConfigSaver
 from pathlib import Path
 from typing import Coroutine, Any, Callable, Awaitable
-
+import tracemalloc
+tracemalloc.start()
 
 
 ####### импорты из других директорий ######
@@ -80,8 +81,10 @@ class RunMaesWidget(QtWidgets.QDialog):
         ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
         if 1 != 0:
-            await self.task_manager.create_task(ACQ_task, "ACQ_task")
-            await self.task_manager.create_task(HH_task, "HH_task")
+            await self.task_manager.create_task(ACQ_task(), "ACQ_task")
+            await self.task_manager.create_task(HH_task(), "HH_task")
+            await asyncio.sleep(5)
+            self.task_manager.cancel_task("ACQ_task")
         # self.coroutine_get_client_finished.connect(self.creator_asyncio_tasks)
 
     # def creator_asyncio_tasks(self, *asyncio_tasks) -> None:
@@ -113,7 +116,7 @@ class RunMaesWidget(QtWidgets.QDialog):
                 await asyncio.sleep(1)
         except asyncio.CancelledError:
             ...
-    
+
     async def asyncio_HH_loop_request(self) -> None:
         try:
             while 1:

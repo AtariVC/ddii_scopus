@@ -1,116 +1,81 @@
 import asyncio
-from typing import Awaitable, Callable, Optional, Dict, Union
-from logging import Logger
+import logging
+from collections.abc import Coroutine
+from typing import Any, Dict, List, Optional, Callable
+
 
 class AsyncTaskManager:
-    def __init__(self, logger: Optional[Logger] = None):
+    """
+    Менеджер асинхронных задач: создаёт, отслеживает, отменяет.
+    """
+
+    def __init__(self, logger: Optional[Callable] = None) -> None:
+        self.tasks: Dict[str, asyncio.Task] = {}
         self.logger = logger
-        self._tasks: Dict[str, asyncio.Task] = {}  # Хранит задачи по именам
-        
-    def _log(self, message: str, level: str = 'info'):
-        if self.logger:
-            getattr(self.logger, level)(message)
+
+    async def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
+        """
+        Создаёт задачу, если она ещё не активна.
+
+        :param coroutine: вызванная корутина
+        :param task_name: уникальное имя задачи
+        """
+        existing_task = self.tasks.get(task_name)
+        if existing_task and not existing_task.done():
+            self.logger.warning(f"Задача '{task_name}' уже выполняется")
+            return
+
+        try:
+            task = asyncio.create_task(coroutine)
+            self.tasks[task_name] = task
+            task.add_done_callback(lambda t: self._handle_task_completion(t, task_name))
+            self.logger.info(f"Задача '{task_name}' успешно запущена")
+        except Exception as e:
+            self.logger.warning(f"Ошибка при запуске задачи '{task_name}': {e}")
+
+    def cancel_task(self, task_name: str) -> None:
+        """
+        Отменяет задачу по имени.
+
+        :param task_name: имя задачи
+        """
+        task = self.tasks.get(task_name)
+        if task and not task.done():
+            task.cancel()
+            self.logger.info(f"Задача '{task_name}' отменена")
         else:
-            print(f"[{level.upper()}] {message}")
+            self.logger.debug(f"Задача '{task_name}' не найдена или уже завершена")
 
-    async def create_task(
-        self,
-        coro: Union[Callable[[], Awaitable], Awaitable],
-        name: Optional[str] = None,
-        replace_existing: bool = False
-    ) -> Optional[asyncio.Task]:
+    def cancel_all_tasks(self) -> None:
         """
-        Создает задачу, если она еще не существует
-        
-        Args:
-            coro: Корутина или функция, возвращающая корутину
-            name: Уникальное имя задачи (для проверки дубликатов)
-            replace_existing: Заменить существующую задачу, если она есть
-            
-        Returns:
-            Созданная задача или None если задача уже существует
+        Отменяет все активные задачи.
         """
-        # Получаем корутину, если передана функция
-        if callable(coro) and not asyncio.iscoroutine(coro):
-            coro = coro()
-        
-        # Проверяем существующую задачу
-        if name and name in self._tasks:
-            existing_task = self._tasks[name]
-            if not existing_task.done():
-                if replace_existing:
-                    self._log(f"Отменяем существующую задачу '{name}'", 'warning')
-                    existing_task.cancel()
-                else:
-                    self._log(f"Задача '{name}' уже выполняется", 'warning')
-                    return None
-        
-        # Создаем новую задачу
-        task = asyncio.create_task(coro, name=name)
-        
-        if name:
-            self._tasks[name] = task
-        
-        def _cleanup(t):
-            if name and name in self._tasks:
-                del self._tasks[name]
-        
-        task.add_done_callback(_cleanup)
-        return task
-
-    def task_exists(self, name: str) -> bool:
-        """Проверяет, существует ли задача с указанным именем"""
-        return name in self._tasks and not self._tasks[name].done()
-
-    async def get_task(self, name: str) -> Optional[asyncio.Task]:
-        """Возвращает задачу по имени, если она существует и не завершена"""
-        task = self._tasks.get(name)
-        return task if task and not task.done() else None
-    
-    def cancel_all(self) -> None:
-        """Отменяет все зарегистрированные задачи"""
-        for task in self._tasks.values.copy():
+        for name, task in list(self.tasks.items()):
             if not task.done():
                 task.cancel()
+                self.logger.info(f"Задача '{name}' отменена (массовая отмена)")
+        self.tasks.clear()
 
-    async def cancel_task(
-        self,
-        task: Union[str, asyncio.Task],
-        wait: bool = True,
-        timeout: Optional[float] = None
-    ) -> bool:
+    def get_active_tasks(self) -> List[str]:
         """
-        Отменяет конкретную задачу
-        
-        Args:
-            task: Имя задачи или объект Task
-            wait: Ожидать ли завершения после отмены
-            timeout: Таймаут ожидания в секундах
-            
-        Returns:
-            bool: Успешно ли выполнена отмена
+        Возвращает список имён активных (не завершённых) задач.
+
+        :return: список строк с именами задач
         """
-        if isinstance(task, str):
-            task = self._tasks.get(task)
-            if task is None:
-                self._log(f"Task '{task}' not found")
-                return False
+        return [name for name, task in self.tasks.items() if not task.done()]
 
-        if task.done():
-            return True
+    def _handle_task_completion(self, task: asyncio.Task, task_name: str) -> None:
+        """
+        Обрабатывает завершение задачи — удаляет из памяти и логирует результат.
 
-        task.cancel()
-        
-        if wait:
-            try:
-                await asyncio.wait_for(task, timeout=timeout)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                pass
-            except Exception as e:
-                self._log(f"Error while cancelling task: {e}")
-                return False
-        return True
-    
-    def get_running_tasks(self) -> list[asyncio.Task]:
-        """Возвращает список активных задач"""
-        return [t for t in self._tasks.values() if not t.done()]
+        :param task: asyncio.Task
+        :param task_name: имя задачи
+        """
+        if task.cancelled():
+            self.logger.info(f"Задача '{task_name}' была отменена")
+        elif task.exception():
+            self.logger.error(f"Задача '{task_name}' завершилась с ошибкой: {task.exception()}")
+        else:
+            self.logger.debug(f"Задача '{task_name}' успешно завершена")
+
+        self.tasks.pop(task_name, None)
