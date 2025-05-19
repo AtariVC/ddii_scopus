@@ -35,7 +35,7 @@ class GraphPen():
                         data: list[int | float],
                         name_file_save_data: str = "",
                         clear: bool = True,
-                        save_log: bool) -> None:
+                        save_log: bool = False) -> None:
         '''Обновляет поле графика
         Parameters:
         clear (bool) = True: если False, то перед отрисовкой графика поле графика не очищается

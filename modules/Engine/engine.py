@@ -39,6 +39,7 @@ class Engine(QtWidgets.QMainWindow):
 
     coroutine_get_client_finished = QtCore.pyqtSignal()
 
+
     def __init__(self) -> None:
         super().__init__()
         loadUi(Path(__file__).parent.joinpath('engine.ui'), self)
@@ -48,7 +49,7 @@ class Engine(QtWidgets.QMainWindow):
         self.logger= log_init()
         self.w_ser_dialog = SerialConnect(self.logger)
         self.client = self.w_ser_dialog.client
-        self.run_meas_widget = RunMaesWidget(self.client, self.logger)
+        self.run_meas_widget = RunMaesWidget(self.w_ser_dialog, self.logger)
         # self.init_QObjects()
         # self.config = ConfigSaver()
         self.init_widgets()

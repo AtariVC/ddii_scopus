@@ -13,7 +13,6 @@ class ModbusCMCommand(EnvironmentVar):
         self.client: AsyncModbusSerialClient = client
         self.logger = logger
 
-    ####### Получение структур CM ######
     @asyncSlot()
     async def get_cfg_voltage(self) -> bytes:
         try:
@@ -27,6 +26,18 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
         
+    @asyncSlot()
+    async def set_csa_test_enable(self, state) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
+                                                                        values = state,
+                                                                        slave = self.CM_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
 
     @asyncSlot()
     async def set_mode(self, mode) -> bytes:

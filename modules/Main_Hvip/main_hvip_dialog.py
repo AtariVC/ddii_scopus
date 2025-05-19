@@ -144,7 +144,6 @@ class MainHvipDialog(QtWidgets.QDialog):
                 self.task: asyncio.Task[None] = asyncio.create_task(self.asyncio_loop_request())
         except Exception as e:
             self.logger.error(f"Error in creating task: {str(e)}")
-
         if self.w_ser_dialog.pushButton_connect_flag == 0:
             # Если соединение закрыто, отменяем задачу
             if self.task:

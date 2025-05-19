@@ -7,6 +7,9 @@ import sys
 import qasync
 # from save_config import ConfigSaver
 from pathlib import Path
+from typing import Coroutine, Any, Callable, Awaitable
+
+
 
 ####### импорты из других директорий ######
 # /src
@@ -19,45 +22,114 @@ sys.path.append(str(modules_path))
 from src.modbus_worker import ModbusWorker                          # noqa: E402
 from src.parsers import  Parsers                                    # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
+from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
+from src.async_task_manager import AsyncTaskManager                 # noqa: E402
 
 
 class RunMaesWidget(QtWidgets.QDialog):
+    """Управление окном run_meas_widget.ui
+    Запуск измерения, запуск тестовых импульсов, запись логфайла всех измерений.
+    Опрос гистограмм МПП.
+
+    Args:
+        QtWidgets (_type_): _description_Базовый класс виджетов
+    """
     lineEdit_triger              : QtWidgets.QLineEdit
-    pushButton_run_trig_pips     : QtWidgets.QPushButton
+    pushButton_run_measure       : QtWidgets.QPushButton
     pushButton_autorun           : QtWidgets.QPushButton
     checkBox_enable_test_csa     : QtWidgets.QCheckBox
     gridLayout_meas              : QtWidgets.QGridLayout
 
+    checkBox_wr_log              : QtWidgets.QCheckBox
+    checkBox_ch_request          : QtWidgets.QCheckBox
 
-    pushButton_autorun_signal           = QtCore.pyqtSignal()
-    pushButton_run_trig_pips_signal     = QtCore.pyqtSignal()
-    checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
 
     def __init__(self, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).parent.joinpath('run_meas_widget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
-        self.task = None
+        self.asyncio_task_list: list = []
+
+        # pushButton_autorun_signal           = QtCore.pyqtSignal()
+        # pushButton_run_measure_signal       = QtCore.pyqtSignal()
+        # checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
         if __name__ != "__main__":
-            pass
-            # self.client = args[0]
-            # self.logger = args[1]
-            # self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
-            # self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
-        # self.pushButton_autorun.clicked.connect(self.pushButton_autorun_handler)
-        self.pushButton_run_trig_pips.clicked.connect(self.pushButton_run_trig_pips_handler)
-        self.checkBox_enable_test_csa.clicked.connect(self.checkBox_enable_test_csa_handler)
+            self.w_ser_dialog: SerialConnect = args[0]
+            self.logger = args[1]
+            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
+            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger)
+            self.task_manager = AsyncTaskManager(self.logger)
+            # self.pushButton_autorun.clicked.connect(self.pushButton_autorun_handler)
+            self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_handler)
+        else:
+            self.task_manager = AsyncTaskManager()
+        self.pushButton_run_measure.clicked.connect(self.pushButton_run_measure_handler)
+
 
     # def pushButton_autorun_handler(self) -> None:
     #     self.pushButton_autorun_signal.emit()
 
-    def pushButton_run_trig_pips_handler(self) -> None:
-        self.pushButton_run_trig_pips_signal.emit()
-        # self.
+    @asyncSlot()
+    async def pushButton_run_measure_handler(self) -> None:
+        """Запуск асинхронной задачи. Создаем задачи asyncio_measure_loop_request и 
+        asyncio__loop_request через creator_asyncio_tasks
+        asyncio_ACQ_loop_request для непрерывного получения данных АЦП
+        asyncio_HH_loop_request для непрерывного получения данных гистограмм МПП
+        """
+        ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
+        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
+        if 1 != 0:
+            await self.task_manager.create_task(ACQ_task, "ACQ_task")
+            await self.task_manager.create_task(HH_task, "HH_task")
+        # self.coroutine_get_client_finished.connect(self.creator_asyncio_tasks)
 
-    def checkBox_enable_test_csa_handler(self, state) -> None:
-        print(state)
+    # def creator_asyncio_tasks(self, *asyncio_tasks) -> None:
+        # try:
+        #     if self.w_ser_dialog.pushButton_connect_flag != 0:
+        #         for task in asyncio_tasks:
+        #             if task is None:
+        #                 self.task: asyncio.Task[None] = asyncio.create_task(task())
+        #     else:
+        #         try:
+        #             self.logger.error(f"Нет подключения к ДДИИ")
+        #         except Exception:
+        #             print(f"Нет подключения к ДДИИ")
+        #         # Если соединение нет, закрываем задачу
+        #         if coroutine is not None:
+        #             if coroutine.done():
+        #                 coroutine.cancel()
+        # except Exception as e:
+        #     try:
+        #         self.logger.error(f"Error in creating task: {str(e)}")
+        #     except Exception:
+        #         print(f"Error in creating task: {str(e)}")
+
+    async def asyncio_ACQ_loop_request(self) -> None:
+        try:
+            while 1:
+                # await self.update_gui_data_label()
+                print("task1")
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            ...
+    
+    async def asyncio_HH_loop_request(self) -> None:
+        try:
+            while 1:
+                # await self.update_gui_data_label()
+                print("task2")
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            ...
+
+    @asyncSlot()
+    async def checkBox_enable_test_csa_handler(self, state) -> None:
+        if state > 1:
+            await self.cm_cmd.set_csa_test_enable(state=1)
+        else:
+            await self.cm_cmd.set_csa_test_enable(state=0)
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
