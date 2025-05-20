@@ -26,6 +26,7 @@ from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.async_task_manager import AsyncTaskManager                 # noqa: E402
 
+class PrintLogger
 
 class RunMaesWidget(QtWidgets.QDialog):
     """Управление окном run_meas_widget.ui
@@ -80,11 +81,14 @@ class RunMaesWidget(QtWidgets.QDialog):
         """
         ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if 1 != 0:
-            await self.task_manager.create_task(ACQ_task(), "ACQ_task")
-            await self.task_manager.create_task(HH_task(), "HH_task")
-            await asyncio.sleep(5)
-            self.task_manager.cancel_task("ACQ_task")
+        if self.w_ser_dialog.pushButton_connect_flag != 0:
+            try:
+                await self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                await self.task_manager.create_task(HH_task(), "HH_task")
+            except Exception as e:
+                self.logger.error(f"Ошибка: {e}")
+        else:
+            self.logger.error(f"Нет подключения к ДДИИ")
         # self.coroutine_get_client_finished.connect(self.creator_asyncio_tasks)
 
     # def creator_asyncio_tasks(self, *asyncio_tasks) -> None:
@@ -112,8 +116,7 @@ class RunMaesWidget(QtWidgets.QDialog):
         try:
             while 1:
                 # await self.update_gui_data_label()
-                print("task1")
-                await asyncio.sleep(1)
+                self.mpp_cmd.
         except asyncio.CancelledError:
             ...
 

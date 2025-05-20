@@ -2,17 +2,25 @@ import asyncio
 import logging
 from collections.abc import Coroutine
 from typing import Any, Dict, List, Optional, Callable
+from logging import Logger
 
+class PrintLogger:
+    """Заменяет стандартный логгер, имитируя его интерфейс"""
+    def __call__(self, message: str, level: str = "INFO") -> None:
+        print(f"[{level.upper()}] {message}")
+
+    def __getattr__(self, level: str) -> Callable[[str], None]:
+        # Для поддержки logger.warning() и других методов
+        return lambda msg: self(msg, level)
 
 class AsyncTaskManager:
     """
     Менеджер асинхронных задач: создаёт, отслеживает, отменяет.
     """
-
-    def __init__(self, logger: Optional[Callable] = None) -> None:
+    def __init__(self, logger: Optional[Logger] = None) -> None:
         self.tasks: Dict[str, asyncio.Task] = {}
-        self.logger = logger
-
+        # Делаем logger вызываемым объектом
+        self.logger = logger if logger is not None else PrintLogger()
     async def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
         """
         Создаёт задачу, если она ещё не активна.
@@ -29,7 +37,7 @@ class AsyncTaskManager:
             task = asyncio.create_task(coroutine)
             self.tasks[task_name] = task
             task.add_done_callback(lambda t: self._handle_task_completion(t, task_name))
-            self.logger.info(f"Задача '{task_name}' успешно запущена")
+            self.logger.info(f"Задача '{task_name}' запущена")
         except Exception as e:
             self.logger.warning(f"Ошибка при запуске задачи '{task_name}': {e}")
 
@@ -42,7 +50,6 @@ class AsyncTaskManager:
         task = self.tasks.get(task_name)
         if task and not task.done():
             task.cancel()
-            self.logger.info(f"Задача '{task_name}' отменена")
         else:
             self.logger.debug(f"Задача '{task_name}' не найдена или уже завершена")
 

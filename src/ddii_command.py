@@ -200,6 +200,25 @@ class ModbusMPPCommand(EnvironmentVar):
         self.client: AsyncModbusSerialClient = client
         self.logger = logger
 
+    @asyncSlot
+    async def read_oscill(self, ch: int|None) -> bytes:
+        try:
+            if ch is None:
+                result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_DATA, 
+                                                                                24,
+                                                                                slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
+            else:
+                result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_DATA, 
+                                                                                24,
+                                                                                slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
+            return result.encode()""" """  """ """
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+
     @asyncSlot()
     async def get_data(self) -> bytes:
         try:
@@ -217,7 +236,7 @@ class ModbusMPPCommand(EnvironmentVar):
     async def start_measure(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
-                                                                            24,
+                                                                            self.MPP_START_MEASURE,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()
@@ -230,7 +249,7 @@ class ModbusMPPCommand(EnvironmentVar):
     async def stop_measure(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
-                                                                            self.MPP_START_MEASURE,
+                                                                            self.MPP_STOP_MEASURE,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()
