@@ -30,7 +30,7 @@ from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
-from graph_widget import GraphWidget  # noqa: E402
+from modules.Engine.widgets.graph_widget import GraphWidget  # noqa: E402
 
 
 class RunMaesWidget(QtWidgets.QDialog):

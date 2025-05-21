@@ -367,4 +367,4 @@ class ModbusMPPCommand(EnvironmentVar):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
-            return b'-1'|
+            return b'-1'
