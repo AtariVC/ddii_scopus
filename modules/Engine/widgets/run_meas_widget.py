@@ -59,6 +59,7 @@ class RunMaesWidget(QtWidgets.QDialog):
         self.asyncio_task_list: list = []
         self.graph_widget: GraphWidget = GraphWidget()
         self.parser = Parsers()
+        self.flag_pushButton_run_measure: bool = False
         # pushButton_autorun_signal           = QtCore.pyqtSignal()
         # pushButton_run_measure_signal       = QtCore.pyqtSignal()
         # checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
@@ -89,11 +90,17 @@ class RunMaesWidget(QtWidgets.QDialog):
         ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
         if self.w_ser_dialog.pushButton_connect_flag != 0:
-            try:
-                await self.task_manager.create_task(ACQ_task(), "ACQ_task")
-                await self.task_manager.create_task(HH_task(), "HH_task")
-            except Exception as e:
-                self.logger.error(f"Ошибка: {e}")
+            self.flag_pushButton_run_measure = not self.flag_pushButton_run_measure
+            if self.flag_pushButton_run_measure:
+                self.pushButton_run_measure.setText("Остановить изм.")
+                try:
+                    await self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    # await self.task_manager.create_task(HH_task(), "HH_task")
+                except Exception as e:
+                    self.logger.error(f"Ошибка: {e}")
+            else:
+                self.pushButton_run_measure.setText("Запустить изм.")
+                self.task_manager.cancel_task("ACQ_task")
         else:
             self.logger.error(f"Нет подключения к ДДИИ")
         # self.coroutine_get_client_finished.connect(self.creator_asyncio_tasks)
@@ -125,7 +132,7 @@ class RunMaesWidget(QtWidgets.QDialog):
             await self.mpp_cmd.start_measure()
             while 1:
                 result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-                result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
                 result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False)
                 # await self.update_gui_data_label()

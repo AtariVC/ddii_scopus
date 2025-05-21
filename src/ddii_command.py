@@ -213,10 +213,10 @@ class ModbusMPPCommand(EnvironmentVar):
         try:
             for rreg in range(512 // 64): # 8
                 if ch == 0:
-                        result: ModbusResponse = await self.client.read_holding_registers(self.REG_OSCILL_CH1, 
-                                                                                        64,
-                                                                                        slave=self.MPP_ID)
-                        await log_s(self.mw.send_handler.mess)
+                    result: ModbusResponse = await self.client.read_holding_registers(self.REG_OSCILL_CH1, 
+                                                                                    64,
+                                                                                    slave=self.MPP_ID)
+                    await log_s(self.mw.send_handler.mess)
                 elif ch == 1:
                     result: ModbusResponse = await self.client.read_holding_registers(self.REG_OSCILL_CH2,
                                                                                     64,
@@ -327,7 +327,7 @@ class ModbusMPPCommand(EnvironmentVar):
         try:
             if ch:
                 cmd_ch = cmd.copy()
-                cmd_ch[0] = ch & 0xFF << 8 | cmd_ch[0] & 0xFFFF
+                cmd_ch[0] = ch & 0xFFFF << 8 | cmd_ch[0] & 0xFFFF
                 result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
                                                                                 cmd_ch,
                                                                                 slave=self.MPP_ID)
