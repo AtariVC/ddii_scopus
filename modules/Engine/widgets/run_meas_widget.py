@@ -1,14 +1,17 @@
-from PyQt6 import QtWidgets, QtCore
-from qtpy.uic import loadUi
-from qasync import asyncSlot
 import asyncio
-import qtmodern.styles
 import sys
-import qasync
+import tracemalloc
+
 # from save_config import ConfigSaver
 from pathlib import Path
-from typing import Coroutine, Any, Callable, Awaitable
-import tracemalloc
+from typing import Any, Awaitable, Callable, Coroutine
+
+import qasync
+import qtmodern.styles
+from PyQt6 import QtCore, QtWidgets
+from qasync import asyncSlot
+from qtpy.uic import loadUi
+
 tracemalloc.start()
 
 
@@ -20,12 +23,13 @@ modules_path = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.modbus_worker import ModbusWorker                          # noqa: E402
-from src.parsers import  Parsers                                    # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
-from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
-from src.async_task_manager import AsyncTaskManager                 # noqa: E402
-from src.print_logger import PrintLogger                             # noqa: E402
+from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+from src.async_task_manager import AsyncTaskManager  # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from src.modbus_worker import ModbusWorker  # noqa: E402
+from src.parsers import Parsers  # noqa: E402
+from src.print_logger import PrintLogger  # noqa: E402
+
 
 class RunMaesWidget(QtWidgets.QDialog):
     """Управление окном run_meas_widget.ui
@@ -113,10 +117,11 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            await self.mpp_cmd.set_level(lvl=int(self.lineEdit_trigger.text()))
+            await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
             await self.mpp_cmd.start_measure()
             while 1:
-                result = await self.mpp_cmd.start_measure()
+                result_ch0 = await self.mpp_cmd.read_oscill(ch = 0)
+                result_ch1 = await self.mpp_cmd.read_oscill(ch = 1)
                 # await self.update_gui_data_label()
         except asyncio.CancelledError:
             ...

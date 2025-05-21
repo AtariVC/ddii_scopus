@@ -30,15 +30,19 @@ class EnvironmentVar():
     
 
     REG_MPP_COMMAND                 = 0x0000
-    GET_MPP_STRUCT                   = 0x0006
     REG_MPP_HH                      = 0x000A
-
+    REG_GET_MPP_STRUCT              = 0x0006
     REG_MPP_LEVEL                   = 0x0079
+    REG_OSCILL_CH1                  = 0xA000
+    REG_OSCILL_CH2                  = 0xA200
+
+    
 
     MPP_LEVEL_TRIG                  = 0x0001
 
     MPP_START_MEASURE: list[int]     = [0x0002, 0x0001]
     MPP_STOP_MEASURE: list[int]      = [0x0002, 0x0000]
+    MPP_START_MEASURE_FORCED         = 0x0051
 
 
 

@@ -3,7 +3,8 @@ from qasync import asyncSlot
 from pymodbus.client import AsyncModbusSerialClient
 from src.modbus_worker import ModbusWorker
 from src.log_config import log_s
-
+from copy import copy
+from typing import Coroutine, Any, Callable, Awaitable, Optional
 from src.env_var import EnvironmentVar
 
 class ModbusCMCommand(EnvironmentVar):
@@ -194,6 +195,13 @@ class ModbusCMCommand(EnvironmentVar):
 
 
 class ModbusMPPCommand(EnvironmentVar):
+    """Регистр 0x00 ..... 0x00 0x01
+                            |    |—команда МПП
+                            |—канал МПП (0, 1) 
+
+    Args:
+        EnvironmentVar (_type_): внутренние постоянные окружения
+    """
     def __init__(self, client, logger, **kwargs):
         super().__init__()
         self.mw = ModbusWorker()
@@ -201,18 +209,20 @@ class ModbusMPPCommand(EnvironmentVar):
         self.logger = logger
 
     @asyncSlot
-    async def read_oscill(self, ch: int|None) -> bytes:
+    async def read_oscill(self, ch: int = 0) -> bytes:
         try:
-            if ch is None:
-                result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_STRUCT, 
-                                                                                24,
-                                                                                slave=self.MPP_ID)
-                await log_s(self.mw.send_handler.mess)
-            else:
-                result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_STRUCT,
-                                                                                24,
-                                                                                slave=self.MPP_ID)
-                await log_s(self.mw.send_handler.mess)
+            for rreg in range(512 // 64): # 8
+                if ch == 0:
+                        result: ModbusResponse = await self.client.read_holding_registers(self.REG_OSCILL_CH1, 
+                                                                                        64,
+                                                                                        slave=self.MPP_ID)
+                        await log_s(self.mw.send_handler.mess)
+                elif ch == 1:
+                    result: ModbusResponse = await self.client.read_holding_registers(self.REG_OSCILL_CH2,
+                                                                                    64,
+                                                                                    slave=self.MPP_ID)
+                    await log_s(self.mw.send_handler.mess)
+                    self.logger(f"REG: {hex(self.REG_OSCILL_CH1 + 64).upper()}")
             return result.encode()
         except Exception as e:
             self.logger.error(e)
@@ -222,7 +232,7 @@ class ModbusMPPCommand(EnvironmentVar):
     @asyncSlot()
     async def get_mpp_struct(self) -> bytes:
         try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_STRUCT, 
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_GET_MPP_STRUCT, 
                                                                             24,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
@@ -233,12 +243,20 @@ class ModbusMPPCommand(EnvironmentVar):
             return b'-1'
     
     @asyncSlot()
-    async def start_measure(self) -> bytes:
+    async def start_measure(self, ch: Optional[int] = None) -> bytes:
         try:
-            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+            if ch:
+                MPP_START_MEASURE = self.MPP_START_MEASURE.copy()
+                MPP_START_MEASURE[0] = ch & 0xFF << 8 | MPP_START_MEASURE[0] & 0xFFFF
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            MPP_START_MEASURE,
+                                                                            slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
+            else:
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
                                                                             self.MPP_START_MEASURE,
                                                                             slave=self.MPP_ID)
-            await log_s(self.mw.send_handler.mess)
+                await log_s(self.mw.send_handler.mess)
             return result.encode()
         except Exception as e:
             self.logger.error(e)
@@ -246,11 +264,40 @@ class ModbusMPPCommand(EnvironmentVar):
             return b'-1'
 
     @asyncSlot()
-    async def stop_measure(self) -> bytes:
+    async def start_measure_forced(self, ch: int|None) -> bytes:
         try:
-            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+            if ch:
+                MPP_START_MEASURE_FORCED = ch & 0xFF << 8 | self.MPP_START_MEASURE_FORCED & 0xFFFF
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            MPP_START_MEASURE_FORCED,
+                                                                            slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
+            else:
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            self.MPP_START_MEASURE_FORCED,
+                                                                            slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+
+    @asyncSlot()
+    async def stop_measure(self, ch: int|None) -> bytes:
+        try:
+            if ch:
+                MPP_STOP_MEASURE = self.MPP_STOP_MEASURE.copy()
+                MPP_STOP_MEASURE[0] = ch & 0xFF << 8 | MPP_STOP_MEASURE[0] & 0xFFFF
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            MPP_STOP_MEASURE,
+                                                                            slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
+            else:
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
                                                                             self.MPP_STOP_MEASURE,
                                                                             slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
             await log_s(self.mw.send_handler.mess)
             return result.encode()
         except Exception as e:
@@ -259,10 +306,13 @@ class ModbusMPPCommand(EnvironmentVar):
             return b'-1'
 
     @asyncSlot()
-    async def set_hh(self, data: list[int]) -> bytes:
+    async def set_hh(self, hh: list[int]) -> bytes:
+        if len(hh) != 8:
+            self.logger.error("Len hh[8] не равно 8")
+            return b'-1'
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_HH, 
-                                                                            self.MPP_STOP_MEASURE,
+                                                                            hh,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()
@@ -272,13 +322,21 @@ class ModbusMPPCommand(EnvironmentVar):
             return b'-1'
 
     @asyncSlot()
-    async def set_level(self, lvl: int) -> bytes:
-        cmd: list[int] = [self.MPP_LEVEL_TRIG, lvl] 
+    async def set_level(self, lvl: int, ch: Optional[int] = None) -> bytes:
+        cmd: list[int] = [self.MPP_LEVEL_TRIG, lvl]
         try:
-            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
-                                                                            cmd,
-                                                                            slave=self.MPP_ID)
-            await log_s(self.mw.send_handler.mess)
+            if ch:
+                cmd_ch = cmd.copy()
+                cmd_ch[0] = ch & 0xFF << 8 | cmd_ch[0] & 0xFFFF
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                                cmd_ch,
+                                                                                slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
+            else:
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                                cmd,
+                                                                                slave=self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
             return result.encode()
         except Exception as e:
             self.logger.error(e)
@@ -309,4 +367,4 @@ class ModbusMPPCommand(EnvironmentVar):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
-            return b'-1'
+            return b'-1'|
