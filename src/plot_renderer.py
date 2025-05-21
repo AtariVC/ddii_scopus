@@ -9,7 +9,7 @@ import datetime
 import sys
 import qtmodern
 import numpy as np
-
+from typing import Optional, Sequence
 
 class GraphPen():
     '''Отрисовщик графиков
@@ -32,10 +32,10 @@ class GraphPen():
 
     @asyncSlot()
     async def draw_graph(self,
-                        data: list[int | float],
-                        name_file_save_data: str = "",
-                        clear: bool = True,
-                        save_log: bool = False) -> None:
+                        data: Sequence[int | float],
+                        save_log: bool = False,
+                        name_file_save_data: Optional[str] = None,
+                        clear: bool = True) -> None:
         '''Обновляет поле графика
         Parameters:
         clear (bool) = True: если False, то перед отрисовкой графика поле графика не очищается
@@ -43,15 +43,16 @@ class GraphPen():
         x, y = await self.graph_data_complit(data)
         if clear:
             self.plt_widget.clear()
-        if save_log:
+        if save_log and name_file_save_data is not None:
             write_to_hdf5_file([x, y], self.name_frame, self.parent_path, name_file_save_data)
             # hdf5_to_csv(self.parent_path/Path(f"{name_file_save_data}.phd5"))
+
         data_line = self.plt_widget.plot(x, y, pen=self.pen)
         data_line.setData(x, y)  # обновляем данные графика
         # self.plt_widget.addItem(v_line) # линия уровня
         #
     @asyncSlot()
-    async def graph_data_complit(self, data: list[int | float]) -> tuple[list[int|float], list[int|float]]:
+    async def graph_data_complit(self, data: Sequence[int | float]) -> tuple[list[int|float], list[int|float]]:
         x: list = []
         y: list = []
         for index, value in enumerate(data):

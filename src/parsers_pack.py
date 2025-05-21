@@ -1,5 +1,3 @@
-
-from src.modbus_worker import ModbusWorker
 import struct
 from dataclasses import dataclass
 
@@ -28,7 +26,7 @@ class LineEditPack:
     """
     def __init__(self):
         super().__init__()
-        self.mw = ModbusWorker()
+        # self.mw = ModbusWorker()
 
     def __call__(self, ln_objects: list[LineEObj], endian: str) -> list[int]:
         data: list[int] = []

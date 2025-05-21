@@ -20,10 +20,9 @@ def writer_graph_data(x: list[int|float], y: list[int|float], name: str, folder_
     file.close()
 
 def write_to_hdf5_file(data: list,
-
                         name_group: str,
                         path_hdf5 : Path,
-                        name_file_hdf5: str,) -> None:
+                        name_file_hdf5: str) -> None:
     """_summary_
 
     Args:

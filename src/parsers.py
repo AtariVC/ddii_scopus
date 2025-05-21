@@ -250,3 +250,10 @@ class Parsers(ModbusWorker):
                     d[obj.key] = "{:.2f}".format(float_t)
                 s_bit += 4
         return d
+    
+    async def acq_parser(self, data: bytes) -> list[int]:
+        """
+        Преобразует кванты АЦП в int
+        """
+        data_out = [int.from_bytes(data[i:i+2], byteorder='big') for i in range(0, len(data), 2)]
+        return data_out

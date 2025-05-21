@@ -11,6 +11,7 @@ import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
 from qasync import asyncSlot
 from qtpy.uic import loadUi
+import struct
 
 tracemalloc.start()
 
@@ -29,6 +30,7 @@ from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
+from graph_widget import GraphWidget  # noqa: E402
 
 
 class RunMaesWidget(QtWidgets.QDialog):
@@ -55,6 +57,8 @@ class RunMaesWidget(QtWidgets.QDialog):
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.asyncio_task_list: list = []
+        self.graph_widget: GraphWidget = GraphWidget()
+        self.parser = Parsers()
         # pushButton_autorun_signal           = QtCore.pyqtSignal()
         # pushButton_run_measure_signal       = QtCore.pyqtSignal()
         # checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
@@ -120,11 +124,15 @@ class RunMaesWidget(QtWidgets.QDialog):
             await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
             await self.mpp_cmd.start_measure()
             while 1:
-                result_ch0 = await self.mpp_cmd.read_oscill(ch = 0)
-                result_ch1 = await self.mpp_cmd.read_oscill(ch = 1)
+                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
+                result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
+                await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False)
                 # await self.update_gui_data_label()
-        except asyncio.CancelledError:
+        except asyncio.CancelledError: 
             ...
+
+
 
     async def asyncio_HH_loop_request(self) -> None:
         try:
