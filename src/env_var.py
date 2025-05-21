@@ -8,7 +8,7 @@ class EnvironmentVar():
     DDII_UPDATE_DATA                = 0x0002
 
     CM_ID                           = 1
-    MPP_ID                          = 14
+    MPP_ID_DEFAULT                  = 14
 
     CMD_DBG_GET_TELEMETRY           = 0x0000
     CMD_DBG_SWITCH_MODE             = 0x0001

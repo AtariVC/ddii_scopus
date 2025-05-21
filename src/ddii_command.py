@@ -202,11 +202,12 @@ class ModbusMPPCommand(EnvironmentVar):
     Args:
         EnvironmentVar (_type_): внутренние постоянные окружения
     """
-    def __init__(self, client, logger, **kwargs):
+    def __init__(self, client, logger, *args):
         super().__init__()
         self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
         self.logger = logger
+        self.MPP_ID = args[0] if args else self.MPP_ID_DEFAULT
 
     @asyncSlot
     async def read_oscill(self, ch: int = 0) -> bytes:
