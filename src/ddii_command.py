@@ -204,25 +204,25 @@ class ModbusMPPCommand(EnvironmentVar):
     async def read_oscill(self, ch: int|None) -> bytes:
         try:
             if ch is None:
-                result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_DATA, 
+                result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_STRUCT, 
                                                                                 24,
                                                                                 slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
             else:
-                result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_DATA, 
+                result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_STRUCT,
                                                                                 24,
                                                                                 slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
-            return result.encode()""" """  """ """
+            return result.encode()
         except Exception as e:
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
     @asyncSlot()
-    async def get_data(self) -> bytes:
+    async def get_mpp_struct(self) -> bytes:
         try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_DATA, 
+            result: ModbusResponse = await self.client.read_holding_registers(self.GET_MPP_STRUCT, 
                                                                             24,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)

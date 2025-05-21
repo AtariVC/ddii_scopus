@@ -25,8 +25,7 @@ from src.parsers import  Parsers                                    # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.async_task_manager import AsyncTaskManager                 # noqa: E402
-
-class PrintLogger
+from src.print_logger import PrintLogger                             # noqa: E402
 
 class RunMaesWidget(QtWidgets.QDialog):
     """Управление окном run_meas_widget.ui
@@ -36,7 +35,7 @@ class RunMaesWidget(QtWidgets.QDialog):
     Args:
         QtWidgets (_type_): _description_Базовый класс виджетов
     """
-    lineEdit_triger              : QtWidgets.QLineEdit
+    lineEdit_trigger             : QtWidgets.QLineEdit
     pushButton_run_measure       : QtWidgets.QPushButton
     pushButton_autorun           : QtWidgets.QPushButton
     checkBox_enable_test_csa     : QtWidgets.QCheckBox
@@ -52,7 +51,6 @@ class RunMaesWidget(QtWidgets.QDialog):
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.asyncio_task_list: list = []
-
         # pushButton_autorun_signal           = QtCore.pyqtSignal()
         # pushButton_run_measure_signal       = QtCore.pyqtSignal()
         # checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
@@ -66,6 +64,7 @@ class RunMaesWidget(QtWidgets.QDialog):
             self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_handler)
         else:
             self.task_manager = AsyncTaskManager()
+            self.logger = PrintLogger()
         self.pushButton_run_measure.clicked.connect(self.pushButton_run_measure_handler)
 
 
@@ -114,9 +113,11 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
+            await self.mpp_cmd.set_level(lvl=int(self.lineEdit_trigger.text()))
+            await self.mpp_cmd.start_measure()
             while 1:
+                result = await self.mpp_cmd.start_measure()
                 # await self.update_gui_data_label()
-                self.mpp_cmd.
         except asyncio.CancelledError:
             ...
 

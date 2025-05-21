@@ -1,24 +1,3 @@
-"""Функционал движка:
-    1. Обработка событий gui
-    2. Работа с иммулятором ДДИИ
-    3. Работа с ДДИИ
-    4. Работа с построением графиков
-    5. Работа с построением гистограмм
-    6. Запись log
-    7. Сохранение графиков и гистограмм
-    8. Вывод log
-    9. Вывод значениий колличества частиц по энергиям согласной ТЗ на ДДИИ
-
-    Модуль Emulator является опциональным, поэтму подключается отдельно к Engine
-
-    # Пример использования логгера
-    self.logger.debug('Это сообщение уровня DEBUG')
-    self.logger.info('Это сообщение уровня INFO')
-    self.logger.warning('Это сообщение уровня WARNING')
-    self.logger.error('Это сообщение уровня ERROR')
-    self.logger.critical('Это сообщение уровня CRITICAL')
-
-"""
 import pdb
 from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtWidgets import QSplitter, QSizePolicy, QLineEdit, QSpinBox, QTabWidget, QWidget, QVBoxLayout, QLabel

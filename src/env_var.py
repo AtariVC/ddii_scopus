@@ -30,7 +30,7 @@ class EnvironmentVar():
     
 
     REG_MPP_COMMAND                 = 0x0000
-    GET_MPP_DATA                    = 0x0006
+    GET_MPP_STRUCT                   = 0x0006
     REG_MPP_HH                      = 0x000A
 
     REG_MPP_LEVEL                   = 0x0079
