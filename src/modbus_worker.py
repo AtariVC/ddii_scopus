@@ -23,16 +23,15 @@ class SendHandler(logging.Handler):
             self.mess.append(message)
 
 class ModbusWorkerLog():
-    # Сигнал для обновления интерфейса
     def __init__(self, **kwargs):
         log = logging.getLogger('pymodbus')
         log.setLevel(logging.DEBUG)
         handler = logging.StreamHandler()
         handler.setLevel(logging.DEBUG)
-        handler.addFilter(SendFilter())
-        log.addHandler(handler)
-        self.send_handler = SendHandler()
-        log.addHandler(self.send_handler)
+        # handler.addFilter(SendFilter())
+        # log.addHandler(handler)
+        # self.send_handler = SendHandler()
+        # log.addHandler(self.send_handler)
 
 
 class ModbusWorker(ModbusWorkerLog):
