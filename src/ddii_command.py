@@ -209,7 +209,7 @@ class ModbusMPPCommand(EnvironmentVar):
         self.logger = logger
         self.MPP_ID = args[0] if args else self.MPP_ID_DEFAULT
 
-    @asyncSlot
+    @asyncSlot()
     async def read_oscill(self, ch: int = 0) -> bytes:
         try:
             for rreg in range(512 // 64): # 8

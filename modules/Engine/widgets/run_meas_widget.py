@@ -126,6 +126,7 @@ class RunMaesWidget(QtWidgets.QDialog):
         #     except Exception:
         #         print(f"Error in creating task: {str(e)}")
 
+    @asyncSlot()
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
             await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
@@ -136,11 +137,12 @@ class RunMaesWidget(QtWidgets.QDialog):
                 result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False)
                 # await self.update_gui_data_label()
-        except asyncio.CancelledError: 
+                break
+        except asyncio.CancelledError:
             ...
 
 
-
+    @asyncSlot()
     async def asyncio_HH_loop_request(self) -> None:
         try:
             while 1:
