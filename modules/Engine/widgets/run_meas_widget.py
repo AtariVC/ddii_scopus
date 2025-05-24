@@ -66,8 +66,9 @@ class RunMaesWidget(QtWidgets.QDialog):
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = args[0]
             self.logger = args[1]
+            mpp_id = self.w_ser_dialog.mpp_id
             self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger)
+            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
             self.task_manager = AsyncTaskManager(self.logger)
             # self.pushButton_autorun.clicked.connect(self.pushButton_autorun_handler)
             self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_handler)
