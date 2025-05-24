@@ -15,8 +15,8 @@ class SendHandler(logging.Handler):
 
     def emit(self, record):
         message = self.format(record)
-        # self.mess.append(message)
-        # print(message)
+        self.mess.append(message)
+        print(message)
         if 'recv:' in message:
             self.mess.append(message)
         if 'send:' in message:
@@ -28,10 +28,10 @@ class ModbusWorkerLog():
         log.setLevel(logging.DEBUG)
         handler = logging.StreamHandler()
         handler.setLevel(logging.DEBUG)
-        # handler.addFilter(SendFilter())
-        # log.addHandler(handler)
-        # self.send_handler = SendHandler()
-        # log.addHandler(self.send_handler)
+        handler.addFilter(SendFilter())
+        log.addHandler(handler)
+        self.send_handler = SendHandler()
+        log.addHandler(self.send_handler)
 
 
 class ModbusWorker(ModbusWorkerLog):
