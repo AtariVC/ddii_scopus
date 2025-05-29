@@ -15,14 +15,15 @@ class SendHandler(logging.Handler):
 
     def emit(self, record):
         message = self.format(record)
-        self.mess.append(message)
-        print(message)
+        # self.mess.append(message)
+        # print(message)
         if 'recv:' in message:
             self.mess.append(message)
         if 'send:' in message:
             self.mess.append(message)
 
 class ModbusWorkerLog():
+    # Сигнал для обновления интерфейса
     def __init__(self, **kwargs):
         log = logging.getLogger('pymodbus')
         log.setLevel(logging.DEBUG)
