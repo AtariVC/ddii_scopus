@@ -110,6 +110,8 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 self.pushButton_connect_w.setText("Отключить")
                 self.pushButton_connect_flag = 1
                 await self.cheack_connect()
+                # if not self.status_CM & self.status_MPP:
+                #     self.client.close()
         else:
             await log_s(self.mw.send_handler.mess)
             self.pushButton_connect_w.setText("Подключить")
@@ -132,7 +134,8 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             # except Exception as e:
             #     self.logger.error(e)
             # await asyncio.sleep(0.3)
-            self.client.close()
+            self.client.close() # Закрываем соединение с клиентом в любом случае, 
+            # так как не получается наследоваться и переиспользовать клиент в других классах 
 
     @asyncSlot()
     async def cheack_connect(self) -> None:
@@ -167,7 +170,6 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.logger.error(e)
 
         await self.update_label_connect()
-        self.client.close()
 
     @asyncSlot()
     async def update_label_connect(self):
