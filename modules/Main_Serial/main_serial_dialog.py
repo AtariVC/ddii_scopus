@@ -35,7 +35,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     label_state_w               : QtWidgets.QLabel
     horizontalLayout_comport    : QtWidgets.QHBoxLayout
 
-    coroutine_finished = QtCore.pyqtSignal()
+    coroutine_finished = QtCore.pyqtSignal() # нужен чтобы нормально передать client, иначе передается None
 
     def __init__(self, logger, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -53,7 +53,8 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.serial_task = None
         self.status_CM = 1
         self.status_MPP = 1
-        self.client: AsyncModbusSerialClient = None  # type:ignore
+        self.client: AsyncModbusSerialClient = None  # type:ignore опасная строчка
+        # Сейчас проброс client-а реализовано через сигнал, в будущем нужно добавить систему подписок на корутины
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
 
     @asyncSlot()
@@ -110,14 +111,16 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 self.pushButton_connect_w.setText("Отключить")
                 self.pushButton_connect_flag = 1
                 await self.cheack_connect()
-                # if not self.status_CM & self.status_MPP:
-                #     self.client.close()
+                if not self.status_CM & self.status_MPP:
+                    self.client.close()
+                    self.pushButton_connect_flag = 0
+                    self.pushButton_connect_w.setText("Подключить")
         else:
             await log_s(self.mw.send_handler.mess)
             self.pushButton_connect_w.setText("Подключить")
             self.pushButton_connect_flag = 0
             self.widget_led_w.setStyleSheet(widget_led_off())
-            self.label_state_w.setText("State: ")
+            # self.label_state_w.setText("State: ")
             # try:
             #     await self.client.write_registers(address = self.DDII_SWITCH_MODE,
             #                                                                 values = self.SILENT_MODE,

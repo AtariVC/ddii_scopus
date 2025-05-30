@@ -12,6 +12,8 @@ from PyQt6 import QtCore, QtWidgets
 from qasync import asyncSlot
 from qtpy.uic import loadUi
 import struct
+from pymodbus.client import AsyncModbusSerialClient
+
 
 tracemalloc.start()
 
@@ -49,7 +51,7 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     checkBox_wr_log              : QtWidgets.QCheckBox
     checkBox_ch_request          : QtWidgets.QCheckBox
-
+    
 
     def __init__(self, *args) -> None:
         super().__init__()
@@ -66,9 +68,8 @@ class RunMaesWidget(QtWidgets.QDialog):
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = args[0]
             self.logger = args[1]
-            mpp_id = self.w_ser_dialog.mpp_id
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
+            self.w_ser_dialog.coroutine_finished.connect(self.get_client)
+
             self.task_manager = AsyncTaskManager(self.logger)
             # self.pushButton_autorun.clicked.connect(self.pushButton_autorun_handler)
             self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_handler)
@@ -80,6 +81,18 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     # def pushButton_autorun_handler(self) -> None:
     #     self.pushButton_autorun_signal.emit()
+
+    @asyncSlot()
+    async def get_client(self) -> None:
+        """Перехватывает client от SerialConnect и переподключается к нему"""
+        if self.w_ser_dialog.pushButton_connect_flag == 0:
+            await self.w_ser_dialog.client.connect()
+        # if self.w_ser_dialog.pushButton_connect_flag == 1:
+        #     pass
+        mpp_id = self.w_ser_dialog.mpp_id
+        self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
+        self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
+
 
     @asyncSlot()
     async def pushButton_run_measure_handler(self) -> None:
