@@ -108,7 +108,8 @@ class RunMaesWidget(QtWidgets.QDialog):
             if self.flag_pushButton_run_measure:
                 self.pushButton_run_measure.setText("Остановить изм.")
                 try:
-                    await self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    # await self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    await ACQ_task()
                     # await self.task_manager.create_task(HH_task(), "HH_task")
                 except Exception as e:
                     self.logger.error(f"Ошибка: {e}")
@@ -151,7 +152,7 @@ class RunMaesWidget(QtWidgets.QDialog):
                 # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
                 result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 print(result_ch0_int)
-                await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False)
+                await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=False)
                 # await self.update_gui_data_label()
                 break
         except asyncio.CancelledError:
