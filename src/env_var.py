@@ -33,8 +33,8 @@ class EnvironmentVar():
     REG_MPP_HH                      = 0x000A
     REG_GET_MPP_STRUCT              = 0x0006
     REG_MPP_LEVEL                   = 0x0079
-    REG_OSCILL_CH1                  = 0xA000
-    REG_OSCILL_CH2                  = 0xA200
+    REG_OSCILL_CH0                  = 0xA000
+    REG_OSCILL_CH1                  = 0xA200
 
     
 
