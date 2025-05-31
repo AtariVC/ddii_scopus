@@ -221,7 +221,7 @@ class ModbusMPPCommand(EnvironmentVar):
                                                                                 slave=self.MPP_ID)
 
                 await log_s(self.mw.send_handler.mess)
-                all_data.extend(result.encode())
+                all_data.extend(result.encode()[1:])
 
             return bytes(all_data)  # Возвращаем все 512 байт
         except Exception as e:
