@@ -44,24 +44,24 @@ class Engine(QtWidgets.QMainWindow):
         super().__init__()
         loadUi(Path(__file__).parent.joinpath('engine.ui'), self)
         self.resize(1300, 800)
-        self.mw = ModbusWorker()
-        self.parser = Parsers()
+        self.mw: ModbusWorker = ModbusWorker()
+        self.parser: Parsers = Parsers()
         self.logger = log_init()
-        self.w_ser_dialog = SerialConnect(self.logger)
-        self.client = self.w_ser_dialog.client
-        self.run_meas_widget = RunMaesWidget(self.w_ser_dialog, self.logger)
         # self.init_QObjects()
         # self.config = ConfigSaver()
         self.init_widgets()
 
     def init_widgets(self) -> None:
         # Виджеты
-        w_graph_widget: GraphWidget = GraphWidget()
+        self.w_graph_widget: GraphWidget = GraphWidget()
+        self.w_ser_dialog: SerialConnect = SerialConnect(self.logger)
+        self.client = self.w_ser_dialog.client
+        self.run_meas_widget: RunMaesWidget = RunMaesWidget(self)
         tab_widget = self.create_tab_widget_items()
         splitter = QSplitter()
         self.gridLayout_main_split.addWidget(splitter)
-
-        splitter.addWidget(w_graph_widget)
+        
+        splitter.addWidget(self.w_graph_widget)
         splitter.addWidget(tab_widget)
 
     def create_tab_widget_items(self) -> QTabWidget:

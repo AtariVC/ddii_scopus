@@ -39,11 +39,6 @@ class MainGraphWidget(QtWidgets.QDialog):
 
     coroutine_get_temp_finished = QtCore.pyqtSignal()
 
-    CM_DBG_SET_CFG = 0x0005
-    CM_ID = 1
-    #CM_DBG_SET_VOLTAGE = 0x0006
-    #CM_DBG_GET_VOLTAGE = 0x0009
-    #CMD_HVIP_ON_OFF = 0x000B
 
     def __init__(self, logger, *args) -> None:
         super().__init__()

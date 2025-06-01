@@ -111,7 +111,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 self.pushButton_connect_w.setText("Отключить")
                 self.pushButton_connect_flag = 1
                 await self.cheack_connect()
-                if not self.status_CM & self.status_MPP:
+                if self.status_CM and self.status_MPP == 0:
                     self.client.close()
                     self.pushButton_connect_flag = 0
                     self.pushButton_connect_w.setText("Подключить")

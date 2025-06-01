@@ -55,19 +55,20 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     def __init__(self, *args) -> None:
         super().__init__()
+        self.parent = args[0]
         loadUi(Path(__file__).parent.joinpath('run_meas_widget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.asyncio_task_list: list = []
-        self.graph_widget: GraphWidget = GraphWidget()
+        self.graph_widget: GraphWidget = self.parent.w_graph_widget
         self.parser = Parsers()
         self.flag_pushButton_run_measure: bool = False
         # pushButton_autorun_signal           = QtCore.pyqtSignal()
         # pushButton_run_measure_signal       = QtCore.pyqtSignal()
         # checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
         if __name__ != "__main__":
-            self.w_ser_dialog: SerialConnect = args[0]
-            self.logger = args[1]
+            self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog
+            self.logger = self.parent.logger
             self.w_ser_dialog.coroutine_finished.connect(self.get_client)
 
             self.task_manager = AsyncTaskManager(self.logger)
@@ -108,8 +109,8 @@ class RunMaesWidget(QtWidgets.QDialog):
             if self.flag_pushButton_run_measure:
                 self.pushButton_run_measure.setText("Остановить изм.")
                 try:
-                    # await self.task_manager.create_task(ACQ_task(), "ACQ_task")
-                    await ACQ_task()
+                    await self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    # await ACQ_task()
                     # await self.task_manager.create_task(HH_task(), "HH_task")
                 except Exception as e:
                     self.logger.error(f"Ошибка: {e}")
@@ -144,15 +145,17 @@ class RunMaesWidget(QtWidgets.QDialog):
     @asyncSlot()
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
-            await self.mpp_cmd.start_measure()
+            # await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
+            # await self.mpp_cmd.start_measure()
             while 1:
-                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-                print(result_ch0)
-                # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-                result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
-                print(result_ch0_int)
+                # result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
+                # print(result_ch0)
+                # # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                # result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
+                # print(result_ch0_int)
+                result_ch0_int: list = [1.4, 34.34, 324.4, 32.4, 89.4, 233.4, 234.4, 2344.4, 234.4]
                 await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=False)
+                self.graph_widget.show()
                 # await self.update_gui_data_label()
                 break
         except asyncio.CancelledError:

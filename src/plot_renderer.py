@@ -67,11 +67,11 @@ class HistPen():
     Добавляет в layout окно графика и отрисовывет гистограмму
     '''
     def __init__(self,
-                layaut: QtWidgets.QHBoxLayout|QtWidgets.QVBoxLayout|QtWidgets.QGridLayout,
+                layout: QtWidgets.QHBoxLayout|QtWidgets.QVBoxLayout|QtWidgets.QGridLayout,
                 name: str,
                 color: tuple = (0, 0, 255, 150)) -> None:
         self.hist_widget: pg.PlotWidget  = pg.PlotWidget()
-        layaut.addWidget(self.hist_widget)
+        layout.addWidget(self.hist_widget)
         self.color = color
         self.pen = pg.mkPen(color)
         self.name_frame_data: str = name
