@@ -148,16 +148,13 @@ class RunMaesWidget(QtWidgets.QDialog):
             # await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
             # await self.mpp_cmd.start_measure()
             while 1:
-                # result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-                # print(result_ch0)
+                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
                 # # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-                # result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
-                # print(result_ch0_int)
-                result_ch0_int: list = [1.4, 34.34, 324.4, 32.4, 89.4, 233.4, 234.4, 2344.4, 234.4]
+                result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=False)
                 self.graph_widget.show()
                 # await self.update_gui_data_label()
-                break
+                # break
         except asyncio.CancelledError:
             ...
 
