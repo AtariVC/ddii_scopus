@@ -1,7 +1,7 @@
 import asyncio
 import sys
 import tracemalloc
-
+import numpy as np
 # from save_config import ConfigSaver
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Coroutine
@@ -104,7 +104,7 @@ class RunMaesWidget(QtWidgets.QDialog):
         """
         ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if self.w_ser_dialog.pushButton_connect_flag != 0:
+        if self.w_ser_dialog.pushButton_connect_flag != 1:
             self.flag_pushButton_run_measure = not self.flag_pushButton_run_measure
             if self.flag_pushButton_run_measure:
                 self.pushButton_run_measure.setText("Остановить изм.")
@@ -145,16 +145,17 @@ class RunMaesWidget(QtWidgets.QDialog):
     @asyncSlot()
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
-            await self.mpp_cmd.start_measure()
+            # await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
+            # await self.mpp_cmd.start_measure()
             while 1:
-                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
+                # result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
                 # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-                result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
-                await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=True)
-                self.graph_widget.show()
+                # result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
+                # result_ch0_int = list(np.random.randint(200, size=512))
+                # await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=True)
+                # self.graph_widget.show()
                 # await self.update_gui_data_label()
-                # break
+                break
         except asyncio.CancelledError:
             ...
 
