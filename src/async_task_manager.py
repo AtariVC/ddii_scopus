@@ -23,8 +23,8 @@ class AsyncTaskManager:
         # Делаем logger вызываемым объектом
         self.logger = logger if logger is not None else PrintLogger()
 
-    @asyncSlot()
-    async def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
+
+    def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
         """
         Создаёт задачу, если она ещё не активна.
 
@@ -74,18 +74,16 @@ class AsyncTaskManager:
         """
         return [name for name, task in self.tasks.items() if not task.done()]
 
-    def _handle_task_completion(self, task: asyncio.Task, task_name: str) -> None:
-        """
-        Обрабатывает завершение задачи — удаляет из памяти и логирует результат.
-
-        :param task: asyncio.Task
-        :param task_name: имя задачи
-        """
-        if task.cancelled():
-            self.logger.info(f"Задача '{task_name}' была отменена")
-        elif task.exception():
-            self.logger.error(f"Задача '{task_name}' завершилась с ошибкой: {task.exception()}")
-        else:
-            self.logger.debug(f"Задача '{task_name}' успешно завершена")
-
-        self.tasks.pop(task_name, None)
+    def _handle_task_completion(self, task, task_name):
+        try:
+            if task.cancelled():
+                self.logger.debug(f"Задача '{task_name}' отменена")
+                return
+            
+            if exc := task.exception():
+                self.logger.error(f"Ошибка в задаче '{task_name}': {exc}")
+            else:
+                # Не вызываем task.result() явно
+                self.logger.debug(f"Задача '{task_name}' завершена")
+        finally:
+            self.tasks.pop(task_name, None)
