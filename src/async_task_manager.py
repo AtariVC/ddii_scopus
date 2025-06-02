@@ -3,6 +3,7 @@ import logging
 from collections.abc import Coroutine
 from typing import Any, Dict, List, Optional, Callable
 from logging import Logger
+from qasync import asyncSlot
 
 class PrintLogger:
     """Заменяет стандартный логгер, имитируя его интерфейс"""
@@ -21,6 +22,8 @@ class AsyncTaskManager:
         self.tasks: Dict[str, asyncio.Task] = {}
         # Делаем logger вызываемым объектом
         self.logger = logger if logger is not None else PrintLogger()
+
+    @asyncSlot()
     async def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
         """
         Создаёт задачу, если она ещё не активна.

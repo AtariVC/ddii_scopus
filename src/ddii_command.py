@@ -213,7 +213,7 @@ class ModbusMPPCommand(EnvironmentVar):
     async def read_oscill(self, ch: int = 0) -> bytes:
         try:
             all_data = bytearray()
-            for offset in range(0, 512 // 2, 64):
+            for offset in range(0, 512, 64):
                 reg_addr = (self.REG_OSCILL_CH1 if ch == 1 else self.REG_OSCILL_CH0) + offset
 
                 result: ModbusResponse = await self.client.read_holding_registers(reg_addr,
@@ -223,7 +223,7 @@ class ModbusMPPCommand(EnvironmentVar):
                 await log_s(self.mw.send_handler.mess)
                 all_data.extend(result.encode()[1:])
 
-            return bytes(all_data)  # Возвращаем все 512 байт
+            return bytes(all_data)
         except Exception as e:
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')

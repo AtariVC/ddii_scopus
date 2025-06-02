@@ -149,7 +149,7 @@ class RunMaesWidget(QtWidgets.QDialog):
             await self.mpp_cmd.start_measure()
             while 1:
                 result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-                result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
                 result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=True)
                 self.graph_widget.show()
