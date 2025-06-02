@@ -23,8 +23,7 @@ class AsyncTaskManager:
         # Делаем logger вызываемым объектом
         self.logger = logger if logger is not None else PrintLogger()
 
-    @asyncSlot()
-    async def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
+    def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
         """
         Создаёт задачу, если она ещё не активна.
 
@@ -39,7 +38,7 @@ class AsyncTaskManager:
         try:
             task = asyncio.create_task(coroutine)
             self.tasks[task_name] = task
-            task.add_done_callback(lambda t: self._handle_task_completion(t, task_name))
+            task.add_done_callback(lambda t: self._handle_task_completion(t,task_name))
             self.logger.info(f"Задача '{task_name}' запущена")
         except Exception as e:
             self.logger.warning(f"Ошибка при запуске задачи '{task_name}': {e}")

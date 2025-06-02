@@ -95,28 +95,28 @@ class RunMaesWidget(QtWidgets.QDialog):
         self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
 
 
-    @asyncSlot()
-    async def pushButton_run_measure_handler(self) -> None:
+    def pushButton_run_measure_handler(self) -> None:
         """Запуск асинхронной задачи. Создаем задачи asyncio_measure_loop_request и 
         asyncio__loop_request через creator_asyncio_tasks
         asyncio_ACQ_loop_request для непрерывного получения данных АЦП
         asyncio_HH_loop_request для непрерывного получения данных гистограмм МПП
         """
-        ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
-        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
+        ACQ_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request  
+        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request  
         if self.w_ser_dialog.pushButton_connect_flag != 1:
             self.flag_pushButton_run_measure = not self.flag_pushButton_run_measure
             if self.flag_pushButton_run_measure:
                 self.pushButton_run_measure.setText("Остановить изм.")
                 try:
-                    await self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    self.task_manager.create_task(ACQ_task(), "ACQ_task")
                     # await ACQ_task()
-                    # await self.task_manager.create_task(HH_task(), "HH_task")
+                    self.task_manager.create_task(HH_task(), "HH_task")
                 except Exception as e:
                     self.logger.error(f"Ошибка: {e}")
             else:
                 self.pushButton_run_measure.setText("Запустить изм.")
                 self.task_manager.cancel_task("ACQ_task")
+                self.task_manager.cancel_task("HH_task")
         else:
             self.logger.error(f"Нет подключения к ДДИИ")
         # self.coroutine_get_client_finished.connect(self.creator_asyncio_tasks)
@@ -142,7 +142,6 @@ class RunMaesWidget(QtWidgets.QDialog):
         #     except Exception:
         #         print(f"Error in creating task: {str(e)}")
 
-    @asyncSlot()
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
             # await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
@@ -160,7 +159,6 @@ class RunMaesWidget(QtWidgets.QDialog):
             ...
 
 
-    @asyncSlot()
     async def asyncio_HH_loop_request(self) -> None:
         try:
             while 1:
