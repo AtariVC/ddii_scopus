@@ -102,14 +102,14 @@ class RunMaesWidget(QtWidgets.QDialog):
         asyncio_ACQ_loop_request для непрерывного получения данных АЦП
         asyncio_HH_loop_request для непрерывного получения данных гистограмм МПП
         """
-        ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
+        self.ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
         if self.w_ser_dialog.pushButton_connect_flag != 1:
             self.flag_pushButton_run_measure = not self.flag_pushButton_run_measure
             if self.flag_pushButton_run_measure:
                 self.pushButton_run_measure.setText("Остановить изм.")
                 try:
-                    self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    self.task_manager.create_task(self.ACQ_task(), "ACQ_task")
                     # await ACQ_task()
                     # await self.task_manager.create_task(HH_task(), "HH_task")
                 except Exception as e:
@@ -147,13 +147,14 @@ class RunMaesWidget(QtWidgets.QDialog):
         try:
             # await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
             # await self.mpp_cmd.start_measure()
+            self.graph_widget.show()
             while 1:
                 # result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
                 # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
                 # result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 result_ch0_int = list(np.random.randint(200, size=512))
+                # self.graph_widget.gp_pips.signal_data_complete.emit() # type: ignore
                 await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=True)
-                self.graph_widget.show()
                 # await self.update_gui_data_label()
                 # break
         except asyncio.CancelledError:

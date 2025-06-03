@@ -27,7 +27,6 @@ class AsyncTaskManager:
     def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
         """
         Создаёт задачу, если она ещё не активна.
-
         :param coroutine: вызванная корутина
         :param task_name: уникальное имя задачи
         """
@@ -47,7 +46,6 @@ class AsyncTaskManager:
     def cancel_task(self, task_name: str) -> None:
         """
         Отменяет задачу по имени.
-
         :param task_name: имя задачи
         """
         task = self.tasks.get(task_name)
@@ -69,21 +67,21 @@ class AsyncTaskManager:
     def get_active_tasks(self) -> List[str]:
         """
         Возвращает список имён активных (не завершённых) задач.
-
         :return: список строк с именами задач
         """
         return [name for name, task in self.tasks.items() if not task.done()]
 
-    def _handle_task_completion(self, task, task_name):
+    def _handle_task_completion(self, task: asyncio.Task, task_name: str):
         try:
             if task.cancelled():
-                self.logger.debug(f"Задача '{task_name}' отменена")
-                return
-            
-            if exc := task.exception():
-                self.logger.error(f"Ошибка в задаче '{task_name}': {exc}")
+                self.logger.debug(f"Задача {task_name} отменена")
+            elif exc := task.exception():
+                self.logger.error(f"Ошибка в {task_name}: {exc}")
             else:
-                # Не вызываем task.result() явно
-                self.logger.debug(f"Задача '{task_name}' завершена")
+                # Безопасно получаем результат только для успешных задач
+                result = task.result()
+                self.logger.debug(f"Задача {task_name} завершена: {result}")
+        except Exception as e:
+            self.logger.error(f"Ошибка обработки завершения: {e}")
         finally:
             self.tasks.pop(task_name, None)

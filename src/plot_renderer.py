@@ -1,27 +1,48 @@
-import pyqtgraph as pg
-from PyQt6 import QtWidgets
-from qasync import asyncSlot
 import asyncio
-from src.write_data_to_file import writer_graph_data, write_to_hdf5_file, read_hdf5_file, hdf5_to_csv
-from pathlib import Path
-import os
 import datetime
+import functools
+import os
 import sys
-import qtmodern
-import numpy as np
+from pathlib import Path
 from typing import Optional, Sequence
+
+import numpy as np
+import pyqtgraph as pg
+import qtmodern
+from PyQt6 import QtCore, QtWidgets
+from qasync import asyncSlot
+
+from src.write_data_to_file import hdf5_to_csv, read_hdf5_file, write_to_hdf5_file, writer_graph_data
+
+
+def safe_asyncSlot(func):
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except asyncio.CancelledError:
+            return None
+    return asyncSlot(wrapper)
+    
+    
 
 class GraphPen():
     '''Отрисовщик графиков
 
-    Добавляет в layout окно графика и отрисовывет график
+    Добавляет в layout окно графика и отрисовывает график
     '''
+
+    signal_data_complete = QtCore.pyqtSignal()
+
     def __init__(self,
-        layout: QtWidgets.QHBoxLayout | QtWidgets.QVBoxLayout | QtWidgets.QGridLayout,
-        name: str = "default_graph",
-        color: tuple = (255, 120, 10)) -> None:
-        self.plt_widget = pg.PlotWidget()
-        layout.addWidget(self.plt_widget)
+                    layout: QtWidgets.QHBoxLayout | QtWidgets.QVBoxLayout | QtWidgets.QGridLayout,
+                    name: str = "default_graph",
+                    color: tuple = (255, 120, 10)) -> None:
+        self.curve = pg.PlotDataItem()
+        self.graph = pg.Graph
+        # plot_widget = QtWidgets.QWidget()
+        # layout.addItem(self.plt_data_item)
+        # layout.addWidget(plot_widget)
         self.pen = pg.mkPen(color)
         self.name_frame: str = name
         #### Path ####
@@ -29,23 +50,23 @@ class GraphPen():
         current_datetime = datetime.datetime.now()
         time: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
         self.path_to_save: Path = self.parent_path / time
+        # self.signal_data_complete.connect()
 
-
-    @asyncSlot()
+    # @asyncSlot()
     async def draw_graph(self, data, save_log=False, name_file_save_data=None, clear=True):
-        """Обновляет поле графика с защитой от отмены"""
         try:
             x, y = await self._prepare_graph_data(data)
             if clear:
                 self.plt_widget.clear()
-            
+
             if save_log and name_file_save_data:
                 self._save_graph_data(x, y, name_file_save_data)
-
             self.plt_widget.plot(x, y, pen=self.pen)
-            
+            # if self.plt_widget.plotItem:
+                # item:pg.PlotItem = self.plt_widget.getPlotItem()
+                # itemsetData(x, y, pen=self.pen)
+
         except asyncio.CancelledError:
-            # Чистый выход без проброса исключения
             return None
         except Exception as e:
             print(f"Ошибка отрисовки: {e}")
