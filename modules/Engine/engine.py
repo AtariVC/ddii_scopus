@@ -30,7 +30,7 @@ from src.log_config import log_init, log_s                          # noqa: E402
 from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 from modules.Engine.widgets.graph_widget import GraphWidget         # noqa: E402
-from modules.Engine.widgets.run_meas_widget import RunMaesWidget         # noqa: E402
+from modules.Engine.widgets.run_meas_widget import RunMeasWidget         # noqa: E402
 from src.craft_custom_widget import add_serial_widget
 
 class Engine(QtWidgets.QMainWindow):
@@ -56,7 +56,7 @@ class Engine(QtWidgets.QMainWindow):
         self.w_graph_widget: GraphWidget = GraphWidget()
         self.w_ser_dialog: SerialConnect = SerialConnect(self.logger)
         self.client = self.w_ser_dialog.client
-        self.run_meas_widget: RunMaesWidget = RunMaesWidget(self)
+        self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
         tab_widget = self.create_tab_widget_items()
         splitter = QSplitter()
         self.gridLayout_main_split.addWidget(splitter)

@@ -1,6 +1,5 @@
 import asyncio
 import sys
-import tracemalloc
 import numpy as np
 # from save_config import ConfigSaver
 from pathlib import Path
@@ -13,9 +12,6 @@ from qasync import asyncSlot
 from qtpy.uic import loadUi
 import struct
 from pymodbus.client import AsyncModbusSerialClient
-
-
-tracemalloc.start()
 
 
 ####### импорты из других директорий ######
@@ -35,7 +31,7 @@ from src.print_logger import PrintLogger  # noqa: E402
 from modules.Engine.widgets.graph_widget import GraphWidget  # noqa: E402
 
 
-class RunMaesWidget(QtWidgets.QDialog):
+class RunMeasWidget(QtWidgets.QDialog):
     """Управление окном run_meas_widget.ui
     Запуск измерения, запуск тестовых импульсов, запись логфайла всех измерений.
     Опрос гистограмм МПП.
@@ -51,7 +47,9 @@ class RunMaesWidget(QtWidgets.QDialog):
 
     checkBox_wr_log              : QtWidgets.QCheckBox
     checkBox_ch_request          : QtWidgets.QCheckBox
+
     
+    # graph_done_signal = QtCore.pyqtSignal()
 
     def __init__(self, *args) -> None:
         super().__init__()
@@ -63,6 +61,7 @@ class RunMaesWidget(QtWidgets.QDialog):
         self.graph_widget: GraphWidget = self.parent.w_graph_widget
         self.parser = Parsers()
         self.flag_pushButton_run_measure: bool = False
+        # self.graph_done_signal.connect(self.stop_measure_signal_handler)
         # pushButton_autorun_signal           = QtCore.pyqtSignal()
         # pushButton_run_measure_signal       = QtCore.pyqtSignal()
         # checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
@@ -79,6 +78,12 @@ class RunMaesWidget(QtWidgets.QDialog):
             self.logger = PrintLogger()
         self.pushButton_run_measure.clicked.connect(self.pushButton_run_measure_handler)
 
+    # @asyncSlot()
+    # async def stop_measure_signal_handler(self):
+    #     while not self.graph_done_flag:
+    #         if self.graph_done_flag:
+    #             self.task_manager.cancel_task("ACQ_task")
+    #     self.task_manager.cancel_task("ACQ_task")
 
     # def pushButton_autorun_handler(self) -> None:
     #     self.pushButton_autorun_signal.emit()
@@ -102,21 +107,23 @@ class RunMaesWidget(QtWidgets.QDialog):
         asyncio_ACQ_loop_request для непрерывного получения данных АЦП
         asyncio_HH_loop_request для непрерывного получения данных гистограмм МПП
         """
-        self.ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
+        ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if self.w_ser_dialog.pushButton_connect_flag != 1:
+        if self.w_ser_dialog.pushButton_connect_flag != 0:
             self.flag_pushButton_run_measure = not self.flag_pushButton_run_measure
             if self.flag_pushButton_run_measure:
                 self.pushButton_run_measure.setText("Остановить изм.")
                 try:
-                    self.task_manager.create_task(self.ACQ_task(), "ACQ_task")
+                    self.task_manager.create_task(ACQ_task(), "ACQ_task")
                     # await ACQ_task()
                     # await self.task_manager.create_task(HH_task(), "HH_task")
                 except Exception as e:
                     self.logger.error(f"Ошибка: {e}")
             else:
-                self.pushButton_run_measure.setText("Запустить изм.")
+                # self.graph_done_signal.emit()
+                await self.mpp_cmd.start_measure(on = 0)
                 self.task_manager.cancel_task("ACQ_task")
+                self.pushButton_run_measure.setText("Запустить изм.")
         else:
             self.logger.error(f"Нет подключения к ДДИИ")
         # self.coroutine_get_client_finished.connect(self.creator_asyncio_tasks)
@@ -145,16 +152,22 @@ class RunMaesWidget(QtWidgets.QDialog):
     # @asyncSlot()
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            # await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
-            # await self.mpp_cmd.start_measure()
+            await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
+            await self.mpp_cmd.start_measure()
             self.graph_widget.show()
             while 1:
-                # result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-                # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-                # result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
-                result_ch0_int = list(np.random.randint(200, size=512))
+                # self.graph_done_flag = False
+                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
+                result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
+                result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
+                # result_ch0_int = list(np.random.randint(200, size=512))
                 # self.graph_widget.gp_pips.signal_data_complete.emit() # type: ignore
-                await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=True)
+                try:
+                    await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=True)
+                    await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, save_log=False, clear=True)
+                except asyncio.exceptions.CancelledError:
+                    return None
                 # await self.update_gui_data_label()
                 # break
         except asyncio.CancelledError:
@@ -182,7 +195,7 @@ class RunMaesWidget(QtWidgets.QDialog):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
-    w = RunMaesWidget()
+    w = RunMeasWidget()
     event_loop = qasync.QEventLoop(app)
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)

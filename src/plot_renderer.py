@@ -1,15 +1,26 @@
-import pyqtgraph as pg
-from PyQt6 import QtWidgets
-from qasync import asyncSlot
 import asyncio
-from src.write_data_to_file import writer_graph_data, write_to_hdf5_file, read_hdf5_file, hdf5_to_csv
-from pathlib import Path
-import os
 import datetime
+import os
 import sys
-import qtmodern
-import numpy as np
+from pathlib import Path
 from typing import Optional, Sequence
+
+import numpy as np
+import pyqtgraph as pg
+import qasync
+import qtmodern
+from PyQt6 import QtCore, QtWidgets
+from qasync import asyncSlot
+
+from src.write_data_to_file import hdf5_to_csv, read_hdf5_file, write_to_hdf5_file, writer_graph_data
+
+####### импорты из других директорий ######
+# /src
+src_path = Path(__file__).resolve().parent.parent.parent.parent
+
+# from src.signal_manager import SignalManager  # noqa: E402
+
+sys.path.append(str(src_path))
 
 class GraphPen():
     '''Отрисовщик графиков
@@ -24,39 +35,41 @@ class GraphPen():
         layout.addWidget(self.plt_widget)
         self.pen = pg.mkPen(color)
         self.name_frame: str = name
+        self.plot_item = None # для PlotDataItem
         #### Path ####
         self.parent_path: Path = Path("./log/graph_data").resolve()
         current_datetime = datetime.datetime.now()
         time: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
         self.path_to_save: Path = self.parent_path / time
 
-
-    @asyncSlot()
-    async def draw_graph(self, data, save_log=False, name_file_save_data=None, clear=True):
+    @qasync.asyncSlot()
+    async def draw_graph(self, data, save_log=False, name_file_save_data=None, clear=False) -> bool:
         """Обновляет поле графика с защитой от отмены"""
         try:
             x, y = await self._prepare_graph_data(data)
             if clear:
                 self.plt_widget.clear()
-            
+                self.plot_item = None
             if save_log and name_file_save_data:
                 self._save_graph_data(x, y, name_file_save_data)
-
-            self.plt_widget.plot(x, y, pen=self.pen)
-            
-        except asyncio.CancelledError:
-            # Чистый выход без проброса исключения
-            return None
+            if self.plot_item == None:
+                self.plot_item = pg.PlotDataItem(x, y, pen = self.pen)
+                self.plt_widget.addItem(self.plot_item)
+            else:
+                self.plot_item.setData(self.plot_item)
+            # self.plt_widget.plot(x, y, pen=self.pen)
+            return True
         except Exception as e:
             print(f"Ошибка отрисовки: {e}")
-            raise
+            return False
 
     async def _prepare_graph_data(self, data):
         """Подготовка данных для графика"""
         x, y = [], []
         for index, value in enumerate(data):
             x.append(index)
-            y.append(0 if value > 4000 else value)
+            # y.append(0 if value > 4000 else value)
+            y.append(value)
         return x, y
     
     def _save_graph_data(self, x, y, filename):

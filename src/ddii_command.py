@@ -243,18 +243,26 @@ class ModbusMPPCommand(EnvironmentVar):
             return b'-1'
     
     @asyncSlot()
-    async def start_measure(self, ch: Optional[int] = None) -> bytes:
+    async def start_measure(self, ch: Optional[int] = None, on: Optional[int] = 1) -> bytes:
         try:
             if ch:
-                MPP_START_MEASURE = self.MPP_START_MEASURE.copy()
-                MPP_START_MEASURE[0] = ch & 0xFF << 8 | MPP_START_MEASURE[0] & 0xFFFF
+                if on:
+                    STATE_MEASURE = self.MPP_START_MEASURE.copy()
+                    STATE_MEASURE[0] = ch & 0xFF << 8 | STATE_MEASURE[0] & 0xFFFF
+                else:
+                    STATE_MEASURE = self.MPP_STOP_MEASURE.copy()
+                    STATE_MEASURE[0] = ch & 0xFF << 8 | STATE_MEASURE[0] & 0xFFFF
                 result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
-                                                                            MPP_START_MEASURE,
+                                                                            STATE_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
             else:
+                if on:
+                    STATE_MEASURE = self.MPP_START_MEASURE
+                else:
+                    STATE_MEASURE = self.MPP_STOP_MEASURE
                 result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
-                                                                            self.MPP_START_MEASURE,
+                                                                            STATE_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
             return result.encode()
