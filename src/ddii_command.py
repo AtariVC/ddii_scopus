@@ -213,11 +213,11 @@ class ModbusMPPCommand(EnvironmentVar):
     async def read_oscill(self, ch: int = 0) -> bytes:
         try:
             all_data = bytearray()
-            for offset in range(0, 511, 64):
+            for offset in range(0, 511, 32):
                 reg_addr = (self.REG_OSCILL_CH1 if ch == 1 else self.REG_OSCILL_CH0) + offset
  
                 result: ModbusResponse = await self.client.read_holding_registers(reg_addr,
-                                                                                64, 
+                                                                                32, 
                                                                                 slave=self.MPP_ID)
 
                 await log_s(self.mw.send_handler.mess)
@@ -249,6 +249,10 @@ class ModbusMPPCommand(EnvironmentVar):
                 if on:
                     STATE_MEASURE = self.MPP_START_MEASURE.copy()
                     STATE_MEASURE[0] = ch & 0xFF << 8 | STATE_MEASURE[0] & 0xFFFF
+                    await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            0x0009,
+                                                                            slave=self.MPP_ID) # выдать waveform
+                    await log_s(self.mw.send_handler.mess)
                 else:
                     STATE_MEASURE = self.MPP_STOP_MEASURE.copy()
                     STATE_MEASURE[0] = ch & 0xFF << 8 | STATE_MEASURE[0] & 0xFFFF
@@ -256,15 +260,21 @@ class ModbusMPPCommand(EnvironmentVar):
                                                                             STATE_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
+
             else:
                 if on:
                     STATE_MEASURE = self.MPP_START_MEASURE
+                    await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            0x0009,
+                                                                            slave=self.MPP_ID) # выдать waveform
+                    await log_s(self.mw.send_handler.mess)
                 else:
                     STATE_MEASURE = self.MPP_STOP_MEASURE
                 result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
                                                                             STATE_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
+
             return result.encode()
         except Exception as e:
             self.logger.error(e)

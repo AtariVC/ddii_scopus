@@ -153,7 +153,7 @@ class RunMeasWidget(QtWidgets.QDialog):
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
             await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
-            await self.mpp_cmd.start_measure()
+            await self.mpp_cmd.start_measure(on = 1)
             self.graph_widget.show()
             while 1:
                 # self.graph_done_flag = False
