@@ -255,5 +255,5 @@ class Parsers(ModbusWorker):
         """
         Преобразует кванты АЦП в int
         """
-        data_out = [int.from_bytes(data[i:i+2], byteorder='big') for i in range(0, len(data), 2)]
+        data_out = [int.from_bytes(data[i:i+2], byteorder='little') for i in range(0, len(data), 2)]
         return data_out

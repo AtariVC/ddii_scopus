@@ -213,11 +213,11 @@ class ModbusMPPCommand(EnvironmentVar):
     async def read_oscill(self, ch: int = 0) -> bytes:
         try:
             all_data = bytearray()
-            for offset in range(0, 511, 32):
+            for offset in range(0, 512, 64):
                 reg_addr = (self.REG_OSCILL_CH1 if ch == 1 else self.REG_OSCILL_CH0) + offset
  
                 result: ModbusResponse = await self.client.read_holding_registers(reg_addr,
-                                                                                32, 
+                                                                                64, 
                                                                                 slave=self.MPP_ID)
 
                 await log_s(self.mw.send_handler.mess)
