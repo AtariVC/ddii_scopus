@@ -249,10 +249,6 @@ class ModbusMPPCommand(EnvironmentVar):
                 if on:
                     STATE_MEASURE = self.MPP_START_MEASURE.copy()
                     STATE_MEASURE[0] = ch & 0xFF << 8 | STATE_MEASURE[0] & 0xFFFF
-                    await self.client.write_registers(self.REG_MPP_COMMAND, 
-                                                                            0x0009,
-                                                                            slave=self.MPP_ID) # выдать waveform
-                    await log_s(self.mw.send_handler.mess)
                 else:
                     STATE_MEASURE = self.MPP_STOP_MEASURE.copy()
                     STATE_MEASURE[0] = ch & 0xFF << 8 | STATE_MEASURE[0] & 0xFFFF
@@ -260,20 +256,32 @@ class ModbusMPPCommand(EnvironmentVar):
                                                                             STATE_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
-
-            else:
+                await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
                 if on:
-                    STATE_MEASURE = self.MPP_START_MEASURE
                     await self.client.write_registers(self.REG_MPP_COMMAND, 
                                                                             0x0009,
                                                                             slave=self.MPP_ID) # выдать waveform
                     await log_s(self.mw.send_handler.mess)
+                    await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
+            else:
+                if on:
+                    STATE_MEASURE = self.MPP_START_MEASURE
                 else:
                     STATE_MEASURE = self.MPP_STOP_MEASURE
                 result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
                                                                             STATE_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
+                await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
+                await log_s(self.mw.send_handler.mess)
+                if on:
+                    await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            0x0009,
+                                                                            slave=self.MPP_ID) # выдать waveform
+                    await log_s(self.mw.send_handler.mess)
+                    await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
+                    await log_s(self.mw.send_handler.mess)
 
             return result.encode()
         except Exception as e:

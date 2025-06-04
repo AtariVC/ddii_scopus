@@ -68,8 +68,8 @@ class GraphPen():
         x, y = [], []
         for index, value in enumerate(data):
             x.append(index)
-            # y.append(0 if value > 4000 else value)
-            y.append(value)
+            y.append(0 if value > 4000 else value)
+            # y.append(value)
         return x, y
     
     def _save_graph_data(self, x, y, filename):
