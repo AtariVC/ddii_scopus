@@ -1,6 +1,5 @@
 from PyQt6 import QtWidgets, QtCore
 from qtpy.uic import loadUi
-from qasync import asyncSlot
 import qasync
 import asyncio
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QSpacerItem, QSizePolicy, QSplitter, QTabWidget, QScrollArea
@@ -72,7 +71,7 @@ class Engine(QtWidgets.QMainWindow):
             grBox_widget: QGroupBox = QGroupBox(name)
             vLayout_grBox_widget: QVBoxLayout = QVBoxLayout(grBox_widget)
             grBox_widget.setMaximumHeight(widget.minimumHeight() + 40)
-            grBox_widget.setMinimumWidth(widget.minimumWidth() + 20)
+            grBox_widget.setMinimumWidth(widget.minimumWidth() + 0)
             vLayout_grBox_widget.addWidget(widget)
             font = QFont()
             font.setFamily("Arial")
@@ -95,7 +94,7 @@ class Engine(QtWidgets.QMainWindow):
             spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             spacer_v_scroll = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             # Создание виджетов в grBox
-            grBox_run_meas_widget = build_grBox(self.run_meas_widget, name="Запуск по триггеру")
+            grBox_run_meas_widget = build_grBox(self.run_meas_widget, name="Меню запуска")
             ######################
             # Создаем QScrollArea для прокручиваемого содержимого
             scroll_area_menu = QScrollArea()

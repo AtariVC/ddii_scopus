@@ -8,7 +8,6 @@ from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
-from qasync import asyncSlot
 from qtpy.uic import loadUi
 
 ####### импорты из других директорий ######
@@ -62,7 +61,7 @@ class MainGraphWidget(QtWidgets.QDialog):
         # self.le_obj: list[LineEObj] = self.init_linEdit_list()
 
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def get_client(self) -> None:
         """Перехватывает client от SerialConnect и переподключается к нему"""
         if self.w_ser_dialog.pushButton_connect_flag == 1:

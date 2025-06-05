@@ -1,7 +1,10 @@
-import sys
 import asyncio
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget
-from qasync import QEventLoop, asyncSlot
+import sys
+
+import qasync
+from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget
+from qasync import QEventLoop
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -21,7 +24,7 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
-    @asyncSlot()  # Используем декоратор asyncSlot для асинхронного слота
+    @qasync.asyncSlot()  # Используем декоратор asyncSlot для асинхронного слота
     async def on_button_click(self):
         self.status_label.setText("Корутину запущено...")
         

@@ -1,16 +1,15 @@
-from PyQt6 import QtWidgets
-from qtpy.uic import loadUi
-from qasync import asyncSlot
-import qasync
-from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy, QLineEdit
-from PyQt6.QtGui import QFont
-import qtmodern.styles
-import sys
-from pymodbus.client import AsyncModbusSerialClient
-from save_config import ConfigSaver
-from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import asyncio
+import sys
 from pathlib import Path
+
+import qasync
+import qtmodern.styles
+from pymodbus.client import AsyncModbusSerialClient
+from PyQt6 import QtWidgets
+from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
+from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
+from qtpy.uic import loadUi
+from save_config import ConfigSaver
 
 ####### импорты из других директорий ######
 # /src
@@ -20,13 +19,13 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.modbus_worker import ModbusWorker                          # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand         # noqa: E402
-from src.parsers import  Parsers                                    # noqa: E402
-from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
-from src.log_config import log_init                                 # noqa: E402
-from src.env_var import EnvironmentVar                               # noqa: E402
-from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
+from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from src.env_var import EnvironmentVar  # noqa: E402
+from src.log_config import log_init  # noqa: E402
+from src.modbus_worker import ModbusWorker  # noqa: E402
+from src.parsers import Parsers  # noqa: E402
+from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
 
 
 class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
@@ -135,7 +134,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         }
         return le_obj, le_obj_pwm_max
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def get_client(self) -> None:
         """Функция перехватывает client и переподключается к нему
         """
@@ -166,7 +165,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         except Exception:
             pass
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def update_gui_data_mpp(self) -> None:
         try:
             answer: bytes = await self.mpp_cmd.get_hh()
@@ -184,7 +183,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         except Exception as e:
             self.logger.error(e)
 
-    @asyncSlot()    
+    @qasync.asyncSlot()    
     async def update_gui_data_cm(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_cfg_ddii()
@@ -202,7 +201,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         except Exception:
             pass
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def pushButton_save_cfg_handler(self) -> None:
         head: list[int] = [int(self.HEAD.to_bytes(2, 'little').hex(), 16)]
         # await self.cm_cmd.set_mode(self.SILENT_MODE)
@@ -239,7 +238,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         # await self.cm_cmd.set_mode(self.COMBAT_MODE)
 
     
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def check_writed_cfg(self, data: list[int], device: str) -> bool:
         """Поверяет записалась ли в память конфигурация
         Args:
@@ -282,7 +281,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
 
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def pushButton_get_rst_handler(self) -> None:
         if self.flg_get_rst == 0:
             if self.radioButton_cm.isChecked() and self.w_ser_dialog.status_CM == 1:
@@ -303,7 +302,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
             self.flg_get_rst = 0
 
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def get_cfg_data_from_widget(self, device: str) -> list[int]:
         """Получает данные с виджетов и упаковывает их в пакет
         Args:

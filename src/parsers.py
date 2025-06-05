@@ -257,3 +257,6 @@ class Parsers(ModbusWorker):
         """
         data_out = [int.from_bytes(data[i:i+2], byteorder='big') for i in range(0, len(data), 2)]
         return data_out
+    
+
+    

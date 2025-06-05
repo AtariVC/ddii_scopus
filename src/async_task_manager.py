@@ -3,7 +3,7 @@ import logging
 from collections.abc import Coroutine
 from typing import Any, Dict, List, Optional, Callable
 from logging import Logger
-from qasync import asyncSlot
+import qasync
 
 class PrintLogger:
     """Заменяет стандартный логгер, имитируя его интерфейс"""

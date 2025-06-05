@@ -1,11 +1,14 @@
-from pymodbus.pdu import ModbusResponse
-from qasync import asyncSlot
-from pymodbus.client import AsyncModbusSerialClient
-from src.modbus_worker import ModbusWorker
-from src.log_config import log_s
 from copy import copy
-from typing import Coroutine, Any, Callable, Awaitable, Optional
+from typing import Any, Awaitable, Callable, Coroutine, Optional
+
+import qasync
+from pymodbus.client import AsyncModbusSerialClient
+from pymodbus.pdu import ModbusResponse
+
 from src.env_var import EnvironmentVar
+from src.log_config import log_s
+from src.modbus_worker import ModbusWorker
+
 
 class ModbusCMCommand(EnvironmentVar):
     def __init__(self, client, logger, **kwargs):
@@ -14,7 +17,7 @@ class ModbusCMCommand(EnvironmentVar):
         self.client: AsyncModbusSerialClient = client
         self.logger = logger
 
-    @asyncSlot()
+    
     async def get_cfg_voltage(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG_VOLTAGE, 
@@ -27,7 +30,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
         
-    @asyncSlot()
+    
     async def set_csa_test_enable(self, state) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
@@ -40,7 +43,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
 
-    @asyncSlot()
+    
     async def set_mode(self, mode) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
@@ -53,7 +56,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
         
-    @asyncSlot()
+    
     async def get_desired_voltage(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CM_DBG_GET_DESIRED_HVIP, 
@@ -66,7 +69,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
 
-    @asyncSlot()
+    
     async def get_cfg_pwm(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG_PWM,
@@ -79,7 +82,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
         
-    @asyncSlot()
+    
     async def get_term(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CM_GET_TERM,
@@ -92,7 +95,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
 
-    @asyncSlot()
+    
     async def get_cfg_a_b(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CM_DBG_GET_HVIP_AB,
@@ -105,7 +108,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает') 
             return b'-1'
     
-    @asyncSlot()
+    
     async def get_telemetry(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_TELEMETRY, 
@@ -118,7 +121,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
         
-    @asyncSlot()
+    
     async def get_cfg_ddii(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG, 
@@ -131,7 +134,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
 
-    @asyncSlot()
+    
     async def set_cfg_ddii(self, data: list[int] | int)  -> None:
         try:
             await self.client.write_registers(address = self.CMD_DBG_SET_CFG, values = data, slave = self.CM_ID)
@@ -139,7 +142,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.error(e)
             self.logger.debug('ЦМ не отвечает')
 
-    @asyncSlot()
+    
     async def get_voltage(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_VOLTAGE, 
@@ -152,7 +155,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
         
-    @asyncSlot()
+    
     async def switch_power(self, data: list[int]) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(self.CMD_DBG_HVIP_ON_OFF, 
@@ -165,7 +168,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
 
-    @asyncSlot()
+    
     async def set_voltage_pwm(self, data: list[int]) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(self.CMD_DBG_SET_VOLTAGE, 
@@ -178,7 +181,7 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
     
-    @asyncSlot()
+    
     async def set_cfg_a_b(self, data: list[int]) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(self.CM_DBG_SET_HVIP_AB, 
@@ -209,13 +212,12 @@ class ModbusMPPCommand(EnvironmentVar):
         self.logger = logger
         self.MPP_ID = args[0] if args else self.MPP_ID_DEFAULT
 
-    @asyncSlot()
     async def read_oscill(self, ch: int = 0) -> bytes:
         try:
             all_data = bytearray()
             for offset in range(0, 512, 64):
                 reg_addr = (self.REG_OSCILL_CH1 if ch == 1 else self.REG_OSCILL_CH0) + offset
- 
+
                 result: ModbusResponse = await self.client.read_holding_registers(reg_addr,
                                                                                 64, 
                                                                                 slave=self.MPP_ID)
@@ -229,7 +231,30 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    @asyncSlot()
+    async def get_hist_32(self) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HIST_16, 
+                                                                            12,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+        
+    async def get_hist_16(self) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HIST_32, 
+                                                                            6,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+
     async def get_mpp_struct(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.REG_GET_MPP_STRUCT, 
@@ -241,8 +266,35 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
             return b'-1'
+
+    async def calibrate_ACQ(self) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            self.REG_CALIBR_ALL_CH,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
     
-    @asyncSlot()
+    async def issue_waveform(self) -> bytes:
+        """Выдать waveform
+        Returns:
+            bytes
+        """
+        try:
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                                                                            self.REG_MPP_ISSUE_WAVEFORM,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+
     async def start_measure(self, ch: Optional[int] = None, on: Optional[int] = 1) -> bytes:
         try:
             if ch:
@@ -259,9 +311,7 @@ class ModbusMPPCommand(EnvironmentVar):
                 await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
                 if on:
-                    await self.client.write_registers(self.REG_MPP_COMMAND, 
-                                                                            0x0009,
-                                                                            slave=self.MPP_ID) # выдать waveform
+                    await self.issue_waveform()
                     await log_s(self.mw.send_handler.mess)
                     await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
             else:
@@ -289,8 +339,7 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    @asyncSlot()
-    async def start_measure_forced(self, ch: int|None) -> bytes:
+    async def start_measure_forced(self, ch: Optional[int] = None) -> bytes:
         try:
             if ch:
                 MPP_START_MEASURE_FORCED = ch & 0xFF << 8 | self.MPP_START_MEASURE_FORCED & 0xFFFF
@@ -309,7 +358,6 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    @asyncSlot()
     async def stop_measure(self, ch: int|None) -> bytes:
         try:
             if ch:
@@ -331,7 +379,6 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    @asyncSlot()
     async def set_hh(self, hh: list[int]) -> bytes:
         if len(hh) != 8:
             self.logger.error("Len hh[8] не равно 8")
@@ -347,7 +394,6 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    @asyncSlot()
     async def set_level(self, lvl: int, ch: Optional[int] = None) -> bytes:
         cmd: list[int] = [self.MPP_LEVEL_TRIG, lvl]
         try:
@@ -369,7 +415,6 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    @asyncSlot()
     async def get_hh(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HH, 
@@ -382,7 +427,6 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    @asyncSlot()
     async def get_level(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_LEVEL, 

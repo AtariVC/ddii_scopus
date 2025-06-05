@@ -1,9 +1,12 @@
-import sys
 import asyncio
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QLabel
-from qasync import QEventLoop, asyncSlot
+import sys
+
+import qasync
 from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.exceptions import ModbusException
+from PyQt6.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QWidget
+from qasync import QEventLoop
+
 
 class ModbusWindow(QWidget):
     def __init__(self):
@@ -35,7 +38,7 @@ class ModbusWindow(QWidget):
         # Инициализация клиента Modbus
         self.modbus_client = None
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def on_connect_click(self):
         """Обработчик подключения к COM5."""
         try:
@@ -55,7 +58,7 @@ class ModbusWindow(QWidget):
             self.status_label.setText(f"Status: Error - {e}")
             print(f"Modbus Error: {e}")
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def on_send_click(self):
         """Отправка команды через Modbus."""
         if self.modbus_client:

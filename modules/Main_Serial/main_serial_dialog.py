@@ -8,7 +8,6 @@ from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.pdu import ModbusResponse
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtWidgets import QSizePolicy
-from qasync import asyncSlot
 from qtmodern.windows import ModernWindow
 from qtpy.uic import loadUi
 
@@ -57,15 +56,16 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         # Сейчас проброс client-а реализовано через сигнал, в будущем нужно добавить систему подписок на корутины
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def pushButton_connect_Handler(self) -> None:
             # self.serial_task = asyncio.create_task(self.serialConnect())
         # while not task.done():
         await self.serialConnect()
-        self.coroutine_finished.emit()
+        if self.pushButton_connect_flag == 1:
+            self.coroutine_finished.emit()
             # await asyncio.sleep(0.1)
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def serialConnect(self) -> None:
         """Подключкние к ДДИИ
         Подключение происходит одновременно к ЦМ и МПП.
@@ -113,6 +113,8 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 await self.cheack_connect()
                 if self.status_CM and self.status_MPP == 0:
                     self.client.close()
+                    await asyncio.sleep(1)
+                    self.label_state_w.setText("State: Нет подключение к ДДИИ")
                     self.pushButton_connect_flag = 0
                     self.pushButton_connect_w.setText("Подключить")
         else:
@@ -120,6 +122,8 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.pushButton_connect_w.setText("Подключить")
             self.pushButton_connect_flag = 0
             self.widget_led_w.setStyleSheet(widget_led_off())
+            self.label_state_w.setText("State:")
+            self.client.close()
             # self.label_state_w.setText("State: ")
             # try:
             #     await self.client.write_registers(address = self.DDII_SWITCH_MODE,
@@ -137,10 +141,9 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             # except Exception as e:
             #     self.logger.error(e)
             # await asyncio.sleep(0.3)
-            self.client.close() # Закрываем соединение с клиентом в любом случае, 
-            # так как не получается наследоваться и переиспользовать клиент в других классах 
+            
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def cheack_connect(self) -> None:
         """
         Проверка подключения
@@ -174,7 +177,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
         await self.update_label_connect()
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def update_label_connect(self):
         cheak_st_connect = self.status_CM, self.status_MPP
         if cheak_st_connect == (1, 1):

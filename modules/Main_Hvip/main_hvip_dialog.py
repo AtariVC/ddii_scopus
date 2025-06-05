@@ -1,16 +1,15 @@
-from PyQt6 import QtWidgets, QtCore
-from qtpy.uic import loadUi
-from qasync import asyncSlot
-import qasync
-from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy
-from PyQt6.QtGui import QFont
-import qtmodern.styles
-import sys
-from pymodbus.client import AsyncModbusSerialClient
-from save_config import ConfigSaver
-from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import asyncio
+import sys
 from pathlib import Path
+
+import qasync
+import qtmodern.styles
+from pymodbus.client import AsyncModbusSerialClient
+from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
+from PyQt6.QtWidgets import QGridLayout, QGroupBox, QSizePolicy, QSpacerItem
+from qtpy.uic import loadUi
+from save_config import ConfigSaver
 
 ####### импорты из других директорий ######
 # /src
@@ -20,14 +19,14 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.modbus_worker import ModbusWorker                          # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
-from src.parsers import  Parsers                                    # noqa: E402
-from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
-from src.log_config import log_init, log_s                          # noqa: E402
-from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
-from src.craft_custom_widget import  add_serial_widget              # noqa: E402
-from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
+from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+from src.craft_custom_widget import add_serial_widget  # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from src.log_config import log_init, log_s  # noqa: E402
+from src.modbus_worker import ModbusWorker  # noqa: E402
+from src.parsers import Parsers  # noqa: E402
+from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
+from style.styleSheet import widget_led_off, widget_led_on  # noqa: E402
 
 
 class MainHvipDialog(QtWidgets.QDialog):
@@ -121,7 +120,7 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.flag_measure = 1
         self.label_status.setText("Status:")
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def get_client(self) -> None:
         """Перехватывает client от SerialConnect и переподключается к нему"""
         if self.w_ser_dialog.pushButton_connect_flag == 1:
@@ -216,14 +215,14 @@ class MainHvipDialog(QtWidgets.QDialog):
         except asyncio.CancelledError:
             ...
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def get_cfg_data_from_widget(self, d_struct: dict, tp : str) -> list[int]:
         pack: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.value(), tp=tp)
             for  i, (key, value) in enumerate(d_struct.items())]
         get_data_widget = LineEditPack()
         return get_data_widget(pack, 'little')
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def update_gui_data_spinbox(self) -> None:
         err_cfg_volt = 0
         err_cfg_pwm = 0
@@ -257,7 +256,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             for (key, val) in self.spin_box_A_B.items():
                 val.setValue(float(data_cfg_a_b.get(key)))    # type: ignore
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def update_gui_data_label(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_voltage()
@@ -280,7 +279,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.logger.error(e)
 
     ############ handler button ##############
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def pushButton_pips_on_handler(self) -> None:
         if self.pips_on == 1:
             await self.cm_cmd.switch_power([self.PIPS_CH_VOLTAGE, 0])
@@ -294,7 +293,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.pushButton_pips_on.setText("Отключить")
             self.led_pips.setStyleSheet(widget_led_on())
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def pushButton_sipm_on_handler(self) -> None:
         if self.sipm_on == 1:
             await self.cm_cmd.switch_power([self.SIPM_CH_VOLTAGE, 0])
@@ -308,7 +307,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.pushButton_sipm_on.setText("Отключить")
             self.led_sipm.setStyleSheet(widget_led_on())
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def pushButton_ch_on_handler(self) -> None:
         if self.ch_on == 1:
             await self.cm_cmd.switch_power([self.CHERENKOV_CH_VOLTAGE, 0])
@@ -322,7 +321,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.pushButton_ch_on.setText("Отключить")
             self.led_ch.setStyleSheet(widget_led_on())
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def pushButton_apply_handler(self) -> None:
         vlt_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_volt, 'f')
         pwm_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, 'f')
@@ -347,7 +346,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             combined_cfg.update(item)
         self.config.save_to_config(combined_cfg)
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def pushButton_get_rst_handler(self) -> None:
         if self.flg_get_rst == 0:
             await self.update_gui_data_spinbox()

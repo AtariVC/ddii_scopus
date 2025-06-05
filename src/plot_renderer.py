@@ -3,14 +3,13 @@ import datetime
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Callable
 
 import numpy as np
 import pyqtgraph as pg
 import qasync
 import qtmodern
 from PyQt6 import QtCore, QtWidgets
-from qasync import asyncSlot
 
 from src.write_data_to_file import hdf5_to_csv, read_hdf5_file, write_to_hdf5_file, writer_graph_data
 
@@ -68,10 +67,11 @@ class GraphPen():
         x, y = [], []
         for index, value in enumerate(data):
             x.append(index)
-            y.append(0 if value > 4000 else value)
+            y.append(0 if value&0xFFF > 4000 else value&0xFFF)
+            # self.delete_big_bytes(value)
             # y.append(value)
         return x, y
-    
+
     def _save_graph_data(self, x, y, filename):
         """Сохранение данных графика"""
         write_to_hdf5_file([x, y], self.name_frame, self.parent_path, filename)
@@ -88,21 +88,32 @@ class HistPen():
         layout.addWidget(self.hist_widget)
         self.color = color
         self.pen = pg.mkPen(color)
-        self.name_frame_data: str = name
+        self.name_frame: str = name
         #### Path ####
         self.parent_path: Path = Path("./log/hist_data").resolve()
         current_datetime = datetime.datetime.now()
         time: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
         self.path_to_save: str = str(self.parent_path / time)
 
-    def draw_graph(self, data: list[int | float]) -> None:
+    def _draw_graph(self, data: list[int | float],
+                    save_log: Optional[bool] = False,
+                    name_file_save_data: Optional[str] =None) -> None:
         bin_count = 4096
         self.hist_widget.clear()
         y, x  = np.histogram(data, bins=np.linspace(0, bin_count, bin_count))
         self.hist_widget.plot(x, y, stepMode=True, fillLevel=0, brush=self.color)
+        if save_log and name_file_save_data:
+            self._save_graph_data(x, y, name_file_save_data)
+        
+    def _save_graph_data(self, x, y, filename):
+        """Сохранение данных графика"""
+        write_to_hdf5_file([x, y], self.name_frame, self.parent_path, filename)
 
-    @asyncSlot()
-    async def draw_hist(self, max_val: int | float) -> None:
-        pass
+    @qasync.asyncSlot()
+    async def draw_hist(self, data:  list[int | float], filtr: Callable,
+                        save_log: Optional[bool] = False,
+                        name_file_save_data: Optional[str] =None) -> None:
+        filtr(data)
+        self._draw_graph(data, save_log, name_file_save_data)
 
 

@@ -1,6 +1,5 @@
 from PyQt6 import QtWidgets, QtCore
 from qtpy.uic import loadUi
-from qasync import asyncSlot
 import asyncio
 import qtmodern.styles
 import sys

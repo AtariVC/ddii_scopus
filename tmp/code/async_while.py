@@ -2,6 +2,7 @@ import asyncio
 from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget
 from qasync import QEventLoop
 
+
 class MainHvipDialog(QMainWindow):
     def __init__(self, logger, w_ser_dialog):
         super().__init__()

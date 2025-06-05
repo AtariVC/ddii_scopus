@@ -1,15 +1,14 @@
-from PyQt6 import QtWidgets, QtCore
-from qtpy.uic import loadUi
-from qasync import asyncSlot
-import qasync
-from PyQt6.QtWidgets import QGroupBox, QGridLayout, QSpacerItem, QSizePolicy, QLineEdit
-from PyQt6.QtGui import QFont
-import qtmodern.styles
-import sys
-from pymodbus.client import AsyncModbusSerialClient
-from PyQt6.QtGui import QIntValidator, QDoubleValidator
 import asyncio
+import sys
 from pathlib import Path
+
+import qasync
+import qtmodern.styles
+from pymodbus.client import AsyncModbusSerialClient
+from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
+from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
+from qtpy.uic import loadUi
 
 ####### импорты из других директорий ######
 # /src
@@ -19,12 +18,12 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.modbus_worker import ModbusWorker                          # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
-from src.parsers import  Parsers                                    # noqa: E402
-from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
-from src.log_config import log_init                                 # noqa: E402
-from src.parsers_pack import LineEObj                               # noqa: E402
+from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from src.log_config import log_init  # noqa: E402
+from src.modbus_worker import ModbusWorker  # noqa: E402
+from src.parsers import Parsers  # noqa: E402
+from src.parsers_pack import LineEObj  # noqa: E402
 
 
 class MainTermDialog(QtWidgets.QDialog):
@@ -77,7 +76,7 @@ class MainTermDialog(QtWidgets.QDialog):
         except asyncio.CancelledError:
             ...
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def update_gui_data_label(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_term()
@@ -87,7 +86,7 @@ class MainTermDialog(QtWidgets.QDialog):
         except Exception as e:
             self.logger.error(e)
 
-    @asyncSlot()
+    @qasync.asyncSlot()
     async def get_client(self) -> None:
         """Перехватывает client от SerialConnect и переподключается к нему"""
         if self.w_ser_dialog.pushButton_connect_flag == 1:
