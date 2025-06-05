@@ -64,43 +64,37 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.asyncio_task_list: list = []
         self.graph_widget: GraphWidget = self.parent.w_graph_widget
         self.parser = Parsers()
-        self.enable_trig_meas_flag: bool = True
-        self.hist_request_flag: bool = False
-        self.start_measure_flag: bool = False
-        self.request_oscill_flag: bool = False
-        self.checkBox_enable_trig_meas.setChecked(self.enable_trig_meas_flag)
-        # self.graph_done_signal.connect(self.stop_measure_signal_handler)
-        # pushButton_autorun_signal           = QtCore.pyqtSignal()
-        # pushButton_run_measure_signal       = QtCore.pyqtSignal()
-        # checkBox_enable_test_csa_signal     = QtCore.pyqtSignal()
+        self.flags = {"enable_test_csa_flag": False,
+                    "enable_trig_meas_flag": True,
+                    "hist_request_flag": False,
+                    "start_measure_flag": False,
+                    "request_oscill_flag": False}
+        
+        self.checkbox_flag_mapping = {
+        self.checkBox_enable_test_csa: "enable_test_csa_flag",
+        self.checkBox_enable_trig_meas: "enable_trig_meas_flag",
+        self.checkBox_hist_request: "hist_request_flag",
+        self.checkBox_request_oscill: "request_oscill_flag",}
+
+        self.init_flags()
+
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog
             self.logger = self.parent.logger
             self.w_ser_dialog.coroutine_finished.connect(self.get_client)
-
             self.task_manager = AsyncTaskManager(self.logger)
-            # self.pushButton_autorun.clicked.connect(self.pushButton_autorun_handler)
-            self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_handler)
-            self.checkBox_enable_trig_meas.stateChanged.connect(self.flag_exhibit)
-            self.checkBox_hist_request.stateChanged.connect(self.checkBox_hist_request_handler)
-            self.checkBox_request_oscill.stateChanged.connect(self.checkBox_hist_request_handler)
-            
+
             self.pushButton_run_measure.clicked.connect(self.pushButton_run_measure_handler)
             self.pushButton_calibr_acq.clicked.connect(self.pushButton_calibr_acq_handler)
         else:
             self.task_manager = AsyncTaskManager()
             self.logger = PrintLogger()
 
-
-    # @qasync.asyncSlot()
-    # async def stop_measure_signal_handler(self):
-    #     while not self.graph_done_flag:
-    #         if self.graph_done_flag:
-    #             self.task_manager.cancel_task("ACQ_task")
-    #     self.task_manager.cancel_task("ACQ_task")
-
-    # def pushButton_autorun_handler(self) -> None:
-    #     self.pushButton_autorun_signal.emit()
+    def init_flags(self):
+        for checkBox, flag in self.checkbox_flag_mapping.items():
+            checkBox.setChecked(self.flags[flag])
+        for checkbox, flag_name in self.checkbox_flag_mapping.items():
+            checkbox.clicked.connect(lambda state: self.flag_exhibit(state, flag_name))
 
     @qasync.asyncSlot()
     async def get_client(self) -> None:
@@ -135,10 +129,10 @@ class RunMeasWidget(QtWidgets.QDialog):
             if self.start_measure_flag:
                 self.pushButton_run_measure.setText("Остановить изм.")
                 try:
-                    if self.request_oscill_flag:
-                    self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    if self.flags["equest_oscill_flag"]:
+                        self.task_manager.create_task(ACQ_task(), "ACQ_task")
                     # await ACQ_task()
-                    if self.hist_request_flag:
+                    if self.flags["hist_request_flag"]:
                         self.task_manager.create_task(HH_task(), "HH_task")
                 except Exception as e:
                     self.logger.error(f"Ошибка: {e}")
@@ -174,12 +168,12 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            if self.enable_trig_meas_flag:
+            if self.flags["enable_trig_meas_flag"]:
                 await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
                 await self.mpp_cmd.start_measure(on = 1)
             self.graph_widget.show()
             while 1:
-                if not self.enable_trig_meas_flag:
+                if not self.flags["enable_trig_meas_flag"]:
                     await self.mpp_cmd.start_measure_forced()
                 else:
                     await self.mpp_cmd.issue_waveform()
@@ -214,32 +208,18 @@ class RunMeasWidget(QtWidgets.QDialog):
             ...
 
     # @qasync.asyncSlot()
-    async def checkBox_enable_test_csa_handler(self, state) -> None:
+    def checkBox_enable_trig_meas_handler(self, state, flag: str) -> None:
+        self.flag_exhibit(state, flag)
         if state > 1:
-            await self.cm_cmd.set_csa_test_enable(state=1)
-        else:
-            await self.cm_cmd.set_csa_test_enable(state=0)
-
-    # @qasync.asyncSlot()
-    def checkBox_enable_trig_meas_handler(self, state) -> None:
-        if state > 1:
-            self.enable_trig_meas_flag = True
             self.lineEdit_trigger.setEnabled(True)
         else:
-            self.enable_trig_meas_flag = False
             self.lineEdit_trigger.setEnabled(False)
     
-    def flag_exhibit(self, state, flag: bool):
+    def flag_exhibit(self, state, flag: str):
         if state > 1:
-            flag = True
+            self.flags[flag] = True
         else:
-            flag = False
-
-    def checkBox_hist_request_handler(self, state):
-        if state > 1:
-            self.hist_request_flag = True
-        else:
-            self.hist_request_flag = False
+            self.flags[flag] = False
 
 
 if __name__ == "__main__":
