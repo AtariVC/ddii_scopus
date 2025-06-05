@@ -68,13 +68,15 @@ class RunMeasWidget(QtWidgets.QDialog):
                     "enable_trig_meas_flag": True,
                     "hist_request_flag": False,
                     "start_measure_flag": False,
-                    "request_oscill_flag": False}
+                    "request_oscill_flag": False,
+                    "wr_log_flag": True}
         
         self.checkbox_flag_mapping = {
         self.checkBox_enable_test_csa: "enable_test_csa_flag",
         self.checkBox_enable_trig_meas: "enable_trig_meas_flag",
         self.checkBox_hist_request: "hist_request_flag",
-        self.checkBox_request_oscill: "request_oscill_flag",}
+        self.checkBox_request_oscill: "request_oscill_flag",
+        self.checkBox_wr_log: "wr_log_flag"}
 
         self.init_flags()
 
