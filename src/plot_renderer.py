@@ -3,7 +3,7 @@ import datetime
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Sequence, Callable
+from typing import Optional, Sequence, Callable, Union
 
 import numpy as np
 import pyqtgraph as pg
@@ -109,11 +109,23 @@ class HistPen():
         """Сохранение данных графика"""
         write_to_hdf5_file([x, y], self.name_frame, self.parent_path, filename)
 
-    @qasync.asyncSlot()
-    async def draw_hist(self, data:  list[int | float], filtr: Callable,
-                        save_log: Optional[bool] = False,
-                        name_file_save_data: Optional[str] =None) -> None:
-        filtr(data)
-        self._draw_graph(data, save_log, name_file_save_data)
+    async def draw_hist(self, data: Sequence[Union[int, float]], filtr: Optional[Callable] = None,
+                    save_log: Optional[bool] = False,
+                    name_file_save_data: Optional[str] = None) -> None:
+        """
+        Отрисовывает гистограмму данных с возможностью фильтрации и сохранения
+        Args:
+            data: Список числовых значений для построения гистограммы
+            filtr: Функция фильтрации данных (если None, используется максимум)
+            save_log: Флаг сохранения данных
+            name_file_save_data: Имя файла для сохранения
+        """
+        if filtr is not None:
+            filtered_value = filtr(data)
+            plot_data = [filtered_value] if filtered_value is not None else []
+        else:
+            plot_data = [max(data)] if data else []
+
+        self._draw_graph(plot_data, save_log, name_file_save_data)
 
 

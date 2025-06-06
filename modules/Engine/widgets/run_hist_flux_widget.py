@@ -75,6 +75,56 @@ class RunHistFluxWidget(QtWidgets.QDialog):
         self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
         self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
 
+    @qasync.asyncSlot()
+    async def pushButton_run_measure_handler(self) -> None:
+        """Запуск асинхронной задачи. Создаем задачи asyncio_measure_loop_request и 
+        asyncio__loop_request через creator_asyncio_tasks
+        asyncio_ACQ_loop_request для непрерывного получения данных АЦП
+        asyncio_HH_loop_request для непрерывного получения данных гистограмм МПП
+        """
+        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
+        if self.w_ser_dialog.pushButton_connect_flag != 0:
+            self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag] 
+            if self.flags[self.start_measure_flag]:
+                self.pushButton_run_measure.setText("Остановить изм.")
+                try:
+                    self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    # await ACQ_task()
+                except Exception as e:
+                    self.logger.error(f"Ошибка: {e}")
+            else:
+                # self.graph_done_signal.emit()
+                await self.mpp_cmd.start_measure(on = 0)
+                self.task_manager.cancel_task("ACQ_task")
+                self.pushButton_run_measure.setText("Запустить изм.")
+        else:
+            self.logger.error(f"Нет подключения к ДДИИ")
+
+    async def asyncio_HH_loop_request(self) -> None:
+        """Запуск асинхронной задачи. Создаем задачу asyncio_measure_loop_request через creator_asyncio_tasks
+        asyncio_ACQ_loop_request - непрерывный опрос МПП для получения данных АЦП
+        """
+        ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
+        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
+        if self.w_ser_dialog.pushButton_connect_flag != 0:
+            self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag] 
+            if self.flags[self.start_measure_flag]:
+                self.pushButton_run_measure.setText("Остановить изм.")
+                try:
+                    self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    # await ACQ_task()
+                except Exception as e:
+                    self.logger.error(f"Ошибка: {e}")
+            else:
+                # self.graph_done_signal.emit()
+                await self.mpp_cmd.start_measure(on = 0)
+                self.task_manager.cancel_task("ACQ_task")
+                self.pushButton_run_measure.setText("Запустить изм.")
+        else:
+            self.logger.error(f"Нет подключения к ДДИИ")
+
+    
+
 
     def flag_exhibit(self, state, flag: str):
         if state > 1:
