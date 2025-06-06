@@ -59,7 +59,6 @@ class Engine(QtWidgets.QMainWindow):
         tab_widget = self.create_tab_widget_items()
         splitter = QSplitter()
         self.gridLayout_main_split.addWidget(splitter)
-        
         splitter.addWidget(self.w_graph_widget)
         splitter.addWidget(tab_widget)
 
