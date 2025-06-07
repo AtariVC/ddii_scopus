@@ -175,14 +175,16 @@ class RunMeasWidget(QtWidgets.QDialog):
         except asyncio.CancelledError:
             ...
 
-    def checkBox_enable_trig_meas_handler(self, state, flag: str) -> None:
-        self.flag_exhibit(state, flag)
+    def enable_trig_meas_handler(self, state) -> None:
         if state > 1:
             self.lineEdit_trigger.setEnabled(True)
         else:
             self.lineEdit_trigger.setEnabled(False)
 
     def flag_exhibit(self, state, flag: str):
+        if flag == self.enable_trig_meas_flag:
+                self.enable_trig_meas_handler(state)
+
         if state > 1:
             self.flags[flag] = True
         else:
