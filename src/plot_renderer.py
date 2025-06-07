@@ -108,10 +108,10 @@ class HistPen():
             self.accumulate_data.clear()
             self.hist_item.setData([], [])
         self.accumulate_data.extend(data)
-        y, x  = np.histogram(data, bins=np.linspace(*self.x_range, self.bin_count+1))
+        y, x  = np.histogram(data, bins=np.linspace(*self.x_range, self.bin_count))
         self.hist_widget.setData(x, y)
         if save_log and name_file_save_data:
-            self._save_graph_data(x, y, name_file_save_data)
+            self._save_graph_data(x.tolist(), y.tolist(), name_file_save_data)
     
     def _save_graph_data(self, x, y, filename):
         """Сохранение данных графика"""
