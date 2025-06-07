@@ -129,7 +129,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         asyncio_ACQ_loop_request - непрерывный опрос МПП для получения данных АЦП
         """
         ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
-        if self.w_ser_dialog.pushButton_connect_flag != 1:
+        if self.w_ser_dialog.pushButton_connect_flag != 0:
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag] 
             if self.flags[self.start_measure_flag]:
                 self.pushButton_run_measure.setText("Остановить изм.")
