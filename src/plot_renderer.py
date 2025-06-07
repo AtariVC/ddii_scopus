@@ -42,7 +42,7 @@ class GraphPen():
         self.path_to_save: Path = self.parent_path / time
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data, save_log=False, name_file_save_data=None, clear=False) -> bool:
+    async def draw_graph(self, data, save_log=False, name_file_save_data=None, clear=False):
         try:
             x, y = await self._prepare_graph_data(data)
             if clear:
@@ -56,10 +56,10 @@ class GraphPen():
             else:
                 self.plot_item.setData(self.plot_item)
             # self.plt_widget.plot(x, y, pen=self.pen)
-            return True
+            return x, y
         except Exception as e:
             print(f"Ошибка отрисовки: {e}")
-            return False
+            return [],[]
 
     async def _prepare_graph_data(self, data):
         """Подготовка данных для графика"""

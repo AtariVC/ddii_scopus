@@ -196,7 +196,6 @@ class ModbusCMCommand(EnvironmentVar):
 
 
 
-
 class ModbusMPPCommand(EnvironmentVar):
     """Регистр 0x00 ..... 0x00 0x01
                             |    |—команда МПП
