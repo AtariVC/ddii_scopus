@@ -160,7 +160,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                     await self.mpp_cmd.issue_waveform()
                 result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
                 result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-                # result_ch0_int = np.random.randint(100, size=100)
+                # result_ch1_int = np.random.randint(100, size=100).tolist()
                 result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
                 try:
