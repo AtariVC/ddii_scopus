@@ -51,7 +51,7 @@ class RunMeasWidget(QtWidgets.QDialog):
     checkBox_enable_trig_meas    : QtWidgets.QCheckBox
     pushButton_calibr_acq        : QtWidgets.QPushButton
 
-    comboBox_filtrer           : QtWidgets.QComboBox
+    comboBox_filter           : QtWidgets.QComboBox
 
     # graph_done_signal = QtCore.pyqtSignal()
 
@@ -65,7 +65,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.graph_widget: GraphWidget = self.parent.w_graph_widget
         self.parser = Parsers()
         self.filtrs_data: FiltrsData = FiltrsData() 
-
+        self.hist_filters= None
         self.enable_test_csa_flag: str = "enable_test_csa_flag"
         self.enable_trig_meas_flag: str = "enable_trig_meas_flag"
         self.start_measure_flag: str = "start_measure_flag"
@@ -89,7 +89,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.logger = self.parent.logger
             self.w_ser_dialog.coroutine_finished.connect(self.init_mb_cmd)
             self.task_manager = AsyncTaskManager(self.logger)
-
+            self.comboBox_filter.currentIndexChanged.connect(self.comboBox_filtrer_handler)
             self.pushButton_run_measure.clicked.connect(self.pushButton_run_measure_handler)
             self.pushButton_calibr_acq.clicked.connect(self.pushButton_calibr_acq_handler)
         else:
@@ -104,7 +104,10 @@ class RunMeasWidget(QtWidgets.QDialog):
     
     def init_combobox_filtrer(self) -> None:
         for key, value in self.filtrs_data.filters.items():
-            self.comboBox_filtrer.addItem(key)
+            self.comboBox_filter.addItem(key)
+    
+    def comboBox_filtrer_handler(self):
+        self.hist_filters = self.filtrs_data.filters[self.comboBox_filter.currentText()]
 
     @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:
@@ -146,6 +149,7 @@ class RunMeasWidget(QtWidgets.QDialog):
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
             if self.flags[self.enable_trig_meas_flag]:
+                pass
                 await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
                 await self.mpp_cmd.start_measure(on = 1)
             self.graph_widget.show()
@@ -156,13 +160,14 @@ class RunMeasWidget(QtWidgets.QDialog):
                     await self.mpp_cmd.issue_waveform()
                 result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
                 result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                # result_ch0_int = np.random.randint(100, size=100)
                 result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
                 try:
-                    await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=False, clear=True)
-                    await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, save_log=False, clear=True)
-                    await self.graph_widget.hp_pips.draw_hist(result_ch0_int, save_log=False)
-                    await self.graph_widget.hp_sipm.draw_hist(result_ch1_int, save_log=False)
+                    await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=self.flags[self.wr_log_flag], clear=True)
+                    await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, save_log=self.flags[self.wr_log_flag], clear=True)
+                    await self.graph_widget.hp_pips.draw_hist(result_ch0_int.tolist(), save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
+                    await self.graph_widget.hp_sipm.draw_hist(result_ch1_int, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
                 except asyncio.exceptions.CancelledError:
                     return None
                 # await self.update_gui_data_label()

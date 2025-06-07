@@ -242,7 +242,7 @@
       </spacer>
      </item>
      <item row="2" column="3">
-      <widget class="QComboBox" name="comboBox_filtrer">
+      <widget class="QComboBox" name="comboBox_filter">
        <property name="minimumSize">
         <size>
          <width>0</width>
