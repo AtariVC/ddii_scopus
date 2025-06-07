@@ -166,7 +166,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 try:
                     await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=self.flags[self.wr_log_flag], clear=True)
                     await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, save_log=self.flags[self.wr_log_flag], clear=True)
-                    await self.graph_widget.hp_pips.draw_hist(result_ch0_int.tolist(), save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
+                    await self.graph_widget.hp_pips.draw_hist(result_ch0_int, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
                     await self.graph_widget.hp_sipm.draw_hist(result_ch1_int, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
                 except asyncio.exceptions.CancelledError:
                     return None
