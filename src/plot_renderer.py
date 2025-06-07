@@ -101,16 +101,19 @@ class HistPen():
         time: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
         self.path_to_save: str = str(self.parent_path / time)
 
+    def hist_clear(self):
+        self.accumulate_data.clear()
+        self.hist_widget.clear()
+        self.hist_item = None
+        self.hist_outline_item = None
+
     @qasync.asyncSlot()
     async def _draw_graph(self, data: list[int | float],
                     save_log: Optional[bool] = False,
                     clear: Optional[bool] = False,
                     name_file_save_data: Optional[str] = None) -> None:
         if clear:
-            self.accumulate_data.clear()
-            self.hist_widget.clear()
-            self.hist_item = None
-            self.hist_outline_item = None
+            self.hist_clear()
         if not data:
             return
         self.accumulate_data.extend(data)

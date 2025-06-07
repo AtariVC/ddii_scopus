@@ -148,6 +148,8 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
+            self.graph_widget.hp_sipm.hist_clear()
+            self.graph_widget.hp_pips.hist_clear()
             if self.flags[self.enable_trig_meas_flag]:
                 pass
                 await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
