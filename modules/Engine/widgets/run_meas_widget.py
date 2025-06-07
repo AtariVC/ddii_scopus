@@ -11,7 +11,7 @@ import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
-
+from functools import partial
 
 ####### импорты из других директорий ######
 # /src
@@ -100,7 +100,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         for checkBox, flag in self.checkbox_flag_mapping.items():
             checkBox.setChecked(self.flags[flag])
         for checkbox, flag_name in self.checkbox_flag_mapping.items():
-            checkbox.clicked.connect(lambda state: self.flag_exhibit(state, flag_name))
+            checkbox.clicked.connect(partial(self.flag_exhibit, flag=flag_name))
     
     def init_combobox_filtrer(self) -> None:
         for key, value in self.filtrs_data.filters.items():
@@ -176,7 +176,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             ...
 
     def enable_trig_meas_handler(self, state) -> None:
-        if state > 1:
+        if state:
             self.lineEdit_trigger.setEnabled(True)
         else:
             self.lineEdit_trigger.setEnabled(False)
@@ -184,8 +184,7 @@ class RunMeasWidget(QtWidgets.QDialog):
     def flag_exhibit(self, state, flag: str):
         if flag == self.enable_trig_meas_flag:
                 self.enable_trig_meas_handler(state)
-
-        if state > 1:
+        if state:
             self.flags[flag] = True
         else:
             self.flags[flag] = False
