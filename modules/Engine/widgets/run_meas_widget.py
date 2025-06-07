@@ -74,7 +74,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.flags = {self.enable_test_csa_flag: False,
                     self.enable_trig_meas_flag: True,
                     self.start_measure_flag: False,
-                    self.wr_log_flag: True}
+                    self.wr_log_flag: False}
 
         self.checkbox_flag_mapping = {
         self.checkBox_enable_test_csa: self.enable_test_csa_flag,

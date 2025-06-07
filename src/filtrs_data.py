@@ -10,6 +10,13 @@ class FiltrsData():
             'exp_smoothing()': self.exp_smoothing_filter
         }
 
+    def threshold_filter(self, data: list[int], threshold: float = 10) -> int| None:
+        """Фильтр по порогу, возвращает значение, если оно больше порога"""
+        if max(data) > threshold:
+            return max(data)
+        else:
+            return None
+
     def median_filter(self, data: list[int | float], window_size: int = 5) -> float:
         """Медианный фильтр последних N значений"""
         if not data:

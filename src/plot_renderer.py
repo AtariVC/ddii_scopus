@@ -112,7 +112,7 @@ class HistPen():
         self.hist_widget.setData(x, y)
         if save_log and name_file_save_data:
             self._save_graph_data(x, y, name_file_save_data)
-        
+    
     def _save_graph_data(self, x, y, filename):
         """Сохранение данных графика"""
         write_to_hdf5_file([x, y], self.name_frame, self.parent_path, filename)
@@ -136,6 +136,6 @@ class HistPen():
         else:
             plot_data = [max(data)] if data else []
 
-        self._draw_graph(plot_data, save_log, name_file_save_data)
+        self._draw_graph(plot_data, save_log, name_file_save_data=name_file_save_data)
 
 
