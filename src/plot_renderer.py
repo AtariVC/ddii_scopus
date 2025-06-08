@@ -158,16 +158,15 @@ class HistPen():
         
         # Фильтрация выбросов и установка разумного диапазона X
         if len(y) > 0:
-            # Находим индексы, где есть данные (ненулевые значения)
             non_zero_indices = np.where(y > 0)[0]
             
             if len(non_zero_indices) > 0:
                 # Берем 1-й и 99-й перцентили для отсечения выбросов
-                lower_idx = max(0, int(np.percentile(non_zero_indices, 1)) - 1)
-                upper_idx = min(len(x)-1, int(np.percentile(non_zero_indices, 99)) + 1)
+                lower_idx = max(0, int(np.percentile(non_zero_indices, 25)) - 1)
+                upper_idx = min(len(x)-1, int(np.percentile(non_zero_indices, 85)) + 1)
                 
                 # Устанавливаем диапазон с небольшим запасом
-                padding = (upper_idx - lower_idx) * 0.05  # 5% padding
+                padding = 10
                 x_min = max(0, x[lower_idx] - padding)
                 x_max = x[upper_idx] + padding
                 
