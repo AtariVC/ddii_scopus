@@ -2,15 +2,14 @@ from typing import Dict
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QSpacerItem, QSizePolicy, QSplitter, QTabWidget, QScrollArea, QGridLayout
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont
-# from graph_widget import GraphWidget   
 
-def init_widgets(w_graph_widget, gridLayout_main_split: QGridLayout,\
+def init_graph_window(gridLayout_main_split: QGridLayout, left_widget,\
                         widget_model: Dict[str, Dict[str, QWidget]]) -> None:
-    """Создание окна из макетов виджетов
+    """Создание окна из макетов виджетов. На вход принемает layout куда будут добавлены виджеты
 
     Args:
-        w_graph_widget (GraphWidget): -
         gridLayout_main_split (QGridLayout): главный лайоут для виджетов
+        w_graph_widget (GraphWidget): -
         widget_model (dict): Словарь словарей виджетов dict{"Вкладки таб виджетов": dict{"Название виджетов": Виджеты Object}}
     """
     # Виджеты
@@ -18,13 +17,15 @@ def init_widgets(w_graph_widget, gridLayout_main_split: QGridLayout,\
     tab_widget: QTabWidget = create_tab_widget_items(widget_model)
     splitter = QSplitter()
     gridLayout_main_split.addWidget(splitter)
-    splitter.addWidget(w_graph_widget)
+    splitter.addWidget(left_widget)
     splitter.addWidget(tab_widget)
 
 def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]]) -> QTabWidget:
     """
     Создает QTabWidget с вкладками, возвращая все вкладки через фабрику.
     """
+    
+    ######################### Фабрика функций ##################################
     def build_grBox(widget: QWidget, name: str) -> QGroupBox:
         grBox_widget: QGroupBox = QGroupBox(name)
         vLayout_grBox_widget: QVBoxLayout = QVBoxLayout(grBox_widget)
@@ -46,27 +47,26 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]]) -> QTab
             _type_: _description_
         """
         dict_tab_factry = {}
-        for tab_name, widgets in widget_model:
+        for tab_name in widget_model.keys():
             dict_tab_factry = {tab_name: widget_maker}
         return dict_tab_factry
 
-    def widget_maker(self, widgets: Dict[str, QWidget], tab_widget: QTabWidget):
+    def widget_maker(widgets: Dict[str, QWidget], tab_widget: QTabWidget):
         ######################
-        grBox_with_widgets: list[QGroupBox] = []
         spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         spacer_v_scroll = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        # Создание виджетов в grBox
-        for name, widget in widgets:
-            grBox_with_widgets.append(build_grBox(widget, name=name))
+
         # Создаем QScrollArea для прокручиваемого содержимого
         scroll_area_menu = QScrollArea()
         scroll_area_menu.setWidgetResizable(True)
         scroll_content_widget = QWidget()
         scroll_content_layout = QVBoxLayout(scroll_content_widget)
-        # Добавляем виджеты в scroll_content_layout
-        for grBox_widget in grBox_with_widgets:
-            scroll_content_layout.addWidget(grBox_widget)
-        return scroll_area_menu
+        # Создание виджетов в grBox. Добавляем виджеты в scroll_content_layout
+        for name, widget in widgets.items():
+            scroll_content_layout.addWidget(build_grBox(widget, name=name))
+        scroll_content_layout.addItem(spacer_v_scroll)
+        return scroll_content_widget
+    #################################################################################
     
     tab_widget = QTabWidget()
     tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -78,10 +78,28 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]]) -> QTab
     # Используем фабрику для добавления вкладок
     factories = tab_factories(widget_model)
     for tab_name, factory in factories.items():
-        tab_widget.addTab(factory(tab_widget), tab_name)
+        tab_widget.addTab(factory(widget_model[tab_name], tab_widget), tab_name)
     return tab_widget
 
     # # Функция для создания вкладки "Осциллограф"
+# def __init__(self, *args) -> None:
+#         super().__init__()
+#         loadUi(Path(__file__).parent.joinpath('DialogGraphWidget2.ui'), self)
+#         try:
+#             self.client = args[0]
+#             self.run_widget: RunMaesWidget =  RunMaesWidget(self.client)
+#         except:
+#             self.run_widget: RunMaesWidget =  RunMaesWidget()
+#             # self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
+#             # self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
+#         # self.mw = ModbusWorker()
+#         # self.logger = log_init()
+#         graph_widget: GraphWidget = GraphWidget()
+#         osc_widgets =  {"Измерение": self.run_widget}
+#         widget_model: Dict[str, Dict[str, QWidget]] = {"Осциллограмма": osc_widgets}
+#         init_graph_window(self.mainGridLayout, graph_widget, widget_model)
+
+
     # def init_tab_widget_item_meas(widgets) -> QWidget:
     #     """_summary_
     #     Args:

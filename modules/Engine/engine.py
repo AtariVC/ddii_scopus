@@ -82,11 +82,11 @@ class Engine(QtWidgets.QMainWindow):
         def build_tab_factories():
             return {
                 "Осциллограф": init_tab_widget_item_meas,
+                "Вьюер": init_tab_widget_item_viewer,
                 "Парсер": init_tab_widget_item_parser,
-                # Добавьте сюда другие вкладки
+                 
             }
 
-        # Функция для создания вкладки "Осциллограф"
         def init_tab_widget_item_meas() -> QWidget:
     
             ######################
@@ -115,7 +115,12 @@ class Engine(QtWidgets.QMainWindow):
             menu_layout.addLayout(vLayout_ser_connect)
             return menu_widget
 
-        # Функция для создания вкладки "Парсер"
+
+        def init_tab_widget_item_viewer() -> QWidget:
+            parser_widget = QWidget()
+            # vLayout_parser = QVBoxLayout(parser_widget)
+            return parser_widget
+        
         def init_tab_widget_item_parser() -> QWidget:
             parser_widget = QWidget()
             # vLayout_parser = QVBoxLayout(parser_widget)
