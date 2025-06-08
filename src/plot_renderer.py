@@ -154,41 +154,41 @@ class HistPen():
             return
             
         self.accumulate_data.extend(data)
-        # Масштабируемые гистограммы
-        # bin_count = max(self.accumulate_data)+20
-        # x_range = (0, self.bin_count)
-        # bins = np.linspace(*x_range, bin_count)
-        # bins, x_range = self._calculate_bins(self.accumulate_data)
         y, x = np.histogram(self.accumulate_data, bins=self.bins)
         
-        # Автоматическое масштабирование оси X, Y с небольшим отступом
-        # y_max = max(y) if len(y) > 0 else 1
-        # self.hist_widget.setYRange(0, y_max * 1.1)
-        non_zero_indices = [i for i, x in enumerate(y) if x != 0]
-        self.hist_widget.setXRange(min(non_zero_indices), max(non_zero_indices) + 10)
+        # Фильтрация выбросов и установка разумного диапазона X
+        if len(y) > 0:
+            # Находим индексы, где есть данные (ненулевые значения)
+            non_zero_indices = np.where(y > 0)[0]
+            
+            if len(non_zero_indices) > 0:
+                # Берем 1-й и 99-й перцентили для отсечения выбросов
+                lower_idx = max(0, int(np.percentile(non_zero_indices, 1)) - 1)
+                upper_idx = min(len(x)-1, int(np.percentile(non_zero_indices, 99)) + 1)
+                
+                # Устанавливаем диапазон с небольшим запасом
+                padding = (upper_idx - lower_idx) * 0.05  # 5% padding
+                x_min = max(0, x[lower_idx] - padding)
+                x_max = x[upper_idx] + padding
+                
+                self.hist_widget.setXRange(x_min, x_max)
         
         # обновляем контур
         if self.hist_outline_item is None:
-            self.hist_outline_item = pg.PlotDataItem(x, y, pen=self.outline_pen, stepMode=True, fillLevel=0)
+            self.hist_outline_item = pg.PlotDataItem(x, y, pen=self.outline_pen, stepMode=True,     fillLevel=0)
             self.hist_widget.addItem(self.hist_outline_item)
         else:
             self.hist_outline_item.setData(x, y)
         
         # обновляем основную гистограмму
         if self.hist_item is None:
-            self.hist_item = pg.PlotDataItem(x, y, pen=self.pen, stepMode=True, brush=self.color, fillLevel=0)
+            self.hist_item = pg.PlotDataItem(x, y, pen=self.pen, stepMode=True, brush=self.color,   fillLevel=0)
             self.hist_widget.addItem(self.hist_item)
         else:
             self.hist_item.setData(x, y)
         
-        # центрирования данных
-        # self.hist_widget.setXRange(*x_range, padding=0)
-        
         if save_log:
-            self._save_graph_data(self.bins.tolist()[:-1], y.tolist(), name_file_save_data, name_data)
-
-    # Остальные методы остаются без изменений
-    # ...
+            self._save_graph_data(self.bins.tolist()[:-1], y.tolist(), name_file_save_data,     name_data)
     
     def _save_graph_data(self, x: list, y: list, filename, name_data: str):
         """Сохранение данных графика"""
