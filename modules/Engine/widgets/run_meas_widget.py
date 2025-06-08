@@ -4,7 +4,7 @@ import sys
 # from save_config import ConfigSaver
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Coroutine
-
+import datetime
 import numpy as np
 import qasync
 import qtmodern.styles
@@ -84,6 +84,9 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.init_flags()
         self.init_combobox_filtrer()
 
+        current_datetime = datetime.datetime.now()
+        self.name_file_save: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
+
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog
             self.logger = self.parent.logger
@@ -129,7 +132,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         asyncio_ACQ_loop_request - непрерывный опрос МПП для получения данных АЦП
         """
         ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
-        if self.w_ser_dialog.pushButton_connect_flag != 0:
+        if self.w_ser_dialog.pushButton_connect_flag != 1:
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag] 
             if self.flags[self.start_measure_flag]:
                 self.pushButton_run_measure.setText("Остановить изм.")
@@ -148,28 +151,28 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            self.graph_widget.hp_sipm.hist_clear()
-            self.graph_widget.hp_pips.hist_clear()
-            if self.flags[self.enable_trig_meas_flag]:
-                await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
-                await self.mpp_cmd.start_measure(on = 1)
+            # self.graph_widget.hp_sipm.hist_clear()
+            # self.graph_widget.hp_pips.hist_clear()
+            # if self.flags[self.enable_trig_meas_flag]:
+            #     await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
+            #     await self.mpp_cmd.start_measure(on = 1)
             self.graph_widget.show()
             while 1:
-                if not self.flags[self.enable_trig_meas_flag]:
-                    await self.mpp_cmd.start_measure_forced()
-                else:
-                    await self.mpp_cmd.issue_waveform()
-                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-                result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-                # result_ch0_int = np.random.randint(100, size=100).tolist()
-                # result_ch1_int = np.random.randint(100, size=100).tolist()
-                result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
-                result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
+                # if not self.flags[self.enable_trig_meas_flag]:
+                #     await self.mpp_cmd.start_measure_forced()
+                # else:
+                #     await self.mpp_cmd.issue_waveform()
+                # result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
+                # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                result_ch0_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
+                result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
+                # result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
+                # result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
                 try:
-                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
-                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
-                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
-                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
+                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
+                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
+                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
+                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
                 except asyncio.exceptions.CancelledError:
                     return None
                 # await self.update_gui_data_label()

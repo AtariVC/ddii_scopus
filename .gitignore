@@ -6,13 +6,11 @@ __pycache__/
 *.log
 *.csv
 *.xlsx
-<<<<<<< HEAD
+*.hdf5
 poetry.lock
 /.vscode
 *.sqlite3
 *~
 *.swp
-=======
 *.pyc
 poetry.lock
->>>>>>> 0c4f4be6d5af39de95b2a831c5373f7bff2bc1b1

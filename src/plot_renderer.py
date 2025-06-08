@@ -35,20 +35,21 @@ class GraphPen():
         self.pen = pg.mkPen(color)
         self.name_frame: str = name
         self.plot_item = None # для PlotDataItem
-        #### Path ####
-        self.parent_path: Path = Path("./log/graph_data").resolve()
-        current_datetime = datetime.datetime.now()
-        time: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
-        self.path_to_save: Path = self.parent_path / time
+        
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data, save_log=False, name_file_save_data=None, clear=False):
+    async def draw_graph(self, data, name_file_save_data: str, save_log=False, clear=False):
+        #### Path ####
+        self.parent_path: Path = Path("./log/output_graph_data").resolve()
+        current_datetime = datetime.datetime.now()
+        time: str = current_datetime.strftime("%d-%m-%Y_%H")[:23]
+        self.path_to_save: Path = self.parent_path / time
         try:
             x, y = await self._prepare_graph_data(data)
             if clear:
                 self.plt_widget.clear()
                 self.plot_item = None
-            if save_log and name_file_save_data:
+            if save_log:
                 self._save_graph_data(x, y, name_file_save_data)
             if self.plot_item == None:
                 self.plot_item = pg.PlotDataItem(x, y, pen = self.pen)
@@ -73,7 +74,7 @@ class GraphPen():
 
     def _save_graph_data(self, x, y, filename):
         """Сохранение данных графика"""
-        write_to_hdf5_file([x, y], self.name_frame, self.parent_path, filename)
+        write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, filename)
 
 class HistPen():
     def __init__(self,
@@ -92,14 +93,19 @@ class HistPen():
         
         # Настройки гистограммы
         self.accumulate_data: list = []
-        self.bin_count = 4096
-        self.x_range = (0, self.bin_count)
-        self.bins = np.linspace(*self.x_range, self.bin_count)
+        ###
+        self.bin_count = 100  # начальное количество бинов
+        self.padding_factor = 0.1  # отступ по краям (10% от диапазона данных)
+        ###
+        # self.bin_count = 4096
+        # self.x_range = (0, self.bin_count)
+        # self.bins = np.linspace(*self.x_range, self.bin_count)
+        
         #### Path ####
-        self.parent_path: Path = Path("./log/hist_data").resolve()
-        current_datetime = datetime.datetime.now()
-        time: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
-        self.path_to_save: str = str(self.parent_path / time)
+        # self.parent_path: Path = Path("./log/graph_data").resolve()
+        # current_datetime = datetime.datetime.now()
+        # time: str = current_datetime.strftime("%d-%m-%Y_%H")[:23]
+        # self.path_to_save: Path = self.parent_path / time
 
     def hist_clear(self):
         self.accumulate_data.clear()
@@ -107,52 +113,90 @@ class HistPen():
         self.hist_item = None
         self.hist_outline_item = None
 
+    def _calculate_bins(self, data):
+        """Вычисляет оптимальные бины и диапазон для данных"""
+        if not data or len(data) < 2:
+            return np.linspace(0, 1, 10), (0, 1)  # значения по умолчанию
+
+        min_val = min(data)
+        max_val = max(data)
+
+        # Добавляем отступ по краям (10% от диапазона данных)
+        padding = (max_val - min_val) * self.padding_factor
+        if padding == 0:  # если все значения одинаковые
+            padding = 1
+
+        x_min = min_val - padding
+        x_max = max_val + padding
+
+        # Правило Фридмана-Диакониса для определения количества бинов
+        q1 = np.percentile(data, 25)
+        q3 = np.percentile(data, 75)
+        iqr = q3 - q1
+        if iqr > 0:  # защита от деления на ноль
+            bin_width = 2 * iqr / (len(data) ** (1/3))
+            self.bin_count = max(5, min(100, int((x_max - x_min) / bin_width)))
+        else:
+            # Если IQR = 0, используем правило Стёрджеса
+            self.bin_count = min(50, max(5, int(1 + 3.322 * np.log10(len(data)))))
+
+        bins = np.linspace(x_min, x_max, self.bin_count)
+        return bins, (x_min, x_max)
+
     @qasync.asyncSlot()
     async def _draw_graph(self, data: list[int | float],
+                    name_file_save_data: str,
                     save_log: Optional[bool] = False,
-                    clear: Optional[bool] = False,
-                    name_file_save_data: Optional[str] = None) -> None:
+                    clear: Optional[bool] = False) -> None:
         if clear:
             self.hist_clear()
         if not data:
             return
+            
         self.accumulate_data.extend(data)
-        y, x = np.histogram(self.accumulate_data, bins=self.bins)
+        # Масштабируемые гистограммы
+        bin_count = max(self.accumulate_data)+20
+        x_range = (0, self.bin_count)
+        bins = np.linspace(*x_range, bin_count)
+        # bins, x_range = self._calculate_bins(self.accumulate_data)
+        y, x = np.histogram(self.accumulate_data, bins=bins)
         
-        # Создаем или обновляем контур
+        # Автоматическое масштабирование оси Y с небольшим отступом
+        # y_max = max(y) if len(y) > 0 else 1
+        # self.hist_widget.setYRange(0, y_max * 1.1)
+        
+        # обновляем контур
         if self.hist_outline_item is None:
             self.hist_outline_item = pg.PlotDataItem(x, y, pen=self.outline_pen, stepMode=True, fillLevel=0)
             self.hist_widget.addItem(self.hist_outline_item)
         else:
             self.hist_outline_item.setData(x, y)
         
-        # Создаем или обновляем основную гистограмму
+        # обновляем основную гистограмму
         if self.hist_item is None:
             self.hist_item = pg.PlotDataItem(x, y, pen=self.pen, stepMode=True, brush=self.color, fillLevel=0)
             self.hist_widget.addItem(self.hist_item)
         else:
             self.hist_item.setData(x, y)
-
-        # if self.hist_item == None:
-        #     self.hist_item = pg.PlotDataItem(x, y, pen = self.pen)
-        #     self.hist_widget.addItem(self.hist_item)
-        # else:
-        #     self.hist_item.setData(x, y)
         
-        # if save_log and name_file_save_data:
-        #     self._save_graph_data(x.tolist(), y.tolist(), name_file_save_data)
-        # if not data:
-        #     return None
+        # центрирования данных
+        # self.hist_widget.setXRange(*x_range, padding=0)
+        
+        if save_log:
+            self._save_graph_data(x.tolist(), y.tolist(), name_file_save_data)
+
+    # Остальные методы остаются без изменений
+    # ...
     
     def _save_graph_data(self, x, y, filename):
         """Сохранение данных графика"""
-        write_to_hdf5_file([x, y], self.name_frame, self.parent_path, filename)
+        write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, filename)
 
     @qasync.asyncSlot()
-    async def draw_hist(self, data: Sequence[Union[int, float]], filter: Optional[Callable] = None,
+    async def draw_hist(self, data: Sequence[Union[int, float]], name_file_save_data: str,
+                    filter: Optional[Callable] = None,
                     save_log: Optional[bool] = False,
-                    clear: Optional[bool] = False,
-                    name_file_save_data: Optional[str] = None) -> None:
+                    clear: Optional[bool] = False) -> None:
         """
         Отрисовывает гистограмму данных с возможностью фильтрации и сохранения
         Args:
@@ -161,12 +205,16 @@ class HistPen():
             save_log: Флаг сохранения данных
             name_file_save_data: Имя файла для сохранения
         """
+        self.parent_path: Path = Path("./log/output_graph_data").resolve()
+        current_datetime = datetime.datetime.now()
+        time: str = current_datetime.strftime("%d-%m-%Y_%H")[:23]
+        self.path_to_save: Path = self.parent_path / time
         if filter is not None:
             filtered_value = filter(data)
             plot_data = [filtered_value] if filtered_value is not None else []
         else:
             plot_data = [max(data)] if data else []
 
-        await self._draw_graph(plot_data, save_log, name_file_save_data=name_file_save_data)
+        await self._draw_graph(plot_data, name_file_save_data, save_log)
 
 
