@@ -30,6 +30,7 @@ from src.filtrs_data import FiltrsData  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
+from src.event.event import Event  # noqa: E402
 
 
 class RunMeasWidget(QtWidgets.QDialog):
@@ -62,9 +63,8 @@ class RunMeasWidget(QtWidgets.QDialog):
         loadUi(Path(__file__).parent.joinpath('run_meas_widget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
-        self.asyncio_task_list: list = []
         self.graph_widget: GraphWidget = self.parent.w_graph_widget
-        self.parser = Parsers()
+        self.ACQ_task_sync_time_event = Event(str)
         self.filtrs_data: FiltrsData = FiltrsData() 
         self.hist_filters= None
         self.enable_test_csa_flag: str = "enable_test_csa_flag"
@@ -149,6 +149,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 self.pushButton_run_measure.setText("Запустить изм.")
         else:
             self.logger.error(f"Нет подключения к ДДИИ")
+    
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
@@ -163,6 +164,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             while 1:
                 current_datetime = datetime.datetime.now()
                 name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+                self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
                 if not self.flags[self.enable_trig_meas_flag]:
                     await self.mpp_cmd.start_measure_forced()
                 else:
