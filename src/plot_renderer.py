@@ -42,7 +42,7 @@ class GraphPen():
         #### Path ####
         self.parent_path: Path = Path("./log/output_graph_data").resolve()
         current_datetime = datetime.datetime.now()
-        time: str = current_datetime.strftime("%d-%m-%Y_%H")[:23]
+        time: str = current_datetime.strftime("%d-%m-%Y")[:23]
         self.path_to_save: Path = self.parent_path / time
         try:
             x, y = await self._prepare_graph_data(data)
@@ -72,7 +72,7 @@ class GraphPen():
             # y.append(value)
         return x, y
 
-    def _save_graph_data(self, x, y, filename):
+    def _save_graph_data(self, x: list, y: list, filename):
         """Сохранение данных графика"""
         write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, filename)
 
@@ -161,9 +161,11 @@ class HistPen():
         # bins, x_range = self._calculate_bins(self.accumulate_data)
         y, x = np.histogram(self.accumulate_data, bins=self.bins)
         
-        # Автоматическое масштабирование оси Y с небольшим отступом
+        # Автоматическое масштабирование оси X, Y с небольшим отступом
         # y_max = max(y) if len(y) > 0 else 1
         # self.hist_widget.setYRange(0, y_max * 1.1)
+        non_zero_indices = [i for i, x in enumerate(y) if x != 0]
+        self.hist_widget.setXRange(min(non_zero_indices), max(non_zero_indices) + 10)
         
         # обновляем контур
         if self.hist_outline_item is None:
@@ -183,12 +185,12 @@ class HistPen():
         # self.hist_widget.setXRange(*x_range, padding=0)
         
         if save_log:
-            self._save_graph_data(x.tolist(), y.tolist(), name_file_save_data)
+            self._save_graph_data(self.bins.tolist()[:-1], y.tolist(), name_file_save_data)
 
     # Остальные методы остаются без изменений
     # ...
     
-    def _save_graph_data(self, x, y, filename):
+    def _save_graph_data(self, x: list, y: list, filename):
         """Сохранение данных графика"""
         write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, filename)
 
@@ -207,7 +209,7 @@ class HistPen():
         """
         self.parent_path: Path = Path("./log/output_graph_data").resolve()
         current_datetime = datetime.datetime.now()
-        time: str = current_datetime.strftime("%d-%m-%Y_%H")[:23]
+        time: str = current_datetime.strftime("%d-%m-%Y")[:23]
         self.path_to_save: Path = self.parent_path / time
         if filter is not None:
             filtered_value = filter(data)
