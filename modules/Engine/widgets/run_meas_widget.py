@@ -120,7 +120,7 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def pushButton_calibr_acq_handler(self):
-        if self.w_ser_dialog.pushButton_connect_flag != 0:
+        if self.w_ser_dialog.pushButton_connect_flag != 1:
             await self.mpp_cmd.calibrate_ACQ()
             await asyncio.sleep(5)
         else:
@@ -151,25 +151,25 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            # self.graph_widget.hp_sipm.hist_clear()
-            # self.graph_widget.hp_pips.hist_clear()
-            # if self.flags[self.enable_trig_meas_flag]:
-            #     await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
-            #     await self.mpp_cmd.start_measure(on = 1)
+            self.graph_widget.hp_sipm.hist_clear()
+            self.graph_widget.hp_pips.hist_clear()
+            if self.flags[self.enable_trig_meas_flag]:
+                await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
+                await self.mpp_cmd.start_measure(on = 1)
             self.graph_widget.show()
             while 1:
                 current_datetime = datetime.datetime.now()
                 name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
-                # if not self.flags[self.enable_trig_meas_flag]:
-                #     await self.mpp_cmd.start_measure_forced()
-                # else:
-                #     await self.mpp_cmd.issue_waveform()
-                # result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-                # result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-                result_ch0_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
-                result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
-                # result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
-                # result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
+                if not self.flags[self.enable_trig_meas_flag]:
+                    await self.mpp_cmd.start_measure_forced()
+                else:
+                    await self.mpp_cmd.issue_waveform()
+                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
+                result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                # result_ch0_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
+                # result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
+                result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
+                result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
                 try:
                     data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
                     data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
