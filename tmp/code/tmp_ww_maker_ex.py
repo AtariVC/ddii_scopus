@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QTabWidget, QGroupBox, QVBox
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 import pyqtgraph as pg
-from typing import Dict
+from typing import Dict, Callable, Optional
 
 # Пример виджетов, которые будут добавлены во вкладки
 def create_example_widgets() -> Dict[str, Dict[str, QWidget]]:
@@ -23,7 +23,10 @@ def create_example_widgets() -> Dict[str, Dict[str, QWidget]]:
             "Информация": QLabel("Тут будут отображаться данные"),
             "Статус": QLabel("Статус: готов"),
         },
-        "Таблица": {}  # Пустой словарь, так как виджет будет создаваться динамически
+        "Таблица": {
+            "_handler": lambda: None,  # Специальный обработчик для этой вкладки
+            "_widget": None  # Виджет будет создан динамически
+        }
     }
     return widget_model
 
@@ -42,7 +45,10 @@ class MainWindow(QMainWindow):
         # Создаем контейнер для графика/таблицы
         self.content_container = QWidget()
         self.content_container.setMinimumSize(400, 400)
-        self.content_container.setLayout(QVBoxLayout())  # Инициализируем layout сразу
+        self.content_container.setLayout(QVBoxLayout())
+        
+        # Устанавливаем обработчик для вкладки "Таблица"
+        self.widget_model["Таблица"]["_handler"] = self.init_table
         
         # Инициализируем график по умолчанию
         self.init_graph()
@@ -116,8 +122,7 @@ class MainWindow(QMainWindow):
             grBox_widget.setFont(font)
             return grBox_widget
         
-        def widget_maker(widgets: Dict[str, QWidget], tab_widget: QTabWidget):
-            spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        def widget_maker(widgets: Dict[str, QWidget], tab_widget: QTabWidget) -> QWidget:
             spacer_v_scroll = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             
             scroll_area_menu = QScrollArea()
@@ -126,7 +131,10 @@ class MainWindow(QMainWindow):
             scroll_content_layout = QVBoxLayout(scroll_content_widget)
             
             for name, widget in widgets.items():
-                scroll_content_layout.addWidget(build_grBox(widget, name=name))
+                # Пропускаем специальные ключи, начинающиеся с _
+                if not name.startswith('_'):
+                    scroll_content_layout.addWidget(build_grBox(widget, name=name))
+            
             scroll_content_layout.addItem(spacer_v_scroll)
             return scroll_content_widget
         
@@ -138,18 +146,16 @@ class MainWindow(QMainWindow):
         tab_font.setPointSize(12)
         tab_widget.setFont(tab_font)
         
-        # Добавляем обычные вкладки
+        # Добавляем вкладки
         for tab_name, widgets in widget_model.items():
-            if tab_name == "Таблица":
-                continue  # Эту вкладку добавим отдельно
-            
-            if widgets:  # Если есть виджеты для вкладки
+            # Если есть специальный обработчик, создаем кнопку
+            if "_handler" in widgets:
+                btn = QPushButton(f"Активировать {tab_name}")
+                btn.clicked.connect(widgets["_handler"])
+                tab_widget.addTab(btn, tab_name)
+            # Иначе создаем обычную вкладку с виджетами
+            elif widgets:
                 tab_widget.addTab(widget_maker(widgets, tab_widget), tab_name)
-        
-        # Добавляем специальную вкладку для таблицы
-        table_tab_button = QPushButton("Показать таблицу")
-        table_tab_button.clicked.connect(self.init_table)
-        tab_widget.addTab(table_tab_button, "Таблица")
         
         # Связываем изменение вкладки с обновлением содержимого
         tab_widget.currentChanged.connect(self.on_tab_changed)
@@ -158,11 +164,13 @@ class MainWindow(QMainWindow):
     
     def on_tab_changed(self, index):
         """Обработчик изменения вкладки"""
-        current_tab_text = self.sender().tabText(index)
-        if current_tab_text == "Таблица":
-            self.init_table()
-        else:
-            self.init_graph()
+        tab_widget = self.sender()
+        current_tab_text = tab_widget.tabText(index)
+        current_widgets = self.widget_model.get(current_tab_text, {})
+        
+        # Если для вкладки есть специальный обработчик, вызываем его
+        if "_handler" in current_widgets:
+            current_widgets["_handler"]()
 
 if __name__ == "__main__":
     app = QApplication([])
