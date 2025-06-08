@@ -175,7 +175,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
                 # Сохранять только те данные которые выше порога
                 if self.flags[self.wr_log_flag]:
-                    if max(result_ch0_int)>np.mean(result_ch0_int)*2 or max(result_ch1_int)>np.mean(result_ch1_int)*2:
+                    if max(result_ch0_int)>np.mean(result_ch0_int)*3 or max(result_ch1_int)>np.mean(result_ch1_int)*3:
                         save = True
                     else:
                         save = False
