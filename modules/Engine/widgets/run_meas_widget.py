@@ -158,6 +158,8 @@ class RunMeasWidget(QtWidgets.QDialog):
             #     await self.mpp_cmd.start_measure(on = 1)
             self.graph_widget.show()
             while 1:
+                current_datetime = datetime.datetime.now()
+                name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
                 # if not self.flags[self.enable_trig_meas_flag]:
                 #     await self.mpp_cmd.start_measure_forced()
                 # else:
@@ -169,10 +171,10 @@ class RunMeasWidget(QtWidgets.QDialog):
                 # result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 # result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
                 try:
-                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
-                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
-                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
-                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
+                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
+                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
+                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
+                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
                 except asyncio.exceptions.CancelledError:
                     return None
                 # await self.update_gui_data_label()

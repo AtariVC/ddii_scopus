@@ -38,7 +38,7 @@ class GraphPen():
         
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data, name_file_save_data: str, save_log=False, clear=False):
+    async def draw_graph(self, data, name_file_save_data: str, name_data: str, save_log=False, clear=False):
         #### Path ####
         self.parent_path: Path = Path("./log/output_graph_data").resolve()
         current_datetime = datetime.datetime.now()
@@ -50,7 +50,7 @@ class GraphPen():
                 self.plt_widget.clear()
                 self.plot_item = None
             if save_log:
-                self._save_graph_data(x, y, name_file_save_data)
+                self._save_graph_data(x, y, name_file_save_data, name_data)
             if self.plot_item == None:
                 self.plot_item = pg.PlotDataItem(x, y, pen = self.pen)
                 self.plt_widget.addItem(self.plot_item)
@@ -72,9 +72,9 @@ class GraphPen():
             # y.append(value)
         return x, y
 
-    def _save_graph_data(self, x: list, y: list, filename):
+    def _save_graph_data(self, x: list, y: list, filename, name_data):
         """Сохранение данных графика"""
-        write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, filename)
+        write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, name_file_hdf5=filename, name_data=name_data)
 
 class HistPen():
     def __init__(self,
@@ -145,7 +145,7 @@ class HistPen():
 
     @qasync.asyncSlot()
     async def _draw_graph(self, data: list[int | float],
-                    name_file_save_data: str,
+                    name_file_save_data: str, name_data: str,
                     save_log: Optional[bool] = False,
                     clear: Optional[bool] = False) -> None:
         if clear:
@@ -185,17 +185,18 @@ class HistPen():
         # self.hist_widget.setXRange(*x_range, padding=0)
         
         if save_log:
-            self._save_graph_data(self.bins.tolist()[:-1], y.tolist(), name_file_save_data)
+            self._save_graph_data(self.bins.tolist()[:-1], y.tolist(), name_file_save_data, name_data)
 
     # Остальные методы остаются без изменений
     # ...
     
-    def _save_graph_data(self, x: list, y: list, filename):
+    def _save_graph_data(self, x: list, y: list, filename, name_data: str):
         """Сохранение данных графика"""
-        write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, filename)
+        write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, name_file_hdf5=filename, name_data=name_data)
 
     @qasync.asyncSlot()
-    async def draw_hist(self, data: Sequence[Union[int, float]], name_file_save_data: str,
+    async def draw_hist(self, data: Sequence[Union[int, float]], 
+                    name_file_save_data: str, name_data: str,
                     filter: Optional[Callable] = None,
                     save_log: Optional[bool] = False,
                     clear: Optional[bool] = False) -> None:
@@ -217,6 +218,6 @@ class HistPen():
         else:
             plot_data = [max(data)] if data else []
 
-        await self._draw_graph(plot_data, name_file_save_data, save_log)
+        await self._draw_graph(plot_data, name_file_save_data, name_data, save_log)
 
 

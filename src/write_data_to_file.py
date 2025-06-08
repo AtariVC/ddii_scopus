@@ -22,7 +22,8 @@ def writer_graph_data(x: list[int|float], y: list[int|float], name: str, folder_
 def write_to_hdf5_file(data: list,
                         name_group: str,
                         path_hdf5 : Path,
-                        name_file_hdf5: str) -> None:
+                        name_file_hdf5: str,
+                        name_data: str) -> None:
     """_summary_
 
     Args:
@@ -46,10 +47,10 @@ def write_to_hdf5_file(data: list,
         else:
             data_group = hdf5_file[name_group]  # Используем существующую группу
 
-        current_datetime = datetime.datetime.now()
-        time = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+        # current_datetime = datetime.datetime.now()
+        # time = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
 
-        dataset_name = f"{time} -- {name_group}"
+        dataset_name = f"{name_data} -- {name_group}"
         data_np = np.array(data).T
         data_np.squeeze()
         data_group.create_dataset(dataset_name, data=data_np) # type: ignore
