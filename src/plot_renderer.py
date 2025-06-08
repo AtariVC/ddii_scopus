@@ -94,12 +94,12 @@ class HistPen():
         # Настройки гистограммы
         self.accumulate_data: list = []
         ###
-        self.bin_count = 100  # начальное количество бинов
+        # self.bin_count = 100  # начальное количество бинов
         self.padding_factor = 0.1  # отступ по краям (10% от диапазона данных)
         ###
-        # self.bin_count = 4096
-        # self.x_range = (0, self.bin_count)
-        # self.bins = np.linspace(*self.x_range, self.bin_count)
+        self.bin_count = 4096
+        self.x_range = (0, self.bin_count)
+        self.bins = np.linspace(*self.x_range, self.bin_count)
         
         #### Path ####
         # self.parent_path: Path = Path("./log/graph_data").resolve()
@@ -155,11 +155,11 @@ class HistPen():
             
         self.accumulate_data.extend(data)
         # Масштабируемые гистограммы
-        bin_count = max(self.accumulate_data)+20
-        x_range = (0, self.bin_count)
-        bins = np.linspace(*x_range, bin_count)
+        # bin_count = max(self.accumulate_data)+20
+        # x_range = (0, self.bin_count)
+        # bins = np.linspace(*x_range, bin_count)
         # bins, x_range = self._calculate_bins(self.accumulate_data)
-        y, x = np.histogram(self.accumulate_data, bins=bins)
+        y, x = np.histogram(self.accumulate_data, bins=self.bins)
         
         # Автоматическое масштабирование оси Y с небольшим отступом
         # y_max = max(y) if len(y) > 0 else 1
