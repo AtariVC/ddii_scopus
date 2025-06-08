@@ -1,17 +1,18 @@
 import asyncio
+import datetime
 import struct
 import sys
+from functools import partial
 # from save_config import ConfigSaver
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Coroutine
-import datetime
+
 import numpy as np
 import qasync
 import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
-from functools import partial
 
 ####### импорты из других директорий ######
 # /src
@@ -25,10 +26,10 @@ from modules.Engine.widgets.graph_widget import GraphWidget  # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from src.filtrs_data import FiltrsData  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
-from src.filtrs_data import FiltrsData  # noqa: E402
 
 
 class RunMeasWidget(QtWidgets.QDialog):
@@ -153,8 +154,10 @@ class RunMeasWidget(QtWidgets.QDialog):
         try:
             self.graph_widget.hp_sipm.hist_clear()
             self.graph_widget.hp_pips.hist_clear()
+            lvl = int(self.lineEdit_trigger.text())
+            save: bool = False
             if self.flags[self.enable_trig_meas_flag]:
-                await self.mpp_cmd.set_level(lvl = int(self.lineEdit_trigger.text()))
+                await self.mpp_cmd.set_level(lvl)
                 await self.mpp_cmd.start_measure(on = 1)
             self.graph_widget.show()
             while 1:
@@ -170,11 +173,19 @@ class RunMeasWidget(QtWidgets.QDialog):
                 # result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
                 result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
                 result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
+                # Сохранять только те данные которые выше порога
+                if self.flags[self.wr_log_flag]:
+                    if max(result_ch0_int)> lvl:
+                        save = True
+                    else:
+                        save = False
+                else:
+                    save = False
                 try:
-                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
-                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], clear=True) # x, y
-                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
-                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=self.flags[self.wr_log_flag], filter=self.hist_filters)
+                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
+                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
+                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
                 except asyncio.exceptions.CancelledError:
                     return None
                 # await self.update_gui_data_label()
