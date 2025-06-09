@@ -115,12 +115,11 @@ class Engine(QtWidgets.QMainWindow):
             menu_layout.addLayout(vLayout_ser_connect)
             return menu_widget
 
-
         def init_tab_widget_item_viewer() -> QWidget:
             parser_widget = QWidget()
             # vLayout_parser = QVBoxLayout(parser_widget)
             return parser_widget
-        
+
         def init_tab_widget_item_parser() -> QWidget:
             parser_widget = QWidget()
             # vLayout_parser = QVBoxLayout(parser_widget)
