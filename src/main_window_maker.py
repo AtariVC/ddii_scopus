@@ -5,7 +5,7 @@ from PyQt6.QtGui import QFont
 from typing import Optional, Sequence, Callable, Union
 
 def create_split_widget(gridLayout_main_split: QGridLayout, 
-                        left_widget: QTabWidget,
+                        left_widget: QWidget,
                         right_widget: QTabWidget) -> None:
     """Создает и добавляет в layout разделитель (QSplitter) с двумя виджетами.
     
@@ -26,10 +26,13 @@ def create_split_widget(gridLayout_main_split: QGridLayout,
     splitter.addWidget(left_widget)
     splitter.addWidget(right_widget)
 
+def clear_left_widget(self, left_widget: QWidget):
+    left_widget.deleteLater()
+
 
 
 def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
-                            tab_widget_handler: Optional[Dict[str, Callable]] = None) -> QTabWidget:
+                            tab_widget_handler: Optional[Callable] = None) -> QTabWidget:
     """Создает и возвращает QTabWidget с организованными вкладками виджетов.
 
     Функция создает многоуровневый интерфейс с:
@@ -44,6 +47,8 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
                 - Значение: Словарь {
                     "название виджета": QWidget-объект
                 }
+        tab_widget_handler (Optional[Callable] = None): 
+        Обработчик событий изменения вкладок tabwidget.
 
     Returns:
         QTabWidget: Готовый виджет с вкладками, содержащий:
@@ -80,7 +85,7 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
         grBox_widget.setFont(font)
         return grBox_widget
     
-    def tab_factories(widget_model: Dict[str, Dict[str, QWidget]]):
+    def _tab_factories(widget_model: Dict[str, Dict[str, QWidget]]):
         """Создает словарь фабричных функций для генерации содержимого вкладок.
 
         Args:
@@ -99,10 +104,10 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
         """
         dict_tab_factry = {}
         for tab_name in widget_model.keys():
-            dict_tab_factry = {tab_name: widget_maker}
+            dict_tab_factry[tab_name]= _widget_maker
         return dict_tab_factry
 
-    def widget_maker(widgets: Dict[str, QWidget]):
+    def _widget_maker(widgets: Dict[str, Optional[QWidget| QSpacerItem]]):
         """Фабрика для создания содержимого вкладки."""
         ######################
         spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -113,14 +118,20 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
         scroll_area_menu.setWidgetResizable(True)
         scroll_content_widget = QWidget()
         scroll_content_layout = QVBoxLayout(scroll_content_widget)
+        insert_spacer_flag = False
         # Создание виджетов в grBox. Добавляем виджеты в scroll_content_layout
         for name, widget in widgets.items():
-            scroll_content_layout.addWidget(_grBox_wrapper(widget, name=name))
-        scroll_content_layout.addItem(spacer_v_scroll)
+            if isinstance(widget, QSpacerItem):
+                spacer: QSpacerItem = widget # type: ignore
+                scroll_content_layout.addItem(spacer)
+            elif widget is not None:
+                scroll_content_layout.addWidget(_grBox_wrapper(widget, name=name)) # type: ignore
+                insert_spacer_flag = not insert_spacer_flag
+        if insert_spacer_flag:
+            scroll_content_layout.addItem(spacer_v_scroll)
         return scroll_content_widget
+    
     #################################################################################
-    def on_tab_changed(self, index):
-        tab_text = tab_widget_handler
         
 
     tab_widget: QTabWidget = QTabWidget()
@@ -131,11 +142,13 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
     tab_font.setPointSize(12)
     tab_widget.setFont(tab_font)
     # Используем фабрику для добавления вкладок
-    factories = tab_factories(widget_model)
+    factories = _tab_factories(widget_model)
     for tab_name, factory in factories.items():
         tab_widget.addTab(factory(widget_model[tab_name]), tab_name)
         if tab_widget_handler:
-            tab_widget.currentChanged.connect(on_tab_changed)
+            # добавляем обработчик нажатия вкладок
+            if tab_widget_handler:
+                tab_widget.currentChanged.connect(tab_widget_handler)
     return tab_widget
 
 
