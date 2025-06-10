@@ -33,7 +33,7 @@ def clear_left_widget(old_left_widget: QWidget, new_left_widget: QWidget):
     #     if isinstance(child, QWidget):
     #         left_widget.hide()
     #         child.deleteLater()
-        """Заменяет левый виджет в сплитере"""
+        """Заменяет левый виджет в сплиттере"""
     # 1. Находим сплиттер (родительский виджет)
         splitter = old_left_widget.parentWidget()
         if not isinstance(splitter, QSplitter):
@@ -46,7 +46,8 @@ def clear_left_widget(old_left_widget: QWidget, new_left_widget: QWidget):
 
         # 3. Заменяем виджет
         splitter.replaceWidget(index, new_left_widget)
-        old_left_widget.deleteLater()
+        new_left_widget.show()
+        old_left_widget.hide()
 
     
 
