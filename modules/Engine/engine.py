@@ -32,6 +32,7 @@ from modules.Engine.widgets.graph_widget import GraphWidget         # noqa: E402
 from modules.Engine.widgets.run_meas_widget import RunMeasWidget    # noqa: E402
 from modules.Engine.widgets.flux_widget import FluxWidget           # noqa: E402
 from modules.Engine.widgets.run_flux_widget import RunFluxWidget    # noqa: E402
+from modules.Engine.widgets.graph_viewer_widget import GraphViewerWidget    # noqa: E402
 from src.craft_custom_widget import add_serial_widget
 from src.main_window_maker import create_split_widget, clear_left_widget, create_tab_widget_items
 
@@ -49,6 +50,7 @@ class Engine(QtWidgets.QMainWindow):
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
         self.logger = log_init()
+        
         # self.init_QObjects()
         # self.config = ConfigSaver()
         self.init_widgets()
@@ -60,7 +62,7 @@ class Engine(QtWidgets.QMainWindow):
                 "Меню запуска": self.run_meas_widget,
                 "Опрос счетчика частиц": self.run_flux_widget,
                 "Счетчик частиц": self.flux_widget,
-                "Spacer": spacer_v, 
+                "spacer": spacer_v, 
                 "Подключение": self.w_ser_dialog
             },
             "Вьюер":{
@@ -70,6 +72,42 @@ class Engine(QtWidgets.QMainWindow):
 
             }
         }
+    
+    def on_tab_widget_handler(self, index: int):
+        tab_text: str = self.tab_widget.tabText(index)
+        if tab_text == "Вьюер":
+            clear_left_widget(self.w_graph_widget, self.graph_viewer_widget)
+
+        if tab_text == "Осциллограф":
+            clear_left_widget(self.graph_viewer_widget, self.w_graph_widget)
+
+        # tab_text: str = self.tab_widget.tabText(index)
+    
+        # # Инициализация при первом вызове
+        # if not hasattr(self, 'current_left_widget'):
+        #     self.current_left_widget = None
+
+        # # Удаляем текущий виджет, если он есть
+        # if self.current_left_widget:
+        #     if tab_text == "Вьюер":
+        #         clear_left_widget(self.w_graph_widget)
+        #         create_split_widget(self.gridLayout_main_split, self.   graph_viewer_widget, self.tab_widget)
+        #     if tab_text == "Осциллограф":
+        #         clear_left_widget(self.graph_viewer_widget)
+        #         create_split_widget(self.gridLayout_main_split, self.w_graph_widget, self.tab_widget)
+        #     self.current_left_widget = None
+
+        # Создаём новый виджет в зависимости от вкладки
+        if tab_text == "Вьюер":
+            self.current_left_widget = self.graph_viewer_widget
+        elif tab_text == "Осциллограф":
+            self.current_left_widget = self.w_graph_widget
+
+        # # Добавляем виджет в контейнер
+        # if self.current_left_widget:
+        #     self.left_container.layout().addWidget(self.current_left_widget)
+        #     self.current_left_widget.show()
+
 
     def init_widgets(self) -> None:
         # Виджеты
@@ -77,21 +115,22 @@ class Engine(QtWidgets.QMainWindow):
         self.w_ser_dialog: SerialConnect = SerialConnect(self.logger)
         self.flux_widget: FluxWidget = FluxWidget(self)
         self.run_flux_widget: RunFluxWidget = RunFluxWidget(self)
+        self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget() 
         self.client = self.w_ser_dialog.client
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
         model = self.widget_model()
-        tab_widget = create_tab_widget_items(model)
+        self.tab_widget = create_tab_widget_items(model, self.on_tab_widget_handler)
         #### отдельно добавляем SerialConnectWidget
         vLayout_ser_connect = QVBoxLayout()
         # add_serial_widget(vLayout_ser_connect, self.w_ser_dialog)
         spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         # tab_widget.layout.addItem(spacer_v)
         # tab_widget.layout.addLayout(vLayout_ser_connect)
-        create_split_widget(self.gridLayout_main_split, self.w_graph_widget, tab_widget)
-        splitter = QSplitter()
-        self.gridLayout_main_split.addWidget(splitter)
-        splitter.addWidget(self.w_graph_widget)
-        splitter.addWidget(tab_widget)
+        create_split_widget(self.gridLayout_main_split, self.w_graph_widget, self.tab_widget)
+        # splitter = QSplitter()
+        # self.gridLayout_main_split.addWidget(splitter)
+        # splitter.addWidget(self.w_graph_widget)
+        # splitter.addWidget(self.tab_widget)
 
     # def create_tab_widget_items(self) -> QTabWidget:
     #     """

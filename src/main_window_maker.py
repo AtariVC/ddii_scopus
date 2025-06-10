@@ -26,21 +26,41 @@ def create_split_widget(gridLayout_main_split: QGridLayout,
     splitter.addWidget(left_widget)
     splitter.addWidget(right_widget)
 
-def clear_left_widget(self, left_widget: QWidget):
-    left_widget.deleteLater()
+def clear_left_widget(old_left_widget: QWidget, new_left_widget: QWidget):
+    # left_widget.deleteLater()
+    # Удаляем все дочерние виджеты, но не сам контейнер
+    # for child in left_widget.children():
+    #     if isinstance(child, QWidget):
+    #         left_widget.hide()
+    #         child.deleteLater()
+        """Заменяет левый виджет в сплитере"""
+    # 1. Находим сплиттер (родительский виджет)
+        splitter = old_left_widget.parentWidget()
+        if not isinstance(splitter, QSplitter):
+            return
+
+        # 2. Находим индекс нашего виджета в сплитере
+        index = splitter.indexOf(old_left_widget)
+        if index == -1:
+            return
+
+        # 3. Заменяем виджет
+        splitter.replaceWidget(index, new_left_widget)
+        old_left_widget.deleteLater()
+
+    
 
 
 
 def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
                             tab_widget_handler: Optional[Callable] = None) -> QTabWidget:
     """Создает и возвращает QTabWidget с организованными вкладками виджетов.
-
     Функция создает многоуровневый интерфейс с:
     - Вкладками (QTabWidget)
     - Прокручиваемыми областями (QScrollArea) 
     - Групповыми блоками (QGroupBox) для каждого виджета
 
-    Args:
+    :Args:
         widget_model (Dict[str, Dict[str, QWidget]]): 
             Иерархическая структура виджетов:
                 - Ключ 1 уровня: Название вкладки (str)
@@ -50,14 +70,15 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
         tab_widget_handler (Optional[Callable] = None): 
         Обработчик событий изменения вкладок tabwidget.
 
-    Returns:
+    :Return:
+
         QTabWidget: Готовый виджет с вкладками, содержащий:
             - Каждая вкладка содержит ScrollArea
             - Каждый виджет оформлен в GroupBox
             - Автоматические отступы и размеры
             - Стандартизированное форматирование шрифтов
 
-    Example:
+    :Example:
         widget_structure = {
 
             "Графики": {

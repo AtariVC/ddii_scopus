@@ -38,13 +38,16 @@ class GraphPen():
         
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data, name_file_save_data: str, name_data: str, save_log=False, clear=False):
+    async def draw_graph(self, data: list, name_file_save_data: str, name_data: Optional[str] = None, save_log=False, clear=False):
         #### Path ####
         self.parent_path: Path = Path("./log/output_graph_data").resolve()
         current_datetime = datetime.datetime.now()
         time: str = current_datetime.strftime("%d-%m-%Y")[:23]
         self.path_to_save: Path = self.parent_path / time
         try:
+            if any(isinstance(item, float) for item in data):
+                data = list(map(int, data))
+                print(f"Данные преобразованы в int")
             x, y = await self._prepare_graph_data(data)
             if clear:
                 self.plt_widget.clear()
