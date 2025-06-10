@@ -1,8 +1,8 @@
-from typing import Dict
+
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QSpacerItem, QSizePolicy, QSplitter, QTabWidget, QScrollArea, QGridLayout
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont
-from typing import Optional, Sequence, Callable, Union
+from typing import Optional, Sequence, Callable, Union, Dict
 
 def create_split_widget(gridLayout_main_split: QGridLayout, 
                         left_widget: QWidget,
@@ -118,16 +118,17 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
         scroll_area_menu.setWidgetResizable(True)
         scroll_content_widget = QWidget()
         scroll_content_layout = QVBoxLayout(scroll_content_widget)
-        insert_spacer_flag = False
+        edge_spacer_flag = True
         # Создание виджетов в grBox. Добавляем виджеты в scroll_content_layout
         for name, widget in widgets.items():
             if isinstance(widget, QSpacerItem):
                 spacer: QSpacerItem = widget # type: ignore
                 scroll_content_layout.addItem(spacer)
+                edge_spacer_flag = False
             elif widget is not None:
                 scroll_content_layout.addWidget(_grBox_wrapper(widget, name=name)) # type: ignore
-                insert_spacer_flag = not insert_spacer_flag
-        if insert_spacer_flag:
+                
+        if edge_spacer_flag:
             scroll_content_layout.addItem(spacer_v_scroll)
         return scroll_content_widget
     

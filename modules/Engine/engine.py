@@ -29,7 +29,9 @@ from src.log_config import log_init, log_s                          # noqa: E402
 from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 from modules.Engine.widgets.graph_widget import GraphWidget         # noqa: E402
-from modules.Engine.widgets.run_meas_widget import RunMeasWidget         # noqa: E402
+from modules.Engine.widgets.run_meas_widget import RunMeasWidget    # noqa: E402
+from modules.Engine.widgets.flux_widget import FluxWidget           # noqa: E402
+from modules.Engine.widgets.run_flux_widget import RunFluxWidget    # noqa: E402
 from src.craft_custom_widget import add_serial_widget
 from src.main_window_maker import create_split_widget, clear_left_widget, create_tab_widget_items
 
@@ -56,6 +58,8 @@ class Engine(QtWidgets.QMainWindow):
         return{
             "Осциллограф": {
                 "Меню запуска": self.run_meas_widget,
+                "Опрос счетчика частиц": self.run_flux_widget,
+                "Счетчик частиц": self.flux_widget,
                 "Spacer": spacer_v, 
                 "Подключение": self.w_ser_dialog
             },
@@ -71,6 +75,8 @@ class Engine(QtWidgets.QMainWindow):
         # Виджеты
         self.w_graph_widget: GraphWidget = GraphWidget()
         self.w_ser_dialog: SerialConnect = SerialConnect(self.logger)
+        self.flux_widget: FluxWidget = FluxWidget(self)
+        self.run_flux_widget: RunFluxWidget = RunFluxWidget(self)
         self.client = self.w_ser_dialog.client
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
         model = self.widget_model()

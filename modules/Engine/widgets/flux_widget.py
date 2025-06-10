@@ -59,6 +59,6 @@ class FluxWidget(QtWidgets.QDialog):
         self.parser = Parsers()
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = args[0]
-            self.w_ser_dialog.coroutine_finished.connect(self.get_client)
+            # self.w_ser_dialog.coroutine_finished.connect(self.get_client)
         else:
             pass

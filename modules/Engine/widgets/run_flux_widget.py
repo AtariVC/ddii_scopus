@@ -3,7 +3,7 @@ import struct
 import sys
 # from save_config import ConfigSaver
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Coroutine
+from typing import Optional, Sequence, Callable, Union, Dict, Awaitable
 
 import numpy as np
 import qasync
@@ -30,7 +30,7 @@ from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
 
 
-class RunHistFluxWidget(QtWidgets.QDialog):
+class RunFluxWidget(QtWidgets.QDialog):
     checkBox_write_log					  : QtWidgets.QCheckBox
     pushButton_hist_run_measure           : QtWidgets.QPushButton
     lineEdit_interval_request			  : QtWidgets.QLineEdit
@@ -38,27 +38,29 @@ class RunHistFluxWidget(QtWidgets.QDialog):
     def __init__(self, *args) -> None:
         super().__init__()
         self.parent = args[0]
-        loadUi(Path(__file__).parent.joinpath('run_meas_widget.ui'), self)
+        loadUi(Path(__file__).parent.joinpath('run_flux_widget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.asyncio_task_list: list = []
         self.graph_widget: GraphWidget = self.parent.w_graph_widget
+        # подпись на event ACQ_task_sync_time_event
         self.parser = Parsers()
-        self.enable_test_csa_flag: str = "enable_test_csa_flag"
-        self.flags = {self.enable_test_csa_flag: False,
-                        self.enable_test_csa_flag: True}
+        self.start_measure_flag: str = "start_measure_flag"
+        self.write_log_flag: str = "write_log_flag"
+        self.flags: Dict[str, bool] = {self.write_log_flag: False,
+                        }
 
-        self.checkbox_flag_mapping = {
-        self.checkBox_enable_test_csa: self.enable_test_csa_flag}
-
-        self.init_flags()		
+        self.checkbox_flag_mapping: Dict[QtWidgets.QCheckBox, str] = {
+                            self.checkBox_write_log: self.write_log_flag
+                            }
+        self.init_flags()	
+        
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog
             self.logger = self.parent.logger
-            self.w_ser_dialog.coroutine_finished.connect(self.get_client)
-            self.task_manager = AsyncTaskManager(self.logger)		
-            self.pushButton_run_measure.clicked.connect(self.		pushButton_run_measure_handler)
-            self.pushButton_calibr_acq.clicked.connect(self.pushButton_calibr_acq_handler)
+            self.w_ser_dialog.coroutine_finished.connect(self.init_mb_cmd)
+            self.task_manager = AsyncTaskManager(self.logger)
+            self.pushButton_hist_run_measure.clicked.connect(self.pushButton_hist_run_measure_handler)
         else:
             self.task_manager = AsyncTaskManager()
             self.logger = PrintLogger()
@@ -76,7 +78,7 @@ class RunHistFluxWidget(QtWidgets.QDialog):
         self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
 
     @qasync.asyncSlot()
-    async def pushButton_run_measure_handler(self) -> None:
+    async def pushButton_hist_run_measure_handler(self) -> None:
         """Запуск асинхронной задачи. Создаем задачи asyncio_measure_loop_request и 
         asyncio__loop_request через creator_asyncio_tasks
         asyncio_ACQ_loop_request для непрерывного получения данных АЦП
@@ -86,9 +88,9 @@ class RunHistFluxWidget(QtWidgets.QDialog):
         if self.w_ser_dialog.pushButton_connect_flag != 0:
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag] 
             if self.flags[self.start_measure_flag]:
-                self.pushButton_run_measure.setText("Остановить изм.")
+                self.pushButton_hist_run_measure.setText("Остановить изм.")
                 try:
-                    self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    self.task_manager.create_task(HH_task(), "ACQ_task")
                     # await ACQ_task()
                 except Exception as e:
                     self.logger.error(f"Ошибка: {e}")
@@ -96,32 +98,26 @@ class RunHistFluxWidget(QtWidgets.QDialog):
                 # self.graph_done_signal.emit()
                 await self.mpp_cmd.start_measure(on = 0)
                 self.task_manager.cancel_task("ACQ_task")
-                self.pushButton_run_measure.setText("Запустить изм.")
+                self.pushButton_hist_run_measure.setText("Запустить изм.")
         else:
             self.logger.error(f"Нет подключения к ДДИИ")
 
     async def asyncio_HH_loop_request(self) -> None:
-        """Запуск асинхронной задачи. Создаем задачу asyncio_measure_loop_request через creator_asyncio_tasks
-        asyncio_ACQ_loop_request - непрерывный опрос МПП для получения данных АЦП
+        """Опрос счетчика частиц
         """
-        ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
-        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if self.w_ser_dialog.pushButton_connect_flag != 0:
-            self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag] 
-            if self.flags[self.start_measure_flag]:
-                self.pushButton_run_measure.setText("Остановить изм.")
-                try:
-                    self.task_manager.create_task(ACQ_task(), "ACQ_task")
-                    # await ACQ_task()
-                except Exception as e:
-                    self.logger.error(f"Ошибка: {e}")
-            else:
-                # self.graph_done_signal.emit()
-                await self.mpp_cmd.start_measure(on = 0)
-                self.task_manager.cancel_task("ACQ_task")
-                self.pushButton_run_measure.setText("Запустить изм.")
-        else:
-            self.logger.error(f"Нет подключения к ДДИИ")
+        self.graph_widget.hp_sipm.hist_clear()
+        # self.graph_widget.hp_pips.hist_clear()
+        # lvl = int(self.lineEdit_trigger.text())
+        # save: bool = False
+        # if self.flags[self.enable_trig_meas_flag]:
+        #     await self.mpp_cmd.set_level(lvl)
+        #     await self.mpp_cmd.start_measure(on = 1)
+        # self.graph_widget.show()
+        # while 1:
+        #     current_datetime = datetime.datetime.now()
+        #     name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+        #     self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
+        
 
     
 
