@@ -33,6 +33,7 @@ from modules.Engine.widgets.run_meas_widget import RunMeasWidget    # noqa: E402
 from modules.Engine.widgets.flux_widget import FluxWidget           # noqa: E402
 from modules.Engine.widgets.run_flux_widget import RunFluxWidget    # noqa: E402
 from modules.Engine.widgets.graph_viewer_widget import GraphViewerWidget    # noqa: E402
+from modules.Engine.widgets.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
 from src.craft_custom_widget import add_serial_widget
 from src.main_window_maker import create_split_widget, clear_left_widget, create_tab_widget_items
 
@@ -66,7 +67,7 @@ class Engine(QtWidgets.QMainWindow):
                 "Подключение": self.w_ser_dialog
             },
             "Вьюер":{
-
+                "Файл менеджер": self.explorer_hdf5_widget,
             },
             "Парсер": {
 
@@ -81,33 +82,10 @@ class Engine(QtWidgets.QMainWindow):
         if tab_text == "Осциллограф":
             clear_left_widget(self.graph_viewer_widget, self.w_graph_widget)
 
-        # tab_text: str = self.tab_widget.tabText(index)
-    
-        # # Инициализация при первом вызове
-        # if not hasattr(self, 'current_left_widget'):
-        #     self.current_left_widget = None
-
-        # # Удаляем текущий виджет, если он есть
-        # if self.current_left_widget:
-        #     if tab_text == "Вьюер":
-        #         clear_left_widget(self.w_graph_widget)
-        #         create_split_widget(self.gridLayout_main_split, self.   graph_viewer_widget, self.tab_widget)
-        #     if tab_text == "Осциллограф":
-        #         clear_left_widget(self.graph_viewer_widget)
-        #         create_split_widget(self.gridLayout_main_split, self.w_graph_widget, self.tab_widget)
-        #     self.current_left_widget = None
-
-        # Создаём новый виджет в зависимости от вкладки
         if tab_text == "Вьюер":
             self.current_left_widget = self.graph_viewer_widget
         elif tab_text == "Осциллограф":
             self.current_left_widget = self.w_graph_widget
-
-        # # Добавляем виджет в контейнер
-        # if self.current_left_widget:
-        #     self.left_container.layout().addWidget(self.current_left_widget)
-        #     self.current_left_widget.show()
-
 
     def init_widgets(self) -> None:
         # Виджеты
@@ -116,6 +94,7 @@ class Engine(QtWidgets.QMainWindow):
         self.flux_widget: FluxWidget = FluxWidget(self)
         self.run_flux_widget: RunFluxWidget = RunFluxWidget(self)
         self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget() 
+        self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget(self)
         self.client = self.w_ser_dialog.client
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
         model = self.widget_model()

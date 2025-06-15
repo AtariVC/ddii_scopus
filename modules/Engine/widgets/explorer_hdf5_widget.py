@@ -12,6 +12,15 @@ from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
 
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
+                             QLineEdit, QTreeView, QSplitter, QLabel,
+                             QFileDialog, QMessageBox, QPushButton)
+from PyQt6.QtGui import QFileSystemModel
+from PyQt6.QtCore import Qt, QDir, QModelIndex, QAbstractItemModel
+import h5py
+import os
+import time
+
 
 ####### импорты из других директорий ######
 # /src
@@ -30,100 +39,176 @@ from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
 
 
-class RunFluxWidget(QtWidgets.QDialog):
-    checkBox_write_log					  : QtWidgets.QCheckBox
-    pushButton_hist_run_measure           : QtWidgets.QPushButton
-    lineEdit_interval_request			  : QtWidgets.QLineEdit
+class ExplorerHDF5Widget(QtWidgets.QDialog):
+    lineEdit_path_edit                    : QtWidgets.QLineEdit
+    pushButton_back                       : QtWidgets.QPushButton
+    pushButton_browser                    : QtWidgets.QPushButton
+    pushButton_close_hdf5                 : QtWidgets.QPushButton
+    pushButton_next                       : QtWidgets.QPushButton
+    columnView_explorer                   : QtWidgets.QColumnView
 
     def __init__(self, *args) -> None:
         super().__init__()
         self.parent = args[0]
-        loadUi(Path(__file__).parent.joinpath('run_flux_widget.ui'), self)
+        loadUi(Path(__file__).parent.joinpath('explorer_hdf5_widget.ui'), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
-        self.asyncio_task_list: list = []
-        self.graph_widget: GraphWidget = self.parent.w_graph_widget
-        # подпись на event ACQ_task_sync_time_event
-        self.parser = Parsers()
-        self.start_measure_flag: str = "start_measure_flag"
-        self.write_log_flag: str = "write_log_flag"
-        self.flags: Dict[str, bool] = {self.write_log_flag: False,
-                        }
+        self.hdf5_model = HDF5TreeModel()
+        self.fs_model = QFileSystemModel()
+        self.fs_model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
+        self.current_model = None
+        self.current_folder = os.path.expanduser("~")  # Начинаем с домашней директории
 
-        self.checkbox_flag_mapping: Dict[QtWidgets.QCheckBox, str] = {
-                            self.checkBox_write_log: self.write_log_flag
-                            }
-        self.init_flags()	
+    def init_widgets(self) -> None:
+        self.lineEdit_path_edit.setPlaceholderText("Current folder path...")
+        self.lineEdit_path_edit.returnPressed.connect(self.navigate_to_path)
+
+    def navigate_to_path(self):
+        """Переход по указанному пути"""
+        path = self.lineEdit_path_edit.text()
+        if os.path.exists(path):
+            self.load_folder(path)
+        else:
+            QMessageBox.warning(self, "Path Error", "The specified path does not exist")
+
+    def load_folder(self, folder_path):
+        """Загружает папку в файловую модель"""
+        if not os.path.isdir(folder_path):
+            return
+            
+        self.current_folder = folder_path
+        self.lineEdit_path_edit.setText(folder_path)
         
-        if __name__ != "__main__":
-            self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog
-            self.logger = self.parent.logger
-            self.w_ser_dialog.coroutine_finished.connect(self.init_mb_cmd)
-            self.task_manager = AsyncTaskManager(self.logger)
-            self.pushButton_hist_run_measure.clicked.connect(self.pushButton_hist_run_measure_handler)
-        else:
-            self.task_manager = AsyncTaskManager()
-            self.logger = PrintLogger()
-
-    def init_flags(self):
-        for checkBox, flag in self.checkbox_flag_mapping.items():
-            checkBox.setChecked(self.flags[flag])
-        for checkbox, flag_name in self.checkbox_flag_mapping.items():
-            checkbox.clicked.connect(lambda state: self.flag_exhibit(state, flag_name))
-
-    @qasync.asyncSlot()
-    async def init_mb_cmd(self) -> None:
-        mpp_id = self.w_ser_dialog.mpp_id
-        self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
-        self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
-
-    @qasync.asyncSlot()
-    async def pushButton_hist_run_measure_handler(self) -> None:
-        """Запуск асинхронной задачи. Создаем задачи asyncio_measure_loop_request и 
-        asyncio__loop_request через creator_asyncio_tasks
-        asyncio_ACQ_loop_request для непрерывного получения данных АЦП
-        asyncio_HH_loop_request для непрерывного получения данных гистограмм МПП
-        """
-        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if self.w_ser_dialog.pushButton_connect_flag != 0:
-            self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag] 
-            if self.flags[self.start_measure_flag]:
-                self.pushButton_hist_run_measure.setText("Остановить изм.")
-                try:
-                    self.task_manager.create_task(HH_task(), "ACQ_task")
-                    # await ACQ_task()
-                except Exception as e:
-                    self.logger.error(f"Ошибка: {e}")
-            else:
-                # self.graph_done_signal.emit()
-                await self.mpp_cmd.start_measure(on = 0)
-                self.task_manager.cancel_task("ACQ_task")
-                self.pushButton_hist_run_measure.setText("Запустить изм.")
-        else:
-            self.logger.error(f"Нет подключения к ДДИИ")
-
-    async def asyncio_HH_loop_request(self) -> None:
-        """Опрос счетчика частиц
-        """
-        self.graph_widget.hp_sipm.hist_clear()
-        # self.graph_widget.hp_pips.hist_clear()
-        # lvl = int(self.lineEdit_trigger.text())
-        # save: bool = False
-        # if self.flags[self.enable_trig_meas_flag]:
-        #     await self.mpp_cmd.set_level(lvl)
-        #     await self.mpp_cmd.start_measure(on = 1)
-        # self.graph_widget.show()
-        # while 1:
-        #     current_datetime = datetime.datetime.now()
-        #     name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
-        #     self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
+        self.fs_model.setRootPath(folder_path)
+        self.tree_view.setModel(self.fs_model)
+        self.tree_view.setRootIndex(self.fs_model.index(folder_path))
+        self.current_model = "fs"
         
+        # Очищаем область просмотра
+        self.content_view.setText(f"Folder contents: {folder_path}\n\nDouble-click on HDF5 files to open them.")
 
-    
+class HDF5TreeModel(QAbstractItemModel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.root_item = {"name": "Root", "path": "", "item": None, "parent": None, "children": []}
+        self.hdf5_file = None
+        self.file_path = ""
 
+    def load_hdf5(self, file_path):
+        try:
+            if self.hdf5_file:
+                self.hdf5_file.close()
+                
+            self.hdf5_file = h5py.File(file_path, 'r')
+            self.file_path = file_path
+            
+            self.root_item = {
+                "name": os.path.basename(file_path),
+                "path": "/",
+                "item": self.hdf5_file,
+                "parent": None,
+                "children": []
+            }
+            
+            self.beginResetModel()
+            self._populate_children(self.root_item)
+            self.endResetModel()
+            return True
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"Failed to open HDF5 file: {str(e)}")
+            return False
 
-    def flag_exhibit(self, state, flag: str):
-        if state > 1:
-            self.flags[flag] = True
+    def _populate_children(self, parent_item):
+        if not isinstance(parent_item["item"], h5py.Group):
+            return
+            
+        for name, item in parent_item["item"].items():
+            child_path = parent_item["path"] + "/" + name if parent_item["path"] != "/" else "/" + name
+            child = {
+                "name": name,
+                "path": child_path,
+                "item": item,
+                "parent": parent_item,
+                "children": []
+            }
+            parent_item["children"].append(child)
+            
+            if isinstance(item, h5py.Group):
+                self._populate_children(child)
+
+    def index(self, row, column, parent=QModelIndex()):
+        if not self.hasIndex(row, column, parent):
+            return QModelIndex()
+            
+        if not parent.isValid():
+            parent_item = self.root_item
         else:
-            self.flags[flag] = False
+            parent_item = parent.internalPointer()
+            
+        if row < len(parent_item["children"]):
+            child_item = parent_item["children"][row]
+            return self.createIndex(row, column, child_item)
+            
+        return QModelIndex()
+
+    def parent(self, index):
+        if not index.isValid():
+            return QModelIndex()
+            
+        child_item = index.internalPointer()
+        parent_item = child_item["parent"]
+        
+        if parent_item is None or parent_item == self.root_item:
+            return QModelIndex()
+            
+        grandparent = parent_item["parent"]
+        if grandparent is None:
+            return QModelIndex()
+            
+        row = grandparent["children"].index(parent_item)
+        return self.createIndex(row, 0, parent_item)
+
+    def rowCount(self, parent=QModelIndex()):
+        if parent.column() > 0:
+            return 0
+            
+        if not parent.isValid():
+            parent_item = self.root_item
+        else:
+            parent_item = parent.internalPointer()
+            
+        return len(parent_item["children"])
+
+    def columnCount(self, parent=QModelIndex()):
+        return 1
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None
+            
+        item = index.internalPointer()
+        
+        if role == Qt.ItemDataRole.DisplayRole:
+            return item["name"]
+            
+        return None
+
+    def headerData(self, section, orientation, role):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            return "HDF5 Structure"
+        return None
+
+    def hasChildren(self, parent=QModelIndex()):
+        if not parent.isValid():
+            return True
+            
+        item = parent.internalPointer()
+        return len(item["children"]) > 0
+
+    def close_file(self):
+        if self.hdf5_file is not None:
+            self.hdf5_file.close()
+            self.hdf5_file = None
+            self.beginResetModel()
+            self.root_item = {"name": "Root", "path": "", "item": None, "parent": None, "children": []}
+            self.endResetModel()
