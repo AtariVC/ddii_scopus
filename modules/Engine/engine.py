@@ -28,12 +28,12 @@ from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
 from src.log_config import log_init, log_s                          # noqa: E402
 from style.styleSheet import widget_led_on, widget_led_off          # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
-from modules.Engine.widgets.graph_widget import GraphWidget         # noqa: E402
-from modules.Engine.widgets.run_meas_widget import RunMeasWidget    # noqa: E402
-from modules.Engine.widgets.flux_widget import FluxWidget           # noqa: E402
-from modules.Engine.widgets.run_flux_widget import RunFluxWidget    # noqa: E402
-from modules.Engine.widgets.graph_viewer_widget import GraphViewerWidget    # noqa: E402
-from modules.Engine.widgets.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
+from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget         # noqa: E402
+from modules.Engine.widgets.oscilloscope.run_meas_widget import RunMeasWidget    # noqa: E402
+from modules.Engine.widgets.oscilloscope.flux_widget import FluxWidget           # noqa: E402
+from modules.Engine.widgets.oscilloscope.run_flux_widget import RunFluxWidget    # noqa: E402
+from modules.Engine.widgets.viewer.graph_viewer_widget import GraphViewerWidget    # noqa: E402
+from modules.Engine.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
 from src.craft_custom_widget import add_serial_widget
 from src.main_window_maker import create_split_widget, clear_left_widget, create_tab_widget_items
 
