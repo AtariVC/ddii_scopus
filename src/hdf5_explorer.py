@@ -1,9 +1,10 @@
 import sys
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QLineEdit, QTreeView, QSplitter, QLabel,
-                             QFileDialog, QMessageBox, QPushButton)
-from PyQt6.QtGui import QFileSystemModel
-from PyQt6.QtCore import Qt, QDir, QModelIndex, QAbstractItemModel
+                             QFileDialog, QMessageBox, QPushButton, 
+                             QTableView, QHeaderView)
+from PyQt6.QtGui import QFileSystemModel, QStandardItemModel, QStandardItem
+from PyQt6.QtCore import Qt, QDir, QModelIndex, QAbstractItemModel, QFileInfo
 import h5py
 import os
 import time
@@ -139,12 +140,15 @@ class HDF5TreeModel(QAbstractItemModel):
 class HDF5Explorer(QWidget):
     def __init__(self):
         super().__init__()
-        self.init_ui()
         self.hdf5_model = HDF5TreeModel()
         self.fs_model = QFileSystemModel()
         self.fs_model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
+        self.table_model = QStandardItemModel()
         self.current_model = None
-        self.current_folder = os.path.expanduser("~")  # Начинаем с домашней директории
+        self.current_folder = os.path.expanduser("~")
+        self.history = []
+        self.history_index = -1
+        self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle('HDF5 Explorer')
@@ -155,94 +159,151 @@ class HDF5Explorer(QWidget):
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
 
-        # Path navigation bar
+        # Path navigation
         path_layout = QHBoxLayout()
         
-        # Кнопка "Назад"
         self.back_button = QPushButton("←")
         self.back_button.setFixedWidth(40)
         self.back_button.clicked.connect(self.navigate_back)
         path_layout.addWidget(self.back_button)
         
-        # Кнопка "Вперед"
         self.forward_button = QPushButton("→")
         self.forward_button.setFixedWidth(40)
-        self.forward_button.clicked.connect(self.navigate_forward)
+        self.forward_button.setEnabled(False)
         path_layout.addWidget(self.forward_button)
         
-        # Кнопка "Вверх"
         self.up_button = QPushButton("↑")
         self.up_button.setFixedWidth(40)
         self.up_button.clicked.connect(self.navigate_up)
         path_layout.addWidget(self.up_button)
         
-        # Поле пути
         self.path_edit = QLineEdit()
         self.path_edit.setPlaceholderText("Current folder path...")
         self.path_edit.returnPressed.connect(self.navigate_to_path)
         path_layout.addWidget(self.path_edit, 5)
         
-        # Кнопка обновления
         self.refresh_button = QPushButton("↻")
         self.refresh_button.setFixedWidth(40)
         self.refresh_button.clicked.connect(self.refresh_view)
         path_layout.addWidget(self.refresh_button)
         
-        # Кнопка выбора папки
         self.browse_button = QPushButton("Browse...")
         self.browse_button.clicked.connect(self.browse_folder)
         path_layout.addWidget(self.browse_button)
         
         main_layout.addLayout(path_layout)
 
-        # Splitter for tree and content view
+        # Splitter for views
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
+        # Left panel with tree and table
+        left_panel = QSplitter(Qt.Orientation.Vertical)
+        
         # Tree view
         self.tree_view = QTreeView()
         self.tree_view.setHeaderHidden(True)
         self.tree_view.doubleClicked.connect(self.on_item_double_clicked)
-        splitter.addWidget(self.tree_view)
+        left_panel.addWidget(self.tree_view)
+        
+        # Table view
+        self.tableView = QTableView()
+        self.tableView.setModel(self.table_model)
+        
+        # Configure table header after model is set
+        header = self.tableView.horizontalHeader()
+        if header:  # Проверяем, что заголовок существует
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionsMovable(True)
+        
+        left_panel.addWidget(self.tableView)
+        left_panel.setSizes([400, 300])
+        splitter.addWidget(left_panel)
 
         # Content view
         self.content_view = QLabel()
         self.content_view.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.content_view.setWordWrap(True)
-        self.content_view.setStyleSheet("padding: 15px; background-color: #f8f8f8; font-family: monospace;")
+        self.content_view.setStyleSheet("""
+            padding: 15px; 
+            background-color: #f8f8f8; 
+            font-family: monospace;
+            border: 1px solid #ddd;
+        """)
         splitter.addWidget(self.content_view)
 
-        splitter.setSizes([400, 800])
+        splitter.setSizes([500, 700])
         main_layout.addWidget(splitter, 1)
         
-        # Загружаем начальную папку
-        # self.load_folder(self.current_folder)
+        # Initial load
+        self.load_folder(self.current_folder)
+
+    def populate_table_view(self, folder_path):
+        """Fill table with folder contents"""
+        self.table_model.clear()
+        self.table_model.setHorizontalHeaderLabels(["Name", "Size", "Modified", "Type"])
+        
+        try:
+            for item in sorted(os.listdir(folder_path)):
+                full_path = os.path.join(folder_path, item)
+                file_info = QFileInfo(full_path)
+                
+                # Name
+                name_item = QStandardItem(item)
+                name_item.setEditable(False)
+                
+                # Size
+                size = file_info.size()
+                size_item = QStandardItem(self.format_size(size))
+                size_item.setEditable(False)
+                
+                # Modified date
+                modified = file_info.lastModified().toString("yyyy-MM-dd HH:mm:ss")
+                modified_item = QStandardItem(modified)
+                modified_item.setEditable(False)
+                
+                # Type
+                file_type = "Folder" if file_info.isDir() else file_info.suffix().upper() + " File"
+                type_item = QStandardItem(file_type)
+                type_item.setEditable(False)
+                
+                self.table_model.appendRow([name_item, size_item, modified_item, type_item])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not read directory: {str(e)}")
+
+    def format_size(self, size):
+        """Format file size in human-readable format"""
+        if size == 0:
+            return "0 B"
+            
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} TB"
 
     def browse_folder(self):
-        """Открывает диалог выбора папки"""
         folder = QFileDialog.getExistingDirectory(self, "Select Folder", self.current_folder)
         if folder:
             self.load_folder(folder)
 
     def navigate_back(self):
-        """Переход к предыдущей папке"""
-        # В реальном приложении нужно реализовать историю навигации
-        parent = os.path.dirname(self.current_folder)
-        if parent != self.current_folder:
-            self.load_folder(parent)
+        if self.history_index > 0:
+            self.history_index -= 1
+            self.load_folder(self.history[self.history_index], add_to_history=False)
 
     def navigate_forward(self):
-        """Переход к следующей папке"""
-        # В реальном приложении нужно реализовать историю навигации
-        pass
+        if self.history_index < len(self.history) - 1:
+            self.history_index += 1
+            self.load_folder(self.history[self.history_index], add_to_history=False)
 
     def navigate_up(self):
-        """Переход на уровень вверх"""
         parent = os.path.dirname(self.current_folder)
         if parent != self.current_folder:
             self.load_folder(parent)
 
     def navigate_to_path(self):
-        """Переход по указанному пути"""
         path = self.path_edit.text()
         if os.path.exists(path):
             self.load_folder(path)
@@ -250,13 +311,32 @@ class HDF5Explorer(QWidget):
             QMessageBox.warning(self, "Path Error", "The specified path does not exist")
 
     def refresh_view(self):
-        """Обновление текущего вида"""
         self.load_folder(self.current_folder)
 
+    def load_folder(self, folder_path, add_to_history=True):
+        if not os.path.isdir(folder_path):
+            return
+            
+        self.current_folder = folder_path
+        self.path_edit.setText(folder_path)
+        
+        if add_to_history:
+            self.history = self.history[:self.history_index+1]
+            self.history.append(folder_path)
+            self.history_index += 1
+            self.back_button.setEnabled(self.history_index > 0)
+            self.forward_button.setEnabled(self.history_index < len(self.history) - 1)
+        
+        self.fs_model.setRootPath(folder_path)
+        self.tree_view.setModel(self.fs_model)
+        self.tree_view.setRootIndex(self.fs_model.index(folder_path))
+        self.current_model = "fs"
+        
+        self.populate_table_view(folder_path)
+        self.content_view.setText(f"Folder: {folder_path}")
+
     def load_hdf5_file(self, file_path):
-        """Загружает HDF5 файл в модель"""
         if self.hdf5_model.load_hdf5(file_path):
-            # Устанавливаем путь к папке, содержащей файл
             folder_path = os.path.dirname(file_path)
             self.path_edit.setText(folder_path)
             self.current_folder = folder_path
@@ -265,98 +345,50 @@ class HDF5Explorer(QWidget):
             self.current_model = "hdf5"
             self.tree_view.expandAll()
             
-            # Очищаем область просмотра
-            self.content_view.setText("HDF5 file loaded. Double-click on items to view details.")
-
-    def load_folder(self, folder_path):
-        """Загружает папку в файловую модель"""
-        if not os.path.isdir(folder_path):
-            return
+            self.table_model.clear()
+            self.table_model.setHorizontalHeaderLabels(["HDF5 File Contents"])
             
-        self.current_folder = folder_path
-        self.path_edit.setText(folder_path)
-        
-        self.fs_model.setRootPath(folder_path)
-        self.tree_view.setModel(self.fs_model)
-        self.tree_view.setRootIndex(self.fs_model.index(folder_path))
-        self.current_model = "fs"
-        
-        # Очищаем область просмотра
-        self.content_view.setText(f"Folder contents: {folder_path}\n\nDouble-click on HDF5 files to open them.")
+            self.content_view.setText(f"HDF5 file: {os.path.basename(file_path)}")
 
     def on_item_double_clicked(self, index):
-        """Обработчик двойного клика на элементе"""
         if not index.isValid():
             return
             
-        # Для HDF5 модели
         if self.current_model == "hdf5":
             item = index.internalPointer()
             h5_item = item["item"]
             
             content = ""
             if isinstance(h5_item, h5py.Group):
-                content = f"Group: {item['path']}\n\n"
-                content += f"Attributes:\n"
-                for attr_name, attr_value in h5_item.attrs.items():
-                    content += f"  {attr_name}: {attr_value}\n"
-                
-                content += f"\nContents ({len(h5_item)} items):\n"
+                content = f"Group: {item['path']}\n\nContents:\n"
                 for name in h5_item:
-                    content += f"  {name}\n"
+                    content += f"{name}\n"
             elif isinstance(h5_item, h5py.Dataset):
                 content = f"Dataset: {item['path']}\n\n"
                 content += f"Shape: {h5_item.shape}\n"
-                content += f"Dtype: {h5_item.dtype}\n"
-                content += f"Size: {h5_item.size} elements\n\n"
-                
-                # Показываем атрибуты
-                if h5_item.attrs:
-                    content += "Attributes:\n"
-                    for attr_name, attr_value in h5_item.attrs.items():
-                        content += f"  {attr_name}: {attr_value}\n"
-                    content += "\n"
-                
-                # Показываем данные для небольших наборов
+                content += f"Dtype: {h5_item.dtype}\n\n"
                 if h5_item.size <= 100:
-                    content += "Data:\n"
-                    try:
-                        content += str(h5_item[()])
-                    except:
-                        content += "Unable to display data"
+                    content += f"Data:\n{h5_item[()]}"
                 else:
                     content += "First 10 elements:\n"
-                    try:
-                        if len(h5_item.shape) > 1:
-                            content += str(h5_item[0, :10])
-                        else:
-                            content += str(h5_item[:10])
-                    except:
-                        content += "Unable to display data"
+                    content += str(h5_item[:10])
             
             self.content_view.setText(content)
         
-        # Для файловой системы
         elif self.current_model == "fs":
             path = self.fs_model.filePath(index)
             
-            # Если это папка - открываем ее
             if os.path.isdir(path):
                 self.load_folder(path)
-            # Если это HDF5 файл - открываем его
             elif os.path.isfile(path) and (path.lower().endswith('.hdf5') or path.lower().endswith('.h5')):
                 self.load_hdf5_file(path)
             else:
-                # Для других файлов показываем информацию
                 try:
                     content = f"File: {os.path.basename(path)}\n"
-                    content += f"Path: {path}\n"
                     content += f"Size: {os.path.getsize(path)} bytes\n"
-                    content += f"Created: {time.ctime(os.path.getctime(path))}\n"
                     content += f"Modified: {time.ctime(os.path.getmtime(path))}\n\n"
                     
-                    # Пытаемся прочитать текстовые файлы
-                    if os.path.getsize(path) < 1000000:  # Читаем только файлы меньше 1MB
+                    if os.path.getsize(path) < 1000000:
                         try:
                             with open(path, 'r', encoding='utf-8') as f:
                                 preview = f.read(1000)
@@ -371,12 +403,10 @@ class HDF5Explorer(QWidget):
                     self.content_view.setText(f"Error reading file: {str(e)}")
 
     def dragEnterEvent(self, event):
-        """Разрешаем drag-and-drop для файлов и папок"""
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
 
     def dropEvent(self, event):
-        """Обработка drop событий"""
         urls = event.mimeData().urls()
         if urls:
             path = urls[0].toLocalFile()
@@ -389,7 +419,6 @@ class HDF5Explorer(QWidget):
                 QMessageBox.warning(self, "Unsupported", "Only HDF5 files and folders are supported")
 
     def closeEvent(self, event):
-        """Закрываем файл при закрытии приложения"""
         self.hdf5_model.close_file()
         event.accept()
 
