@@ -178,7 +178,7 @@
       <number>5</number>
      </property>
      <item>
-      <widget class="QColumnView" name="columnView_explorer"/>
+      <widget class="QTreeView" name="treeView_file_tree"/>
      </item>
     </layout>
    </item>
