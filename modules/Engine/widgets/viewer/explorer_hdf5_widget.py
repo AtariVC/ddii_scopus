@@ -34,8 +34,12 @@ from qtpy.uic import loadUi
 
 ####### импорты из других директорий ######
 # /src
-src_path = Path(__file__).resolve().parent.parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent.parent
+if __name__ != "__main__":
+    src_path = Path(__file__).resolve().parents[4]
+    modules_path = Path(__file__).resolve().parents[3]
+else:
+    src_path = Path(__file__).resolve().parents[4]
+    modules_path = Path(__file__).resolve().parents[3]
 # Добавляем папку src в sys.path
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
@@ -47,6 +51,8 @@ sys.path.append(str(modules_path))
 # from src.modbus_worker import ModbusWorker  # noqa: E402
 # from src.parsers import Parsers  # noqa: E402
 # from src.print_logger import PrintLogger  # noqa: E402
+from src.event.event import Event  # noqa: E402
+
 
 
 class ExplorerHDF5Widget(QtWidgets.QDialog):
@@ -63,19 +69,24 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         loadUi(Path(__file__).parent.joinpath("explorer_hdf5_widget.ui"), self)
         self.history = []
         self.history_index = -1
+        self.double_clicked_event = Event(str)
         if __name__ != "__main__":
             self.parent = args[0]
-        self.hdf5_model = HDF5TreeModel()
+        # self.hdf5_model = HDF5TreeModel()
         self.fs_model = QFileSystemModel()
         self.fs_model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
         self.current_model = None
         self.current_folder = str(
-            Path(__file__).parents[4].joinpath("log")
+            Path(__file__).parents[4].joinpath("log/output_graph_data")
         )  # Начинаем с домашней директории
         self.load_folder(self.current_folder)
+        self.init_widget()
 
     def init_widget(self):
-        self.treeView_file_tree.setHeaderHidden(True)
+        self.treeView_file_tree.setHeaderHidden(False)
+        self.treeView_file_tree.hideColumn(2)
+        self.treeView_file_tree.setColumnWidth(0, 200)
+        self.treeView_file_tree.resizeColumnToContents(2)
         self.treeView_file_tree.doubleClicked.connect(self.on_item_double_clicked)
         self.lineEdit_path_edit.setPlaceholderText("Current folder path...")
         self.lineEdit_path_edit.returnPressed.connect(self.navigate_to_path)
@@ -96,9 +107,9 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
     def on_item_double_clicked(self, index):
         if not index.isValid():
             return
-        if self.current_model == "hdf5":
-            item = index.internalPointer()
-            h5_item = item["item"]
+        # if self.current_model == "hdf5":
+        #     item = index.internalPointer()
+        #     h5_item = item["item"]
 
         elif self.current_model == "fs":
             path = self.fs_model.filePath(index)
@@ -106,7 +117,8 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
             if os.path.isdir(path):
                 self.load_folder(path)
             elif os.path.isfile(path) and (path.lower().endswith(".hdf5") or path.lower().endswith(".h5")):
-                self.load_hdf5_file(path)
+                # self.load_hdf5_file(path)
+                self.double_clicked_event.emit(path)
 
     def load_folder(self, folder_path, add_to_history=True):
         if not os.path.isdir(folder_path):
@@ -128,15 +140,15 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         self.treeView_file_tree.setRootIndex(self.fs_model.index(folder_path))
         self.current_model = "fs"
 
-    def load_hdf5_file(self, file_path):
-        if self.hdf5_model.load_hdf5(file_path):
-            folder_path = os.path.dirname(file_path)
-            self.lineEdit_path_edit.setText(folder_path)
-            self.current_folder = folder_path
+    # def load_hdf5_file(self, file_path):
+        # if self.hdf5_model.load_hdf5(file_path):
+        #     folder_path = os.path.dirname(file_path)
+        #     self.lineEdit_path_edit.setText(folder_path)
+        #     self.current_folder = folder_path
 
-            self.treeView_file_tree.setModel(self.hdf5_model)
-            self.current_model = "hdf5"
-            self.treeView_file_tree.expandAll()
+            # self.treeView_file_tree.setModel(self.hdf5_model)
+            # self.current_model = "hdf5"
+            # self.treeView_file_tree.expandAll()
 
 
 class HDF5TreeModel(QAbstractItemModel):

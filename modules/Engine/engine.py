@@ -93,8 +93,8 @@ class Engine(QtWidgets.QMainWindow):
         self.w_ser_dialog: SerialConnect = SerialConnect(self.logger)
         self.flux_widget: FluxWidget = FluxWidget(self)
         self.run_flux_widget: RunFluxWidget = RunFluxWidget(self)
-        self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget() 
         self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget(self)
+        self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self) 
         self.client = self.w_ser_dialog.client
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
         model = self.widget_model()

@@ -22,6 +22,7 @@ modules_path = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
+
 from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
 from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
 from src.async_task_manager import AsyncTaskManager  # noqa: E402

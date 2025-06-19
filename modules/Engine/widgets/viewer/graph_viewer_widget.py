@@ -10,19 +10,21 @@ from dataclasses import dataclass
 
 ####### импорты из других директорий ######
 # /src
-src_path = Path(__file__).resolve().parent.parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent.parent
+
+src_path = Path(__file__).resolve().parents[4]
+# modules_path = Path(__file__).resolve().parent
 # Добавляем папку src в sys.path
 sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
+# sys.path.append(str(modules_path))
 
-from src.modbus_worker import ModbusWorker                          # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
-from src.parsers import  Parsers                                    # noqa: E402
-from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
-from src.log_config import log_init, log_s                          # noqa: E402
-from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
-from src.plot_renderer import GraphPen, HistPen                     # noqa: E402
+# from src.modbus_worker import ModbusWorker                          # noqa: E402
+# from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
+# from src.parsers import  Parsers                                    # noqa: E402
+# from modules.Main_Serial.main_serial_dialog import SerialConnect    # noqa: E402
+# from src.log_config import log_init, log_s                          # noqa: E402
+# from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
+from src.plot_renderer import GraphPen, HistPen                       # noqa: E402
+from src.event.event import Event                                     # noqa: E402
 
 
 
@@ -36,22 +38,31 @@ class GraphViewerWidget(QtWidgets.QWidget):
     horizontalSlider_time_scale     : QtWidgets.QSlider
 
 
-    def __init__(self) -> None:
+    def __init__(self, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).parent.joinpath('graph_viewer_widget.ui'), self)
-        self.mw = ModbusWorker()
-        self.parser = Parsers()
+        self.pen_init()
+        if __name__ != "__main__":
+            self.parent = args[0]
+            self.parent.explorer_hdf5_widget.double_clicked_event.subscribe(self.open_graphs)
+        
+
+
+
+    def pen_init(self) -> None:
         self.task = None # type: ignore
         self.gp_pips = GraphPen(layout = self.vLayout_pips, name = "pips", color = (255, 255, 0))
         self.gp_sipm = GraphPen(layout = self.vLayout_sipm, name = "sipm", color = (0, 255, 255))
         self.hp_pips = HistPen(layout = self.vLayout_hist_pips, name = "h_pips", color = (0, 0, 255, 150))
         self.hp_sipm = HistPen(layout = self.vLayout_hist_sipm, name = "h_sipm", color = (255, 0, 0, 150))
 
+    def open_graphs(self, path: str) -> None:
+        """Открывает графики из файла"""
+        print(f"Open graphs from {path}")
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
-    # light(app)
-    logger = log_init()
     w: GraphViewerWidget = GraphViewerWidget()
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
