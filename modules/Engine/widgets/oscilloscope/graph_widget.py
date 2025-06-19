@@ -44,8 +44,8 @@ class GraphWidget(QtWidgets.QWidget):
         self.task = None # type: ignore
         self.gp_pips = GraphPen(layout = self.vLayout_pips, name = "pips", color = (255, 255, 0))
         self.gp_sipm = GraphPen(layout = self.vLayout_sipm, name = "sipm", color = (0, 255, 255))
-        self.hp_pips = HistPen(layout = self.vLayout_hist_pips, name = "h_pips", color = (0, 0, 255, 150))
-        self.hp_sipm = HistPen(layout = self.vLayout_hist_sipm, name = "h_sipm", color = (255, 0, 0, 150))
+        self.hp_pips = HistPen(layout = self.vLayout_hist_pips, name = "h_pips", color = (255, 0, 0, 150))
+        self.hp_sipm = HistPen(layout = self.vLayout_hist_sipm, name = "h_sipm", color = (0, 0, 255, 150))
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
