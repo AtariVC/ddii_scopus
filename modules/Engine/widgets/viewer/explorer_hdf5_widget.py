@@ -70,7 +70,7 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         self.fs_model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
         self.current_model = None
         self.current_folder = str(
-            Path(__file__).parents[4].joinpath("log/output_graph_data")
+            Path(__file__).parents[4].joinpath("log")
         )  # Начинаем с домашней директории
         self.load_folder(self.current_folder)
 
