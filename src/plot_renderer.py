@@ -38,7 +38,7 @@ class GraphPen():
         
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data: list, name_file_save_data: str, name_data: Optional[str] = None, save_log=False, clear=False):
+    async def draw_graph(self, data: list, name_file_save_data: Optional[str] = None, name_data: Optional[str] = None, save_log=False, clear=False):
         #### Path ####
         self.parent_path: Path = Path("./log/output_graph_data").resolve()
         current_datetime = datetime.datetime.now()
@@ -47,7 +47,7 @@ class GraphPen():
         try:
             if any(isinstance(item, float) for item in data):
                 data = list(map(int, data))
-                print(f"Данные преобразованы в int")
+                # print(f"Данные преобразованы в int")
             x, y = await self._prepare_graph_data(data)
             if clear:
                 self.plt_widget.clear()
@@ -148,7 +148,7 @@ class HistPen():
 
     @qasync.asyncSlot()
     async def _draw_graph(self, data: list[int | float],
-                    name_file_save_data: str, name_data: str,
+                    name_file_save_data: Optional[str] = None, name_data: Optional[str] = None,
                     save_log: Optional[bool] = False,
                     clear: Optional[bool] = False) -> None:
         if clear:
@@ -191,14 +191,14 @@ class HistPen():
         
         if save_log:
             self._save_graph_data(self.bins.tolist()[:-1], y.tolist(), name_file_save_data,     name_data)
-    
-    def _save_graph_data(self, x: list, y: list, filename, name_data: str):
+
+    def _save_graph_data(self, x: list, y: list, filename, name_data):
         """Сохранение данных графика"""
         write_to_hdf5_file([x, y], self.name_frame, self.path_to_save, name_file_hdf5=filename, name_data=name_data)
 
     @qasync.asyncSlot()
     async def draw_hist(self, data: Sequence[Union[int, float]], 
-                    name_file_save_data: str, name_data: str,
+                    name_file_save_data: Optional[str] = None, name_data: Optional[str] = None,
                     filter: Optional[Callable] = None,
                     save_log: Optional[bool] = False,
                     clear: Optional[bool] = False) -> None:
@@ -218,7 +218,7 @@ class HistPen():
             filtered_value = filter(data)
             plot_data = [filtered_value] if filtered_value is not None else []
         else:
-            plot_data = [max(data)] if data else []
+            plot_data = [max(data)]
 
         await self._draw_graph(plot_data, name_file_save_data, name_data, save_log)
 

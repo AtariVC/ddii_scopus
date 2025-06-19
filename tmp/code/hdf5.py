@@ -55,7 +55,6 @@ def hdf5_to_csv(hdf5_file, output_dir):
                     file.write("\n".join(map(str, data)))
                 print(f"Данные из {group_name}/{dataset_name} сохранены в {txt_file}")
 
-# Основной блок кода
 if __name__ == "__main__":
     # Путь к файлу HDF5
     hdf5_file = Path("./data.hdf5")
