@@ -151,32 +151,38 @@ class HistPen():
                     name_file_save_data: Optional[str] = None, name_data: Optional[str] = None,
                     save_log: Optional[bool] = False,
                     clear: Optional[bool] = False,
-                    bins: Optional[list | np.ndarray] = None) -> None:
+                    bins: Optional[list | np.ndarray] = None,
+                    calculate_hist: Optional[bool] = True,
+                    autoscale: Optional[bool] = True) -> None:
         if clear:
             self.hist_clear()
         if not data:
             return
         if bins is None:
             bins = self.bins
-
-        y, x = np.histogram(data, bins)
+        
+        if calculate_hist:
+            y, x = np.histogram(data, bins)
+        else:
+            y, x = data, bins
         
         # Фильтрация выбросов и установка разумного диапазона X
-        if len(y) > 0:
-            non_zero_indices = np.where(y > 0)[0]
+        if autoscale:
+            if len(y) > 0:
+                non_zero_indices = np.where(np.array(y) > 0)[0]
+                
+                if len(non_zero_indices) > 0:
+                    # Берем 1-й и 99-й перцентили для отсечения выбросов
+                    lower_idx = max(0, int(np.percentile(non_zero_indices, 25))     - 1)
+                    upper_idx = min(len(x)-1, int(np.percentile (non_zero_indices, 85)) + 1)
+                    
+                    # Устанавливаем диапазон с небольшим запасом
+                    padding = 10
+                    x_min = max(0, x[lower_idx] - padding)
+                    x_max = x[upper_idx] + padding
+                    
+                    self.hist_widget.setXRange(x_min, x_max)
             
-            if len(non_zero_indices) > 0:
-                # Берем 1-й и 99-й перцентили для отсечения выбросов
-                lower_idx = max(0, int(np.percentile(non_zero_indices, 25)) - 1)
-                upper_idx = min(len(x)-1, int(np.percentile(non_zero_indices, 85)) + 1)
-                
-                # Устанавливаем диапазон с небольшим запасом
-                padding = 10
-                x_min = max(0, x[lower_idx] - padding)
-                x_max = x[upper_idx] + padding
-                
-                self.hist_widget.setXRange(x_min, x_max)
-        
         # обновляем контур
         if self.hist_outline_item is None:
             self.hist_outline_item = pg.PlotDataItem(x, y, pen=self.outline_pen, stepMode=True,     fillLevel=0)

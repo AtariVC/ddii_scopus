@@ -230,7 +230,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         # counter_clear = 0
         data: list[int] = []
         accumulate_data = np.array([0]*12)
-        bins = np.linspace(1, 13, 12)
+        bins = [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000] #np.linspace(1, 13, 12)
         while 1:
             # counter_clear += 1
             # if counter_clear > 50:
@@ -257,8 +257,8 @@ class RunMeasWidget(QtWidgets.QDialog):
             
             try:
                 data = result_hist32_int + result_hist16_int
-                accumulate_data += np.array(data)
-                await self.graph_widget.hp_counter._draw_graph(list(accumulate_data), name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, bins = bins)  # type: ignore
+                # accumulate_data += np.array(data)
+                await self.graph_widget.hp_counter._draw_graph(data, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, bins = bins, calculate_hist=False, autoscale=False)  # type: ignore
             except asyncio.exceptions.CancelledError as e:
                 print(e)
                 return None
