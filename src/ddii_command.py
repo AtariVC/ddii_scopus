@@ -338,6 +338,18 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
+    async def get_hist(self):
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HH, 
+                                                                            8,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+
     async def start_measure_forced(self, ch: Optional[int] = None) -> bytes:
         try:
             if ch:
