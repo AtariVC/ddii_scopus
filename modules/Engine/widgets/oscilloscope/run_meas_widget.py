@@ -69,6 +69,12 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.parser = Parsers()
         self.graph_widget: GraphWidget = self.parent.w_graph_widget
         self.ACQ_task_sync_time_event = Event(str)
+        self.get_electron_hist_event = Event(list)
+        self.get_proton_hist_event = Event(list)
+        self.get_hcp_hist_event = Event(list)
+        self.get_electron_hist_event.subscribe(self.parent.flux_widget.update_gui_data_electron)
+        self.get_proton_hist_event.subscribe(self.parent.flux_widget.update_gui_data_proton)
+        self.get_hcp_hist_event.subscribe(self.parent.flux_widget.update_gui_data_hcp)
         self.filtrs_data: FiltrsData = FiltrsData() 
         self.hist_filters= None
         self.enable_test_csa_flag: str = "enable_test_csa_flag"
@@ -82,7 +88,8 @@ class RunMeasWidget(QtWidgets.QDialog):
                     self.start_measure_flag: False,
                     self.wr_log_flag: False,
                     self.request_hist_flag: True}
-
+        
+        
         self.checkbox_flag_mapping = {
         self.checkBox_enable_test_csa: self.enable_test_csa_flag,
         self.checkBox_enable_trig_meas: self.enable_trig_meas_flag,
@@ -92,8 +99,6 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.init_flags()
         self.init_combobox_filtrer()
 
-        current_datetime = datetime.datetime.now()
-        self.name_file_save: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
 
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog
@@ -110,6 +115,10 @@ class RunMeasWidget(QtWidgets.QDialog):
     def init_flags(self):
         for checkBox, flag in self.checkbox_flag_mapping.items():
             checkBox.setChecked(self.flags[flag])
+            if flag == self.request_hist_flag:
+                self.parent.run_flux_widget.pushButton_hist_run_measure.setEnabled(not self.flags[flag])
+                self.parent.run_flux_widget.lineEdit_interval_request.setEnabled(not self.flags[flag])
+                self.parent.run_flux_widget.checkBox_write_log.setEnabled(not self.flags[flag])
         for checkbox, flag_name in self.checkbox_flag_mapping.items():
             checkbox.clicked.connect(partial(self.flag_exhibit, flag=flag_name))
     
@@ -146,6 +155,8 @@ class RunMeasWidget(QtWidgets.QDialog):
             if self.flags[self.start_measure_flag]:
                 self.pushButton_run_measure.setText("Остановить изм.")
                 # TODO: сделать чек боксы не активными
+                current_datetime = datetime.datetime.now()
+                self.name_file_save: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
                 try:
                     self.task_manager.create_task(ACQ_task(), "ACQ_task")
                     if self.flags[self.request_hist_flag]:
@@ -157,6 +168,9 @@ class RunMeasWidget(QtWidgets.QDialog):
                 # self.graph_done_signal.emit()
                 await self.mpp_cmd.start_measure(on = 0)
                 self.task_manager.cancel_task("ACQ_task")
+                if self.flags[self.request_hist_flag]:
+                    await self.mpp_cmd.clear_hist()
+                    self.task_manager.cancel_task("HH_task")
                 self.pushButton_run_measure.setText("Запустить изм.")
         else:
             self.logger.error(f"Нет подключения к ДДИИ")
@@ -165,45 +179,43 @@ class RunMeasWidget(QtWidgets.QDialog):
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
             print("Task1")
-            # self.graph_widget.hp_sipm.hist_clear()
-            # self.graph_widget.hp_pips.hist_clear()
-            # lvl = int(self.lineEdit_trigger.text())
-            # save: bool = False
-            # if self.flags[self.enable_trig_meas_flag]:
-            #     await self.mpp_cmd.set_level(lvl)
-            #     await self.mpp_cmd.start_measure(on = 1)
-            # self.graph_widget.show()
-            # while 1:
-            #     current_datetime = datetime.datetime.now()
-            #     name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
-            #     self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
-            #     if not self.flags[self.enable_trig_meas_flag]:
-            #         await self.mpp_cmd.start_measure_forced()
-            #     else:
-            #         await self.mpp_cmd.issue_waveform()
-            #     result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-            #     result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-            #     # result_ch0_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
-            #     # result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
-            #     result_ch0_int: list[int] = await self.parser.mpp_pars_16b(result_ch0)
-            #     result_ch1_int: list[int] = await self.parser.mpp_pars_16b(result_ch1)
-            #     # Сохранять только те данные которые выше порога
-            #     if self.flags[self.wr_log_flag]:
-            #         if max(result_ch0_int)>np.mean(result_ch0_int)*3 or max(result_ch1_int)>np.mean(result_ch1_int)*3:
-            #             save = True
-            #         else:
-            #             save = False
-            #     else:
-            #         save = False
-            #     try:
-            #         data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
-            #         data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
-            #         await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
-            #         await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
-            #     except asyncio.exceptions.CancelledError:
-            #         return None
-                # await self.update_gui_data_label()
-                # break
+            self.graph_widget.hp_sipm.hist_clear()
+            self.graph_widget.hp_pips.hist_clear()
+            lvl = int(self.lineEdit_trigger.text())
+            save: bool = False
+            if self.flags[self.enable_trig_meas_flag]:
+                await self.mpp_cmd.set_level(lvl)
+                await self.mpp_cmd.start_measure(on = 1)
+            self.graph_widget.show()
+            while 1:
+                current_datetime = datetime.datetime.now()
+                name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+                self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
+                if not self.flags[self.enable_trig_meas_flag]:
+                    await self.mpp_cmd.start_measure_forced()
+                else:
+                    await self.mpp_cmd.issue_waveform()
+                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
+                result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+                # result_ch0_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
+                # result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
+                result_ch0_int: list[int] = await self.parser.mpp_pars_16b(result_ch0)
+                result_ch1_int: list[int] = await self.parser.mpp_pars_16b(result_ch1)
+                # Сохранять только те данные которые выше порога
+                if self.flags[self.wr_log_flag]:
+                    if max(result_ch0_int)>np.mean(result_ch0_int)*3 or max(result_ch1_int)>np.mean(result_ch1_int)*3:
+                        save = True
+                    else:
+                        save = False
+                else:
+                    save = False
+                try:
+                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
+                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
+                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+                except asyncio.exceptions.CancelledError:
+                    return None
         except asyncio.CancelledError:
             ...
 
@@ -211,17 +223,32 @@ class RunMeasWidget(QtWidgets.QDialog):
         """Опрос счетчика частиц
         """
         self.graph_widget.hp_counter.hist_clear()
+        await self.mpp_cmd.clear_hist()
+        await self.mpp_cmd.clear_hcp_hist()
         save: bool = False
         self.graph_widget.show()
+        # counter_clear = 0
+        data: list[int] = []
+        accumulate_data = np.array([0]*12)
+        bins = np.linspace(1, 13, 12)
         while 1:
+            # counter_clear += 1
+            # if counter_clear > 50:
+            #     counter_clear = 0
+            #     await self.mpp_cmd.clear_hist()
             current_datetime = datetime.datetime.now()
             name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
             result_hist32: bytes = await self.mpp_cmd.get_hist32()
             result_hist16: bytes = await self.mpp_cmd.get_hist16()
+            result_hcp_hist: bytes = await self.mpp_cmd.get_hcp_hist()
 
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
-
+            result_hcp_hist_int: list[int] = await self.parser.mpp_pars_16b(result_hcp_hist)
+            self.get_electron_hist_event.emit(result_hist32_int)
+            self.get_proton_hist_event.emit(result_hist16_int)
+            self.get_hcp_hist_event.emit(result_hcp_hist_int)
+            
             # Обработчик флага сохранения 
             if self.flags[self.wr_log_flag]:
                 save = True
@@ -230,10 +257,10 @@ class RunMeasWidget(QtWidgets.QDialog):
             
             try:
                 data = result_hist32_int + result_hist16_int
-                print(data)
-                break
-                # await self.graph_widget.hp_counter._draw_graph(data, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
-            except asyncio.exceptions.CancelledError:
+                accumulate_data += np.array(data)
+                await self.graph_widget.hp_counter._draw_graph(list(accumulate_data), name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, bins = bins)  # type: ignore
+            except asyncio.exceptions.CancelledError as e:
+                print(e)
                 return None
 
     def enable_trig_meas_handler(self, state) -> None:
@@ -242,13 +269,14 @@ class RunMeasWidget(QtWidgets.QDialog):
         else:
             self.lineEdit_trigger.setEnabled(False)
 
-    def flag_exhibit(self, state, flag: str):
+    def flag_exhibit(self, state: bool, flag: str):
         if flag == self.enable_trig_meas_flag:
                 self.enable_trig_meas_handler(state)
-        if state:
-            self.flags[flag] = True
-        else:
-            self.flags[flag] = False
+        if flag == self.request_hist_flag:
+            self.parent.run_flux_widget.pushButton_hist_run_measure.setEnabled(not state)
+            self.parent.run_flux_widget.lineEdit_interval_request.setEnabled(not state)
+            self.parent.run_flux_widget.checkBox_write_log.setEnabled(not state)
+        self.flags[flag] = state
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

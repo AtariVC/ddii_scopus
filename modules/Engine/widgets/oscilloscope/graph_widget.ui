@@ -368,7 +368,7 @@
                <string notr="true"/>
               </property>
               <property name="title">
-               <string>Счетчик событий</string>
+               <string>Счетчик событий телескопа</string>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_17">
                <property name="spacing">

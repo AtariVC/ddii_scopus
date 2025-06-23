@@ -127,17 +127,6 @@ class RunFluxWidget(QtWidgets.QDialog):
                 # await self.graph_widget.hp_counter._draw_graph(data, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
             except asyncio.exceptions.CancelledError:
                 return None
-        # self.graph_widget.hp_pips.hist_clear()
-        # lvl = int(self.lineEdit_trigger.text())
-        # save: bool = False
-        # if self.flags[self.enable_trig_meas_flag]:
-        #     await self.mpp_cmd.set_level(lvl)
-        #     await self.mpp_cmd.start_measure(on = 1)
-        # self.graph_widget.show()
-        # while 1:
-        #     current_datetime = datetime.datetime.now()
-        #     name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
-        #     self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
         
 
     

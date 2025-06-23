@@ -150,14 +150,16 @@ class HistPen():
     async def _draw_graph(self, data: list[int | float],
                     name_file_save_data: Optional[str] = None, name_data: Optional[str] = None,
                     save_log: Optional[bool] = False,
-                    clear: Optional[bool] = False) -> None:
+                    clear: Optional[bool] = False,
+                    bins: Optional[list | np.ndarray] = None) -> None:
         if clear:
             self.hist_clear()
         if not data:
             return
-            
-        self.accumulate_data.extend(data)
-        y, x = np.histogram(self.accumulate_data, bins=self.bins)
+        if bins is None:
+            bins = self.bins
+
+        y, x = np.histogram(data, bins)
         
         # Фильтрация выбросов и установка разумного диапазона X
         if len(y) > 0:
@@ -219,7 +221,7 @@ class HistPen():
             plot_data = [filtered_value] if filtered_value is not None else []
         else:
             plot_data = [max(data)]
-
-        await self._draw_graph(plot_data, name_file_save_data, name_data, save_log)
+        self.accumulate_data.extend(plot_data)
+        await self._draw_graph(self.accumulate_data, name_file_save_data, name_data, save_log)
 
 

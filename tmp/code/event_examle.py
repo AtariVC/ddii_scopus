@@ -38,21 +38,21 @@ class Event:
                 
                 
                 
-def callback1(message: str):
-    print(f"Callback 1 received: {message}")
+def callback1(message: list):
+    print(f"Callback 1 received: {message}\n")
 
 def callback2(message: str):
-    print(f"Callback 2 received: {message}")
+    print(f"Callback 2 received: {message}\n")
 
 # Создаем событие, которое передает строку
 event = Event(str)
-
+event1 = Event(list)
 # Подписываем обработчики
-event.subscribe(callback1)
+event1.subscribe(callback1)
 event.subscribe(callback2)
 
 # Имитируем событие - вызовет оба обработчика в отдельных потоках
-event.emit("Hello World!")
+event1.emit([0, 1, 2])
 
 # Отписываем один обработчик
 event.unsubscribe(callback1)

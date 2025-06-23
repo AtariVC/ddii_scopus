@@ -236,7 +236,7 @@ class ModbusMPPCommand(EnvironmentVar):
                                                                             12,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
-            return result.encode()
+            return result.encode()[1:]
         except Exception as e:
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
@@ -248,7 +248,7 @@ class ModbusMPPCommand(EnvironmentVar):
                                                                             6,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
-            return result.encode()
+            return result.encode()[1:]
         except Exception as e:
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
@@ -344,7 +344,7 @@ class ModbusMPPCommand(EnvironmentVar):
                                                                             12,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
-            return result.encode()
+            return result.encode()[1:]
         except Exception as e:
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
@@ -355,6 +355,40 @@ class ModbusMPPCommand(EnvironmentVar):
             result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HIST_16, 
                                                                             6,
                                                                             slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()[1:]
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+    
+    async def get_hcp_hist(self):
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HIST_HCP, 
+                                                                            5,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()[1:]
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+    
+    async def clear_hcp_hist(self):
+        try:
+            result: ModbusResponse = await self.client.write_registers(self.    REG_COMMAND, self.MPP_TRIG_CNT_CLEAR, slave=self.MPP_ID)
+            
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+    
+    async def clear_hist(self):
+        try:
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_HIST_32, [0]*18, slave=self.MPP_ID)
+            
             await log_s(self.mw.send_handler.mess)
             return result.encode()
         except Exception as e:

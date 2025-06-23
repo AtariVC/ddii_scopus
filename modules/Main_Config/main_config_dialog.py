@@ -39,9 +39,9 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
     lineEdit_pwm_pips                   : QtWidgets.QLineEdit
     lineEdit_pwm_ch                     : QtWidgets.QLineEdit
 
-    lineEdit_pwm_max_sipm                   : QtWidgets.QLineEdit
-    lineEdit_pwm_max_pips                   : QtWidgets.QLineEdit
-    lineEdit_pwm_max_ch                     : QtWidgets.QLineEdit
+    lineEdit_pwm_max_sipm               : QtWidgets.QLineEdit
+    lineEdit_pwm_max_pips               : QtWidgets.QLineEdit
+    lineEdit_pwm_max_ch                 : QtWidgets.QLineEdit
 
     lineEdit_lvl_0_1                    : QtWidgets.QLineEdit
     lineEdit_lvl_0_5                    : QtWidgets.QLineEdit
