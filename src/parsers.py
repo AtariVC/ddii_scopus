@@ -251,7 +251,7 @@ class Parsers(ModbusWorker):
                 s_bit += 4
         return d
     
-    async def acq_parser(self, data: bytes) -> list[int]:
+    async def mpp_pars_16b(self, data: bytes) -> list[int]:
         """
         Преобразует кванты АЦП в int
         """
@@ -259,4 +259,9 @@ class Parsers(ModbusWorker):
         return data_out
     
 
-    
+    async def mpp_pars_32b(self, data: bytes) -> list[int]:
+        """
+        Преобразует кванты АЦП в int
+        """
+        data_out = [int.from_bytes(data[i:i+4], byteorder='big') for i in range(0, len(data), 4)]
+        return data_out

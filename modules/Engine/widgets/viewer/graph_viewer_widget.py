@@ -36,6 +36,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
     vLayout_hist_EdE                : QtWidgets.QVBoxLayout
     vLayout_hist_pips               : QtWidgets.QVBoxLayout
     vLayout_hist_sipm               : QtWidgets.QVBoxLayout
+    vLayout_hist_counter            : QtWidgets.QVBoxLayout
     vLayout_pips                    : QtWidgets.QVBoxLayout
     vLayout_sipm                    : QtWidgets.QVBoxLayout
     label_counter_data              : QtWidgets.QLabel
@@ -57,6 +58,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.name_pen_sipm = "sipm"
         self.name_pen_h_pips = "h_pips"
         self.name_pen_h_sipm = "h_sipm"
+        self.name_pen_counter = "h_counter"
         self.amount_measurements = 0
         self.measure_time_list = []
         self.dataset_pips: dict = {}
@@ -67,6 +69,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.gp_sipm = GraphPen(layout = self.vLayout_sipm, name = self.name_pen_sipm, color = (0, 255, 255))
         self.hp_pips = HistPen(layout = self.vLayout_hist_pips, name = self.name_pen_h_pips, color = (255, 0, 0, 150))
         self.hp_sipm = HistPen(layout = self.vLayout_hist_sipm, name = self.name_pen_h_sipm, color = (0, 0, 255, 150))
+        self.counter_h = HistPen(layout = self.vLayout_hist_counter, name = self.name_pen_counter, color = (123, 195, 121, 150))
 
 
 

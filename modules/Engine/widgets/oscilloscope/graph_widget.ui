@@ -387,7 +387,7 @@
                 <number>2</number>
                </property>
                <item>
-                <layout class="QVBoxLayout" name="vLayout_hist_EdE">
+                <layout class="QVBoxLayout" name="vLayout_hist_counter">
                  <property name="spacing">
                   <number>0</number>
                  </property>

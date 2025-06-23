@@ -11,7 +11,7 @@ import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
-
+import datetime
 
 ####### импорты из других директорий ######
 # /src
@@ -28,6 +28,7 @@ from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
+from src.event.event import Event  # noqa: E402
 
 
 class RunFluxWidget(QtWidgets.QDialog):
@@ -43,16 +44,13 @@ class RunFluxWidget(QtWidgets.QDialog):
         self.parser = Parsers()
         self.asyncio_task_list: list = []
         self.graph_widget: GraphWidget = self.parent.w_graph_widget
-        # подпись на event ACQ_task_sync_time_event
-        self.parser = Parsers()
+        self.HH_task_sync_time_event = Event(str)
+        self.wr_log_flag: str = "wr_log_flag"
         self.start_measure_flag: str = "start_measure_flag"
-        self.write_log_flag: str = "write_log_flag"
-        self.flags: Dict[str, bool] = {self.write_log_flag: False,
-                        }
-
-        self.checkbox_flag_mapping: Dict[QtWidgets.QCheckBox, str] = {
-                            self.checkBox_write_log: self.write_log_flag
-                            }
+        self.flags = {self.wr_log_flag: False,
+                        self.start_measure_flag: False}
+        
+        self.checkbox_flag_mapping = {self.checkBox_write_log: self.wr_log_flag}
         self.init_flags()	
         
         if __name__ != "__main__":
@@ -90,14 +88,14 @@ class RunFluxWidget(QtWidgets.QDialog):
             if self.flags[self.start_measure_flag]:
                 self.pushButton_hist_run_measure.setText("Остановить изм.")
                 try:
-                    self.task_manager.create_task(HH_task(), "ACQ_task")
+                    self.task_manager.create_task(HH_task(), "HH_task")
                     # await ACQ_task()
                 except Exception as e:
                     self.logger.error(f"Ошибка: {e}")
             else:
                 # self.graph_done_signal.emit()
                 await self.mpp_cmd.start_measure(on = 0)
-                self.task_manager.cancel_task("ACQ_task")
+                self.task_manager.cancel_task("HH_task")
                 self.pushButton_hist_run_measure.setText("Запустить изм.")
         else:
             self.logger.error(f"Нет подключения к ДДИИ")
@@ -105,7 +103,30 @@ class RunFluxWidget(QtWidgets.QDialog):
     async def asyncio_HH_loop_request(self) -> None:
         """Опрос счетчика частиц
         """
-        self.graph_widget.hp_sipm.hist_clear()
+        self.graph_widget.hp_counter.hist_clear()
+        save: bool = False
+        self.graph_widget.show()
+        while 1:
+            current_datetime = datetime.datetime.now()
+            name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+            self.HH_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
+            result_hist32: bytes = await self.mpp_cmd.get_hist32()
+            result_hist16: bytes = await self.mpp_cmd.get_hist16()
+
+            result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
+            result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
+
+            # Обработчик флага сохранения 
+            if self.flags[self.wr_log_flag]:
+                save = True
+            else:
+                save = False
+            
+            try:
+                data = result_hist32_int + result_hist16_int
+                # await self.graph_widget.hp_counter._draw_graph(data, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+            except asyncio.exceptions.CancelledError:
+                return None
         # self.graph_widget.hp_pips.hist_clear()
         # lvl = int(self.lineEdit_trigger.text())
         # save: bool = False

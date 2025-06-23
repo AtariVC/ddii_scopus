@@ -338,10 +338,22 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    async def get_hist(self):
+    async def get_hist32(self):
         try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HH, 
-                                                                            8,
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HIST_32, 
+                                                                            12,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+
+    async def get_hist16(self):
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HIST_16, 
+                                                                            6,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()

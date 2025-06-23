@@ -3,6 +3,7 @@ import datetime
 import struct
 import sys
 from functools import partial
+
 # from save_config import ConfigSaver
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Coroutine
@@ -27,11 +28,11 @@ from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa
 from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from src.event.event import Event  # noqa: E402
 from src.filtrs_data import FiltrsData  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
-from src.event.event import Event  # noqa: E402
 
 
 class RunMeasWidget(QtWidgets.QDialog):
@@ -54,6 +55,8 @@ class RunMeasWidget(QtWidgets.QDialog):
     checkBox_enable_trig_meas    : QtWidgets.QCheckBox
     pushButton_calibr_acq        : QtWidgets.QPushButton
 
+    checkBox_request_hist        : QtWidgets.QCheckBox
+
     comboBox_filter           : QtWidgets.QComboBox
 
     # graph_done_signal = QtCore.pyqtSignal()
@@ -72,16 +75,19 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.enable_trig_meas_flag: str = "enable_trig_meas_flag"
         self.start_measure_flag: str = "start_measure_flag"
         self.wr_log_flag: str = "wr_log_flag"
+        self.request_hist_flag: str = "request_hist_flag"
 
         self.flags = {self.enable_test_csa_flag: False,
                     self.enable_trig_meas_flag: True,
                     self.start_measure_flag: False,
-                    self.wr_log_flag: False}
+                    self.wr_log_flag: False,
+                    self.request_hist_flag: True}
 
         self.checkbox_flag_mapping = {
         self.checkBox_enable_test_csa: self.enable_test_csa_flag,
         self.checkBox_enable_trig_meas: self.enable_trig_meas_flag,
-        self.checkBox_wr_log: self.wr_log_flag}
+        self.checkBox_wr_log: self.wr_log_flag,
+        self.checkBox_request_hist: self.request_hist_flag}
 
         self.init_flags()
         self.init_combobox_filtrer()
@@ -134,12 +140,16 @@ class RunMeasWidget(QtWidgets.QDialog):
         asyncio_ACQ_loop_request - непрерывный опрос МПП для получения данных АЦП
         """
         ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
+        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
         if self.w_ser_dialog.pushButton_connect_flag != 0:
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag] 
             if self.flags[self.start_measure_flag]:
                 self.pushButton_run_measure.setText("Остановить изм.")
+                # TODO: сделать чек боксы не активными
                 try:
                     self.task_manager.create_task(ACQ_task(), "ACQ_task")
+                    if self.flags[self.request_hist_flag]:
+                        self.task_manager.create_task(HH_task(), "HH_task")
                     # await ACQ_task()
                 except Exception as e:
                     self.logger.error(f"Ошибка: {e}")
@@ -154,47 +164,77 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            self.graph_widget.hp_sipm.hist_clear()
-            self.graph_widget.hp_pips.hist_clear()
-            lvl = int(self.lineEdit_trigger.text())
-            save: bool = False
-            if self.flags[self.enable_trig_meas_flag]:
-                await self.mpp_cmd.set_level(lvl)
-                await self.mpp_cmd.start_measure(on = 1)
-            self.graph_widget.show()
-            while 1:
-                current_datetime = datetime.datetime.now()
-                name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
-                self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
-                if not self.flags[self.enable_trig_meas_flag]:
-                    await self.mpp_cmd.start_measure_forced()
-                else:
-                    await self.mpp_cmd.issue_waveform()
-                result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
-                result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
-                # result_ch0_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
-                # result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
-                result_ch0_int: list[int] = await self.parser.acq_parser(result_ch0)
-                result_ch1_int: list[int] = await self.parser.acq_parser(result_ch1)
-                # Сохранять только те данные которые выше порога
-                if self.flags[self.wr_log_flag]:
-                    if max(result_ch0_int)>np.mean(result_ch0_int)*3 or max(result_ch1_int)>np.mean(result_ch1_int)*3:
-                        save = True
-                    else:
-                        save = False
-                else:
-                    save = False
-                try:
-                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
-                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
-                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
-                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
-                except asyncio.exceptions.CancelledError:
-                    return None
+            print("Task1")
+            # self.graph_widget.hp_sipm.hist_clear()
+            # self.graph_widget.hp_pips.hist_clear()
+            # lvl = int(self.lineEdit_trigger.text())
+            # save: bool = False
+            # if self.flags[self.enable_trig_meas_flag]:
+            #     await self.mpp_cmd.set_level(lvl)
+            #     await self.mpp_cmd.start_measure(on = 1)
+            # self.graph_widget.show()
+            # while 1:
+            #     current_datetime = datetime.datetime.now()
+            #     name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+            #     self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
+            #     if not self.flags[self.enable_trig_meas_flag]:
+            #         await self.mpp_cmd.start_measure_forced()
+            #     else:
+            #         await self.mpp_cmd.issue_waveform()
+            #     result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
+            #     result_ch1: bytes = await self.mpp_cmd.read_oscill(ch = 1)
+            #     # result_ch0_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
+            #     # result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
+            #     result_ch0_int: list[int] = await self.parser.mpp_pars_16b(result_ch0)
+            #     result_ch1_int: list[int] = await self.parser.mpp_pars_16b(result_ch1)
+            #     # Сохранять только те данные которые выше порога
+            #     if self.flags[self.wr_log_flag]:
+            #         if max(result_ch0_int)>np.mean(result_ch0_int)*3 or max(result_ch1_int)>np.mean(result_ch1_int)*3:
+            #             save = True
+            #         else:
+            #             save = False
+            #     else:
+            #         save = False
+            #     try:
+            #         data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
+            #         data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
+            #         await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+            #         await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+            #     except asyncio.exceptions.CancelledError:
+            #         return None
                 # await self.update_gui_data_label()
                 # break
         except asyncio.CancelledError:
             ...
+
+    async def asyncio_HH_loop_request(self) -> None:
+        """Опрос счетчика частиц
+        """
+        self.graph_widget.hp_counter.hist_clear()
+        save: bool = False
+        self.graph_widget.show()
+        while 1:
+            current_datetime = datetime.datetime.now()
+            name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+            result_hist32: bytes = await self.mpp_cmd.get_hist32()
+            result_hist16: bytes = await self.mpp_cmd.get_hist16()
+
+            result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
+            result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
+
+            # Обработчик флага сохранения 
+            if self.flags[self.wr_log_flag]:
+                save = True
+            else:
+                save = False
+            
+            try:
+                data = result_hist32_int + result_hist16_int
+                print(data)
+                break
+                # await self.graph_widget.hp_counter._draw_graph(data, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+            except asyncio.exceptions.CancelledError:
+                return None
 
     def enable_trig_meas_handler(self, state) -> None:
         if state:

@@ -28,7 +28,7 @@ from src.plot_renderer import GraphPen, HistPen                     # noqa: E402
 
 
 class GraphWidget(QtWidgets.QWidget):
-    vLayout_hist_EdE            : QtWidgets.QVBoxLayout
+    vLayout_hist_counter            : QtWidgets.QVBoxLayout
     vLayout_hist_pips           : QtWidgets.QVBoxLayout
     vLayout_hist_sipm           : QtWidgets.QVBoxLayout
     vLayout_pips                : QtWidgets.QVBoxLayout
@@ -42,10 +42,12 @@ class GraphWidget(QtWidgets.QWidget):
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.task = None # type: ignore
+        self.name_hdf5_file = None
         self.gp_pips = GraphPen(layout = self.vLayout_pips, name = "pips", color = (255, 255, 0))
         self.gp_sipm = GraphPen(layout = self.vLayout_sipm, name = "sipm", color = (0, 255, 255))
         self.hp_pips = HistPen(layout = self.vLayout_hist_pips, name = "h_pips", color = (255, 0, 0, 150))
         self.hp_sipm = HistPen(layout = self.vLayout_hist_sipm, name = "h_sipm", color = (0, 0, 255, 150))
+        self.hp_counter = HistPen(layout = self.vLayout_hist_counter, name = "h_counter", color = (123, 195, 121, 150))
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
