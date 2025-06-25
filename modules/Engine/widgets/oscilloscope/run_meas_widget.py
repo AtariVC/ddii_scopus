@@ -14,6 +14,7 @@ import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
+from src.write_data_to_file import write_to_hdf5_file
 
 ####### импорты из других директорий ######
 # /src
@@ -148,6 +149,12 @@ class RunMeasWidget(QtWidgets.QDialog):
         """Запуск асинхронной задачи. Создаем задачу asyncio_measure_loop_request через creator_asyncio_tasks
         asyncio_ACQ_loop_request - непрерывный опрос МПП для получения данных АЦП
         """
+        #### Path to save ####
+        self.parent_path: Path = Path("./log/output_graph_data").resolve()
+        current_datetime = datetime.datetime.now()
+        time: str = current_datetime.strftime("%d-%m-%Y")[:23]
+        self.path_to_save: Path = self.parent_path / time
+
         ACQ_task:  Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
         if self.w_ser_dialog.pushButton_connect_flag != 0:
@@ -189,10 +196,12 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.graph_widget.show()
             while 1:
                 current_datetime = datetime.datetime.now()
-                name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
-                self.ACQ_task_sync_time_event.emit(name_data) # для синхронизации данных по времени
+                self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+                self.ACQ_task_sync_time_event.emit(self.name_data) # для синхронизации данных по времени
                 if not self.flags[self.enable_trig_meas_flag]:
                     await self.mpp_cmd.start_measure_forced()
+                    # await self.mpp_cmd.start_measure_forced(0)
+                    # await self.mpp_cmd.start_measure_forced(1)
                 else:
                     await self.mpp_cmd.issue_waveform()
                 result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)
@@ -210,10 +219,10 @@ class RunMeasWidget(QtWidgets.QDialog):
                 else:
                     save = False
                 try:
-                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
-                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, clear=True) # x, y
-                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
-                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, name_file_save_data=self.name_file_save, name_data=self.name_data, save_log=save, clear=True) # x, y
+                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, name_file_save_data=self.name_file_save, name_data=self.name_data, save_log=save, clear=True) # x, y
+                    await self.graph_widget.hp_pips.draw_hist(data_pips[1], name_file_save_data=self.name_file_save, name_data=self.name_data, save_log=save, filter=self.hist_filters)
+                    await self.graph_widget.hp_sipm.draw_hist(data_sipm[1], name_file_save_data=self.name_file_save, name_data=self.name_data, save_log=save, filter=self.hist_filters)
                 except asyncio.exceptions.CancelledError:
                     return None
         except asyncio.CancelledError:
@@ -236,8 +245,6 @@ class RunMeasWidget(QtWidgets.QDialog):
             # if counter_clear > 50:
             #     counter_clear = 0
             #     await self.mpp_cmd.clear_hist()
-            current_datetime = datetime.datetime.now()
-            name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
             result_hist32: bytes = await self.mpp_cmd.get_hist32()
             result_hist16: bytes = await self.mpp_cmd.get_hist16()
             result_hcp_hist: bytes = await self.mpp_cmd.get_hcp_hist()
@@ -257,8 +264,13 @@ class RunMeasWidget(QtWidgets.QDialog):
             
             try:
                 data = result_hist32_int + result_hist16_int
+                # сохраняем все counter
+                if save:
+                    hdf5_path = self.graph_widget
+                    data_save = [[x, y] for x, y in enumerate(data + result_hcp_hist_int)]
+                    write_to_hdf5_file(data_save, "h_counter", Path(self.name_file_save), self.name_data)
                 # accumulate_data += np.array(data)
-                await self.graph_widget.hp_counter._draw_graph(data, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, bins = bins, calculate_hist=False, autoscale=False)  # type: ignore
+                await self.graph_widget.hp_counter._draw_graph(data, bins = bins, calculate_hist=False, autoscale=False)  # type: ignore
             except asyncio.exceptions.CancelledError as e:
                 print(e)
                 return None

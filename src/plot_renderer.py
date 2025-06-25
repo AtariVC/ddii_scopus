@@ -11,7 +11,7 @@ import qasync
 import qtmodern
 from PyQt6 import QtCore, QtWidgets
 
-from src.write_data_to_file import hdf5_to_csv, read_hdf5_file, write_to_hdf5_file, writer_graph_data
+from src.write_data_to_file import write_to_hdf5_file
 
 ####### импорты из других директорий ######
 # /src
@@ -30,6 +30,7 @@ class GraphPen():
         layout: QtWidgets.QHBoxLayout | QtWidgets.QVBoxLayout | QtWidgets.QGridLayout,
         name: str = "default_graph",
         color: tuple = (255, 120, 10)) -> None:
+
         self.plt_widget = pg.PlotWidget()
         layout.addWidget(self.plt_widget)
         self.pen = pg.mkPen(color)
@@ -38,12 +39,9 @@ class GraphPen():
         
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data: list, name_file_save_data: Optional[str] = None, name_data: Optional[str] = None, save_log=False, clear=False):
-        #### Path ####
-        self.parent_path: Path = Path("./log/output_graph_data").resolve()
-        current_datetime = datetime.datetime.now()
-        time: str = current_datetime.strftime("%d-%m-%Y")[:23]
-        self.path_to_save: Path = self.parent_path / time
+    async def draw_graph(self, data: list, name_file_save_data: Optional[str] = None, name_data: Optional[str] = None, path_to_save: Optional[Path] = None, save_log=False, clear=False):
+        if save_log and path_to_save:
+            self.path_to_save: Path = path_to_save
         try:
             if any(isinstance(item, float) for item in data):
                 data = list(map(int, data))
@@ -198,7 +196,7 @@ class HistPen():
             self.hist_item.setData(x, y)
         
         if save_log:
-            self._save_graph_data(self.bins.tolist()[:-1], y.tolist(), name_file_save_data,     name_data)
+            self._save_graph_data(self.bins.tolist()[:-1], y.tolist(), name_file_save_data, name_data)
 
     def _save_graph_data(self, x: list, y: list, filename, name_data):
         """Сохранение данных графика"""
