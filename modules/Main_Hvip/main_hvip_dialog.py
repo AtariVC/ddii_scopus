@@ -1,7 +1,6 @@
 import asyncio
 import sys
 from pathlib import Path
-
 import qasync
 import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient

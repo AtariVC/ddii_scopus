@@ -199,9 +199,9 @@ class RunMeasWidget(QtWidgets.QDialog):
                 self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
                 self.ACQ_task_sync_time_event.emit(self.name_data) # для синхронизации данных по времени
                 if not self.flags[self.enable_trig_meas_flag]:
-                    await self.mpp_cmd.start_measure_forced()
-                    # await self.mpp_cmd.start_measure_forced(0)
-                    # await self.mpp_cmd.start_measure_forced(1)
+                    # await self.mpp_cmd.start_measure_forced()
+                    await self.mpp_cmd.start_measure_forced(0)
+                    await self.mpp_cmd.start_measure_forced(1)
                 else:
                     await self.mpp_cmd.issue_waveform()
                 result_ch0: bytes = await self.mpp_cmd.read_oscill(ch = 0)

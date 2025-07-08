@@ -399,7 +399,7 @@ class ModbusMPPCommand(EnvironmentVar):
     async def start_measure_forced(self, ch: Optional[int] = None) -> bytes:
         try:
             if ch:
-                MPP_START_MEASURE_FORCED = ch & 0xFF << 8 | self.MPP_START_MEASURE_FORCED & 0xFFFF
+                MPP_START_MEASURE_FORCED = ch<<8 & 0xFFFF | self.MPP_START_MEASURE_FORCED
                 result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
                                                                             MPP_START_MEASURE_FORCED,
                                                                             slave=self.MPP_ID)
@@ -419,7 +419,7 @@ class ModbusMPPCommand(EnvironmentVar):
         try:
             if ch:
                 MPP_STOP_MEASURE = self.MPP_STOP_MEASURE.copy()
-                MPP_STOP_MEASURE[0] = ch & 0xFF << 8 | MPP_STOP_MEASURE[0] & 0xFFFF
+                MPP_STOP_MEASURE[0] = ch<<8 & 0xFFFF | MPP_STOP_MEASURE[0]
                 result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
                                                                             MPP_STOP_MEASURE,
                                                                             slave=self.MPP_ID)

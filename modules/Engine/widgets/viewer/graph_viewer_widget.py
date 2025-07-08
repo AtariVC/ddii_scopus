@@ -123,8 +123,8 @@ class GraphViewerWidget(QtWidgets.QWidget):
         await self.gp_sipm.draw_graph(data_sipm[1], clear=True)
         # await self.hp_pips.draw_hist(data_pips[1], clear=True)
         # await self.hp_sipm.draw_hist(data_sipm[1], clear=True)
-        await self.hp_pips._draw_graph(data_h_pips[0], clear=True)
-        await self.hp_sipm._draw_graph(data_h_sipm[0], clear=True)
+        await self.hp_pips._draw_graph(data_h_pips[1].tolist(), clear=True)
+        await self.hp_sipm._draw_graph(data_h_sipm[1].tolist(), clear=True)
 
         # if value < self.amount_measurements:
 
