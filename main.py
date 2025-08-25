@@ -2,7 +2,6 @@ from PyQt6 import QtWidgets, QtCore
 import sys
 from modules.Engine.engine import Engine
 import qtmodern.styles
-import os
 from qtmodern.windows import ModernWindow
 import qasync
 import asyncio

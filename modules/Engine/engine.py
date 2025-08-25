@@ -12,7 +12,7 @@ from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from pathlib import Path
 from qtmodern.windows import ModernWindow
 
-####### импорты из других директорий ######
+####### импорты из других директорий ######````
 # /src
 src_path = Path(__file__).resolve().parent.parent.parent
 modules_path = Path(__file__).resolve().parent.parent
