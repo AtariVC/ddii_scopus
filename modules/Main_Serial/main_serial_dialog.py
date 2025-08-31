@@ -27,20 +27,20 @@ from style.styleSheet import widget_led_off, widget_led_on  # noqa: E402
 
 
 class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
-    pushButton_connect_w        : QtWidgets.QPushButton
-    lineEdit_Bauderate_w        : QtWidgets.QLineEdit
-    lineEdit_ID_w               : QtWidgets.QLineEdit
-    widget_led_w                : QtWidgets.QWidget
-    label_state_w               : QtWidgets.QLabel
-    horizontalLayout_comport    : QtWidgets.QHBoxLayout
+    pushButton_connect_w: QtWidgets.QPushButton
+    lineEdit_Bauderate_w: QtWidgets.QLineEdit
+    lineEdit_ID_w: QtWidgets.QLineEdit
+    widget_led_w: QtWidgets.QWidget
+    label_state_w: QtWidgets.QLabel
+    horizontalLayout_comport: QtWidgets.QHBoxLayout
 
-    coroutine_finished = QtCore.pyqtSignal() # нужен чтобы нормально передать client, иначе передается None
+    coroutine_finished = QtCore.pyqtSignal()  # нужен чтобы нормально передать client, иначе передается None
 
     def __init__(self, logger, **kwargs) -> None:
         super().__init__(**kwargs)
-        loadUi(Path(__file__).parents[0].joinpath('DialogSerial.ui'), self)
+        loadUi(Path(__file__).parents[0].joinpath("DialogSerialTCP.ui"), self)
         self.mw = ModbusWorker()
-        self.logger= logger
+        self.logger = logger
         self.comboBox_comm = CustomComboBox_COMport()
         self.horizontalLayout_comport.addWidget(self.comboBox_comm)
         self.size_policy: QSizePolicy = self.comboBox_comm.sizePolicy()
@@ -58,7 +58,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
     @qasync.asyncSlot()
     async def pushButton_connect_Handler(self) -> None:
-            # self.serial_task = asyncio.create_task(self.serialConnect())
+        # self.serial_task = asyncio.create_task(self.serialConnect())
         # while not task.done():
         await self.serialConnect()
         if self.pushButton_connect_flag == 1:
@@ -95,14 +95,21 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 parity="N",
                 stopbits=1,
                 handle_local_echo=True,
-                )
+            )
             connected: bool = await self.client.connect()
             if connected:
                 self.state_serial = 1
-                self.logger.debug(port + " ,Baudrate = " + str(baudrate) +
-                                ", Parity = "+"None"+
-                                ", Stopbits = "+ "1" +
-                                ", Bytesize = " + str(self.client.comm_params.bytesize))
+                self.logger.debug(
+                    port
+                    + " ,Baudrate = "
+                    + str(baudrate)
+                    + ", Parity = "
+                    + "None"
+                    + ", Stopbits = "
+                    + "1"
+                    + ", Bytesize = "
+                    + str(self.client.comm_params.bytesize)
+                )
             else:
                 self.label_state_w.setText("State: COM-порт занят. Попробуйте переподключиться")
                 self.state_serial = 0
@@ -110,7 +117,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             if self.state_serial == 1:
                 self.pushButton_connect_w.setText("Отключить")
                 self.pushButton_connect_flag = 1
-                await self.cheack_connect()
+                await self.check_connect()
                 if self.status_CM and self.status_MPP == 0:
                     self.client.close()
                     await asyncio.sleep(1)
@@ -141,10 +148,9 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             # except Exception as e:
             #     self.logger.error(e)
             # await asyncio.sleep(0.3)
-            
 
     @qasync.asyncSlot()
-    async def cheack_connect(self) -> None:
+    async def check_connect(self) -> None:
         """
         Проверка подключения
         """
@@ -156,15 +162,13 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
         # self.tel_result: ModbusResponse  = self.get_telemetria()
         try:
-            await self.client.write_registers(address = self.DDII_SWITCH_MODE,
-                                                                        values = self.SILENT_MODE,
-                                                                        slave = self.CM_ID)
+            await self.client.write_registers(address=self.DDII_SWITCH_MODE, values=self.SILENT_MODE, slave=self.CM_ID)
             await log_s(self.mw.send_handler.mess)
         except Exception as e:
             self.logger.debug("Соединение c ЦМ не установлено")
             self.logger.error(e)
             self.status_CM = 0
-            await asyncio.sleep(0.2) # задержка нужна?
+            await asyncio.sleep(0.2)  # задержка нужна?
 
         ######## MPP #######
         try:

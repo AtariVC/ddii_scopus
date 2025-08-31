@@ -1,57 +1,61 @@
-import pdb
-from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtWidgets import QSplitter, QSizePolicy, QLineEdit, QSpinBox, QTabWidget, QWidget, QVBoxLayout, QLabel
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
-from PyQt6.QtGui import QAction, QIcon
-import numpy as np
-import pyqtgraph as pg
-import serial.tools.list_ports
-import sys  # We need sys so that we can pass argv to QApplication
+import configparser
+import copy
+import copy as cp
+import csv
+import datetime
+import logging
+import math as m
 import os
+import pdb
+import re
+import struct
+import sys  # We need sys so that we can pass argv to QApplication
+import threading
+import time
+from queue import Queue
+
+import crcmod
+import numpy as np
+import pandas as pd
+import pymodbus.client as ModbusClient
+import pyqtgraph as pg
+import serial
+import serial.tools.list_ports
+from emulator import Emulator as emulator
+from main_config_dialog import MainConfigDialog
+from main_hvip_dialog import MainHvipDialog
+from main_mpp_dialog import MainMppControlDialog
+from main_trapezoid_dialog import MainTrapezoidDialog
+from pymodbus.constants import Endian
+from pymodbus.payload import BinaryPayloadDecoder
+from pymodbus.pdu import ModbusResponse
+from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtWidgets import QLabel, QLineEdit, QSizePolicy, QSpinBox, QSplitter, QTabWidget, QVBoxLayout, QWidget
+
 # from random import randint
 # from ui.MainWindow_ui import Ui_MainWindow
 from qtpy.uic import loadUi
-import serial
+from serial.serialutil import SerialException
+
+import src.parsers as parser
+from src.customComboBox_COMport import CustomComboBox_COMport
+
+# from serial.serialutil import SerialException
+# from src.py_toggle import pyToggle
+from src.log_config import SendFilter, SendHandler, log_init, log_s
+from src.py_toggle import pyToggle
+
 # from pyqtgraph import plot
 # from qtmodern.styles import dark, light
 # from qtmodern.windows import ModernWindow
 # import serial.tools.list_ports
 from style.styleSheet import styleSheet as style
-import crcmod
-import math as m
-import re
-from emulator import Emulator as emulator
-from serial.serialutil import SerialException
-from src.py_toggle import pyToggle
-# from serial.serialutil import SerialException
-# from src.py_toggle import pyToggle
-from src.log_config import log_init, log_s, SendFilter, SendHandler
-import logging
-from src.customComboBox_COMport import CustomComboBox_COMport
-import copy as cp
-import threading
-from main_trapezoid_dialog import MainTrapezoidDialog
-from main_hvip_dialog import MainHvipDialog
-from main_mpp_dialog import MainMppControlDialog
-from main_config_dialog import MainConfigDialog
-from queue import Queue
-import numpy as np
-import os
-import datetime
-import csv
-import pandas as pd 
-import numpy as np
-import configparser
-import src.parsers as parser
-import time
-import pymodbus.client as ModbusClient
-from pymodbus.pdu import ModbusResponse
-from pymodbus.payload import BinaryPayloadDecoder
-from pymodbus.constants import Endian
-import struct
-import copy
+
 # import colorlog
 # from firstblood.all import *
+
 
 class Engine(QtWidgets.QMainWindow, QThread):
     my_button: QtWidgets.QPushButton
@@ -208,9 +212,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
     lineEdit_HCP_20: QtWidgets.QLineEdit
     lineEdit_HCP_45: QtWidgets.QLineEdit
 
-    
-
-
     ########### var #################
     max_adc_histA = []
     max_adc_histB = []
@@ -241,10 +242,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
     flag_readWaveform_trig = 0
     # dict_hh = {'01_hh': 40, '05_hh': 160, '08_hh': 340, '1_6_hh': 680,
     #         '3_hh': 800, '5_hh': 900, '10_hh': 1000, '30_hh': 1110, '60_hh': 1210}
-    
 
-
-    modulename = ["emulator"] # подключаемые модули, обязательно для заполения
+    modulename = ["emulator"]  # подключаемые модули, обязательно для заполения
 
     ALL = 0
     SIPM = 1
@@ -272,19 +271,19 @@ class Engine(QtWidgets.QMainWindow, QThread):
     DDII_SWITCH_MODE = 0x0001
     DDII_UPDATE_DATA = 0x0002
     CMD_TEST_ENABLE = 0x0004
-    
+
     update_telem_signal = pyqtSignal()
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(os.path.join(os.path.dirname(__file__),  'style/MainWindow4.ui'), self)
+        loadUi(os.path.join(os.path.dirname(__file__), "style/MainWindow4.ui"), self)
         # path_graph_widget = os.path.join(os.path.dirname(__file__), 'style/Parser_waveform_ddii.ui')
         # self.graph_widget: QtWidgets.QWidget = path_graph_widget.graph_widget
         # Создаем конфиг файл
         self.config = configparser.ConfigParser()
         self.parser = parser
         #####################
-        
+
         #####################
         self.dialog_trapezoid_settings = MainTrapezoidDialog(self)
         self.plot_pips = pg.PlotWidget()
@@ -312,29 +311,27 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.vLayout_gist_pips.addWidget(self.plot_gist_pips)
         self.vLayout_gist_sipm.addWidget(self.plot_gist_sipm)
         self.horizontalLayou_forComboBox_comport.addWidget(self.comboBox_comm)
-        
+
         # Создание вертикальной линии уровня pips
         self.posiInfLine_pips = 10
         self.spinBox_level_pips.setValue(10)
         self.hoverPen_pips = pg.mkPen(color=(200, 100, 0), width=5, style=QtCore.Qt.PenStyle.DashDotLine)
         self.pen_pips = pg.mkPen(color=(100, 100, 0), width=5, style=QtCore.Qt.PenStyle.DashDotLine)
-        self.v_line_pips = pg.InfiniteLine(pos=self.posiInfLine_pips, angle=0, movable=True,
-                                hoverPen = self.hoverPen_pips, pen = self.pen_pips)
+        self.v_line_pips = pg.InfiniteLine(
+            pos=self.posiInfLine_pips, angle=0, movable=True, hoverPen=self.hoverPen_pips, pen=self.pen_pips
+        )
         self.plot_pips.addItem(self.v_line_pips)
-        self.v_line_pips_label = pg.InfLineLabel(line = self.v_line_pips, 
-                                                text = str(self.posiInfLine_pips),
-                                                position=0.95)
+        self.v_line_pips_label = pg.InfLineLabel(line=self.v_line_pips, text=str(self.posiInfLine_pips), position=0.95)
         # Создание вертикальной линии уровня sipm
         self.posiInfLine_sipm = 10
         self.spinBox_level_sipm.setValue(10)
         self.hoverPen_sipm = pg.mkPen(color=(200, 100, 0), width=5, style=QtCore.Qt.PenStyle.DashDotLine)
         self.pen_sipm = pg.mkPen(color=(100, 100, 0), width=5, style=QtCore.Qt.PenStyle.DashDotLine)
-        self.v_line_sipm = pg.InfiniteLine(pos=self.posiInfLine_sipm, angle=0, movable=True,
-                                hoverPen = self.hoverPen_sipm, pen = self.pen_sipm)
+        self.v_line_sipm = pg.InfiniteLine(
+            pos=self.posiInfLine_sipm, angle=0, movable=True, hoverPen=self.hoverPen_sipm, pen=self.pen_sipm
+        )
         self.plot_sipm.addItem(self.v_line_sipm)
-        self.v_line_sipm_label = pg.InfLineLabel(line = self.v_line_sipm,
-                                                text = str(self.posiInfLine_sipm),
-                                                position=0.95)
+        self.v_line_sipm_label = pg.InfLineLabel(line=self.v_line_sipm, text=str(self.posiInfLine_sipm), position=0.95)
 
         ##################### Коннекторы ###################
         # self.v_line_pips.sigPositionChanged.connect(lambda: self.update_line_pips())
@@ -342,39 +339,47 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.v_line_pips.sigPositionChangeFinished.connect(self.update_line_static_pips)
         # self.v_line_sipm.sigPositionChangeFinished.connect(self.update_line_static_sipm)
         ############## Инициализация других окон #############
-        self.dialog_trap: MainTrapezoidDialog =  MainTrapezoidDialog(self)
-        self.menu_action_MPP_cntrl_dialog: MainMppControlDialog =  MainMppControlDialog(self)
-        self.menu_action_ddii_config_dialog:  MainConfigDialog =  MainConfigDialog(self)
+        self.dialog_trap: MainTrapezoidDialog = MainTrapezoidDialog(self)
+        self.menu_action_MPP_cntrl_dialog: MainMppControlDialog = MainMppControlDialog(self)
+        self.menu_action_ddii_config_dialog: MainConfigDialog = MainConfigDialog(self)
 
         ############## Tool Bar #############
-        self.start_accumulation_wave_start_action = QAction(QIcon("./icon/start.svg"), None, self) # color #949494
-        self.stop_accumulation_wave_stop_action = QAction(QIcon("./icon/stop_notVisible.svg"), None, self) # color 94949459
+        self.start_accumulation_wave_start_action = QAction(QIcon("./icon/start.svg"), None, self)  # color #949494
+        self.stop_accumulation_wave_stop_action = QAction(
+            QIcon("./icon/stop_notVisible.svg"), None, self
+        )  # color 94949459
         self.toolBar.addAction(self.start_accumulation_wave_start_action)
         self.toolBar.addAction(self.stop_accumulation_wave_stop_action)
         self.start_accumulation_wave_start_action.setToolTip("Начать накопление")
         self.stop_accumulation_wave_stop_action.setToolTip("Остановить накопление")
         self.stop_accumulation_wave_stop_action.setEnabled(False)
 
-        self.v_line_pips.sigPositionChanged.connect(lambda: self.update_line(self.spinBox_level_pips,
-                                                                            self.v_line_pips_label,
-                                                                            self.v_line_pips, self.hoverPen_pips,
-                                                                            self.pen_pips, 0))
-        self.v_line_sipm.sigPositionChanged.connect(lambda: self.update_line(self.spinBox_level_sipm,
-                                                                            self.v_line_sipm_label,
-                                                                            self.v_line_sipm, self.hoverPen_sipm,
-                                                                            self.pen_sipm, 0))
-        self.v_line_pips.sigPositionChangeFinished.connect(lambda: self.update_line_static(self.v_line_pips,
-                                                                            self.pen_pips))
-        self.v_line_sipm.sigPositionChangeFinished.connect(lambda: self.update_line_static(self.v_line_sipm,
-                                                                            self.pen_sipm))
-        self.spinBox_level_pips.editingFinished.connect(lambda: self.update_line(self.spinBox_level_pips,
-                                                                            self.v_line_pips_label,
-                                                                            self.v_line_pips, self.hoverPen_pips,
-                                                                            self.pen_pips, 1))
-        self.spinBox_level_sipm.editingFinished.connect(lambda: self.update_line(self.spinBox_level_sipm,
-                                                                            self.v_line_sipm_label,
-                                                                            self.v_line_sipm, self.hoverPen_sipm,
-                                                                            self.pen_sipm, 1))
+        self.v_line_pips.sigPositionChanged.connect(
+            lambda: self.update_line(
+                self.spinBox_level_pips, self.v_line_pips_label, self.v_line_pips, self.hoverPen_pips, self.pen_pips, 0
+            )
+        )
+        self.v_line_sipm.sigPositionChanged.connect(
+            lambda: self.update_line(
+                self.spinBox_level_sipm, self.v_line_sipm_label, self.v_line_sipm, self.hoverPen_sipm, self.pen_sipm, 0
+            )
+        )
+        self.v_line_pips.sigPositionChangeFinished.connect(
+            lambda: self.update_line_static(self.v_line_pips, self.pen_pips)
+        )
+        self.v_line_sipm.sigPositionChangeFinished.connect(
+            lambda: self.update_line_static(self.v_line_sipm, self.pen_sipm)
+        )
+        self.spinBox_level_pips.editingFinished.connect(
+            lambda: self.update_line(
+                self.spinBox_level_pips, self.v_line_pips_label, self.v_line_pips, self.hoverPen_pips, self.pen_pips, 1
+            )
+        )
+        self.spinBox_level_sipm.editingFinished.connect(
+            lambda: self.update_line(
+                self.spinBox_level_sipm, self.v_line_sipm_label, self.v_line_sipm, self.hoverPen_sipm, self.pen_sipm, 1
+            )
+        )
         self.pushButton_connect_2.clicked.connect(self.pushButtonConnect_clicked)
         # self.pushButton_single_pips.clicked.connect(lambda: self.pushButton_single_measure_clicked(self.PIPS))
         # self.pushButton_auto_pips.clicked.connect(lambda: self.pushButton_auto_measure_clicked(self.PIPS))
@@ -389,12 +394,16 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.menu_action_MPP_cntrl_2.triggered.connect(self.menu_action_MPP_cntrl_triggered)
         self.menu_action_ddii_config.triggered.connect(self.menu_action_ddii_config_triggered)
         self.checkBox_enable_test_csa.stateChanged.connect(self.checkBox_enable_test_csa_stateChanged)
-        self.start_accumulation_wave_start_action.triggered.connect(self.start_accumulation_wave_start_action_toolbar_triggered)
-        self.stop_accumulation_wave_stop_action.triggered.connect(self.stop_accumulation_wave_stop_action_toolbar_triggered)
+        self.start_accumulation_wave_start_action.triggered.connect(
+            self.start_accumulation_wave_start_action_toolbar_triggered
+        )
+        self.stop_accumulation_wave_stop_action.triggered.connect(
+            self.stop_accumulation_wave_stop_action_toolbar_triggered
+        )
         # self.radioButton_db_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.DEBUG_MODE))
-        self.radioButton_slnt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.SILENT_MODE))
-        self.radioButton_cmbt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.COMBAT_MODE))
-        self.radioButton_const_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode = self.CONSTANT_MODE))
+        self.radioButton_slnt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode=self.SILENT_MODE))
+        self.radioButton_cmbt_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode=self.COMBAT_MODE))
+        self.radioButton_const_mode.toggled.connect(lambda: self.radioButton_mode_toggled(mode=self.CONSTANT_MODE))
         self.pushButton_clear_hist.clicked.connect(self.pushButton_clear_hist_clicked_handler)
         self.pushButton_update_data.clicked.connect(self.pushButton_update_data_clicked_handler)
         self.pushButton_reset_cfg.clicked.connect(self.pushButton_reset_cfg_handler)
@@ -408,13 +417,13 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.timer.start(10)
 
         # self.pushButton_setting_trapezoid.clicked.connect(self.pushButton_trapezoid_setting_handler)
-        
+
         # self.comboBox_comm.highlighted.connect(self.comboBox_comm_highlighted)
         # self.lineEdit_level_pips.editingFinished.connect(self.lineEdit_level_pips_editingFinished)
         # self.lineEdit_level_sipm.editingFinished.connect(self.lineEdit_level_sipm_editingFinished)
         self.init_COMports_comboBox_comport_list()
         self.tmp_bufer = []
-        self.x : list[int]
+        self.x: list[int]
         self.y: list[int]
         self.T_decay: int = 1
         self.T_rise: int = 1
@@ -443,7 +452,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # config log
         self.logger = log_init()
 
-
         # Заполнить modulename!!! Добавление сторонних модулей (плагинов).
         for module in self.modulename:
             if module not in sys.modules:
@@ -461,14 +469,15 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 # self.setCentralWidget(emToggle)
 
     ############ Infinite Line Event ##############
-    def update_line(self,
-                    lineEdit_level: QSpinBox,
-                    v_line_label: pg.TextItem,
-                    v_line: pg.Color,
-                    hoverPen: pg.Color,
-                    pen: pg.Color,
-                    flag_edit_text: int) -> None:
-
+    def update_line(
+        self,
+        lineEdit_level: QSpinBox,
+        v_line_label: pg.TextItem,
+        v_line: pg.Color,
+        hoverPen: pg.Color,
+        pen: pg.Color,
+        flag_edit_text: int,
+    ) -> None:
         if flag_edit_text == 1:
             pos: int = round(lineEdit_level.value())
             v_line.setPos(pos)
@@ -490,30 +499,30 @@ class Engine(QtWidgets.QMainWindow, QThread):
         v_line.setPen(pen)
 
     def radioButton_mode_toggled(self, mode):
-        match (mode):
+        match mode:
             # case self.DEBUG_MODE:
-            #     cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
-            #                                                                 self.DEBUG_MODE, 
-            #                                                                 self.CM_ID), 
-            #                                                                 daemon = True)        
+            #     cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE,
+            #                                                                 self.DEBUG_MODE,
+            #                                                                 self.CM_ID),
+            #                                                                 daemon = True)
             #     cmd.start()
             case self.SILENT_MODE:
-                cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
-                                                                            self.SILENT_MODE, 
-                                                                            self.CM_ID), 
-                                                                            daemon = True)        
+                cmd = threading.Thread(
+                    target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, self.SILENT_MODE, self.CM_ID),
+                    daemon=True,
+                )
                 cmd.start()
             case self.COMBAT_MODE:
-                cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
-                                                                            self.COMBAT_MODE, 
-                                                                            self.CM_ID), 
-                                                                            daemon = True)        
+                cmd = threading.Thread(
+                    target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, self.COMBAT_MODE, self.CM_ID),
+                    daemon=True,
+                )
                 cmd.start()
             case self.CONSTANT_MODE:
-                cmd = threading.Thread(target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, 
-                                                                            self.CONSTANT_MODE, 
-                                                                            self.CM_ID), 
-                                                                            daemon = True)        
+                cmd = threading.Thread(
+                    target=self.thread_write_reg_not_answer(self.DDII_SWITCH_MODE, self.CONSTANT_MODE, self.CM_ID),
+                    daemon=True,
+                )
                 cmd.start()
 
     ############ handler button ##############
@@ -524,7 +533,6 @@ class Engine(QtWidgets.QMainWindow, QThread):
     #         self.graph_widget.setVisible(False)
 
     def pushButton_reset_cfg_handler(self):
-
         self.client.write_registers(self.CM_SET_DEFAULT_CFG, 0x0000, self.CM_ID)
         log_s(self.send_handler.mess)
 
@@ -554,7 +562,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.logger.debug(e)
 
     def pushButton_clear_hist_clicked_handler(self):
-        self.client.write_registers(address = 0x0014, values = [0x0000 for i in range(18)], slave = self.mpp_id)
+        self.client.write_registers(address=0x0014, values=[0x0000 for i in range(18)], slave=self.mpp_id)
         log_s(self.send_handler.mess)
 
     def pushButtonConnect_clicked(self) -> None:
@@ -577,9 +585,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def pushButton_trig_measure_handler(self, chanal_trig: int) -> None:
         """
-        Запускает поток для чтения осциллограм мпп. 
+        Запускает поток для чтения осциллограм мпп.
         """
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.SILENT_MODE, slave = self.CM_ID)
+        self.client.write_registers(address=self.DDII_SWITCH_MODE, values=self.SILENT_MODE, slave=self.CM_ID)
         self.readWaveform_trig()
         log_s(self.send_handler.mess)
 
@@ -591,15 +599,14 @@ class Engine(QtWidgets.QMainWindow, QThread):
             st = 1
         else:
             st = 0
-        t_flow_auto = threading.Thread(target=self.thread_write_reg_not_answer(self.CMD_TEST_ENABLE, 
-                                                                            st, 
-                                                                            self.CM_ID), 
-                                                                            daemon = True)        
+        t_flow_auto = threading.Thread(
+            target=self.thread_write_reg_not_answer(self.CMD_TEST_ENABLE, st, self.CM_ID), daemon=True
+        )
         t_flow_auto.start()
 
     ############ Triggered Menu Action ##############
     def menu_action_HVIP_triggered(self) -> None:
-        self.munu_action_HVIP: MainHvipDialog =  MainHvipDialog(self)
+        self.munu_action_HVIP: MainHvipDialog = MainHvipDialog(self)
         self.munu_action_HVIP.show()
 
     def menu_action_MPP_cntrl_triggered(self) -> None:
@@ -624,7 +631,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.max_adc_histB = []
         # папка /log/data_flow/ с сегодняшней датой и временем
 
-        self.data_flow_flag = 1 # флаг записи данных в файл
+        self.data_flow_flag = 1  # флаг записи данных в файл
         if self.data_flow_flag == 1:
             folder_name = self.current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
             self.folder_path = os.path.join("./log/data_flow/", folder_name)
@@ -634,14 +641,14 @@ class Engine(QtWidgets.QMainWindow, QThread):
             except FileExistsError:
                 os.makedirs(self.folder_path + "_" + str(self.file_extension))
             self.logger.debug("Создана папка для записи данных: " + self.folder_path)
-        self.pushButton_auto_flag = 0 # флаг автозапуска
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.SILENT_MODE, slave = self.CM_ID)
-        t_flow_auto = threading.Thread(target=self.thread_readWaveform_adc_flow, daemon = True)        
+        self.pushButton_auto_flag = 0  # флаг автозапуска
+        self.client.write_registers(address=self.DDII_SWITCH_MODE, values=self.SILENT_MODE, slave=self.CM_ID)
+        t_flow_auto = threading.Thread(target=self.thread_readWaveform_adc_flow, daemon=True)
         t_flow_auto.start()
         # else:
         #     self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/resume.svg"))
         #     self.data_flow_flag = 0
-        
+
         #     self.pushButton_auto_flag = 1
         #     self.start_accumulation_wave_start_action.setToolTip("Продолжить накопление")
         #     self.start_accumulation_flag = 1
@@ -652,20 +659,20 @@ class Engine(QtWidgets.QMainWindow, QThread):
         self.stop_accumulation_wave_stop_action.setEnabled(False)
         self.start_accumulation_wave_start_action.setEnabled(True)
         self.pushButton_run_trig_pips.setEnabled(True)
-        self.data_flow_flag = 0 # запрещаем запись данных в файл
-        self.pushButton_auto_flag = 1 # флаг автозапуска
+        self.data_flow_flag = 0  # запрещаем запись данных в файл
+        self.pushButton_auto_flag = 1  # флаг автозапуска
         self.start_accumulation_wave_start_action.setToolTip("Начать накопление")
         # if self.start_accumulation_flag == 0:
         #     self.start_accumulation_wave_start_action_toolbar_triggered()
 
     def thread_write_reg_not_answer(self, adr, val, slv):
-        self.client.write_registers(address = adr, values = val, slave = slv)
+        self.client.write_registers(address=adr, values=val, slave=slv)
         log_s(self.send_handler.mess)
 
     ############ Осциллограммы ##############
     def readWaveform_trig(self) -> None:
         trig_val = int(self.lineEdit_triger.text())
-        self.pushButton_run_trig_pips.setText('Ост. изм.')
+        self.pushButton_run_trig_pips.setText("Ост. изм.")
         self.start_accumulation_wave_start_action.setEnabled(False)
         self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/start_notVisible.svg"))
         if self.flag_readWaveform_trig == 0:
@@ -674,23 +681,27 @@ class Engine(QtWidgets.QMainWindow, QThread):
             # log_s(self.send_handler.mess)
             # self.client.write_registers(address=0x007A, values = trig_val, slave=self.mpp_id) # установка порогога
             # log_s(self.send_handler.mess)
-            self.client.write_registers(address=0x0000, values=[0x0001, trig_val], slave=self.mpp_id) # установка порогога
+            self.client.write_registers(
+                address=0x0000, values=[0x0001, trig_val], slave=self.mpp_id
+            )  # установка порогога
             log_s(self.send_handler.mess)
             # self.client.write_registers(address=0x0000, values=[0x0101, trig_val], slave=self.mpp_id) # установка порогога
             # log_s(self.send_handler.mess)
-            self.client.write_registers(address=0x0000, values=[0x0002, 0x0001], slave=self.mpp_id) # запуск регистрации
+            self.client.write_registers(
+                address=0x0000, values=[0x0002, 0x0001], slave=self.mpp_id
+            )  # запуск регистрации
             log_s(self.send_handler.mess)
             # self.client.write_registers(address=0x0000, values=[0x0102, 0x0001], slave=self.mpp_id) # запуск регистрации
             # log_s(self.send_handler.mess)
-            self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id) # начать измерение
+            self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id)  # начать измерение
             log_s(self.send_handler.mess)
-            self.pushButton_auto_flag = 0 # флаг автозапуска
-            self.data_flow_flag = 1 # флаг записи данных в файл
-            t_readWaveform_trig = threading.Thread(target=self.thread_readWaveform_adc_flow, daemon = True)
+            self.pushButton_auto_flag = 0  # флаг автозапуска
+            self.data_flow_flag = 1  # флаг записи данных в файл
+            t_readWaveform_trig = threading.Thread(target=self.thread_readWaveform_adc_flow, daemon=True)
             t_readWaveform_trig.start()
         else:
-            self.pushButton_auto_flag = 1 # флаг автозапуска
-            self.client.write_register(address=0x0001, value = 0x0000, slave=self.mpp_id) # Пораметр команды
+            self.pushButton_auto_flag = 1  # флаг автозапуска
+            self.client.write_register(address=0x0001, value=0x0000, slave=self.mpp_id)  # Пораметр команды
             log_s(self.send_handler.mess)
             self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id)
             log_s(self.send_handler.mess)
@@ -698,7 +709,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             # log_s(self.send_handler.mess)
             # self.client.write_registers(address=0x0000, values=[0x0002, 0x0000], slave=self.mpp_id) # остановка регистрации
             # log_s(self.send_handler.mess)
-            self.pushButton_run_trig_pips.setText('Начать изм.')
+            self.pushButton_run_trig_pips.setText("Начать изм.")
             self.start_accumulation_wave_start_action.setIcon(QIcon("./icon/start.svg"))
             self.start_accumulation_wave_start_action.setEnabled(True)
             self.flag_readWaveform_trig = 0
@@ -732,7 +743,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
     #     """
     #     max_value = 0
     #     while max_value < int(self.v_line_pips.value()):
-            
+
     #         self.reciveModbus(2)
     #         # self.start_measurement_func()
     #         # waveform = self.readWaveform_adcA()
@@ -799,8 +810,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
             if self.flag_readWaveform_trig != 1:
                 self.start_measure_mpp()
             else:
-                self.client.write_registers(address=0x0000, values=[0x0009], slave=self.mpp_id) # запуск регистрации
-                self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id) # начать измерение
+                self.client.write_registers(address=0x0000, values=[0x0009], slave=self.mpp_id)  # запуск регистрации
+                self.client.read_holding_registers(address=0x0000, count=1, slave=self.mpp_id)  # начать измерение
                 log_s(self.send_handler.mess)
             waveformA = self.readWaveform_adcA()
             if hash_waveformA != hash(tuple(waveformA)):
@@ -811,10 +822,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 self.lineEdit_pips_peack.setText(str(maxA))
                 self.lineEdit_time_peack_pips.setText(str(x))
                 self.max_adc_histA.append(maxA)
-                self.queue_hist.put((self.max_adc_histA, self.plot_gist_pips, (255, 0, 0, 150))) # red
+                self.queue_hist.put((self.max_adc_histA, self.plot_gist_pips, (255, 0, 0, 150)))  # red
             else:
                 pass
-            waveformB  = self.readWaveform_adcB()
+            waveformB = self.readWaveform_adcB()
             if hash_waveformB != hash(tuple(waveformB)):
                 hash_waveformB = hash(tuple(waveformB))
                 self.queue.put((waveformB, self.v_line_sipm, self.plot_sipm, self.color_sipm))
@@ -823,7 +834,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 self.lineEdit_sipm_peack.setText(str(maxB))
                 self.lineEdit_time_peack_sipm.setText(str(x))
                 self.max_adc_histB.append(maxB)
-                self.queue_hist.put((self.max_adc_histB, self.plot_gist_sipm, (0, 0, 255, 150))) # blue
+                self.queue_hist.put((self.max_adc_histB, self.plot_gist_sipm, (0, 0, 255, 150)))  # blue
             else:
                 pass
             if self.pushButton_auto_flag == 1:
@@ -842,16 +853,15 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def ddii_set_triger(self, lvl):
         self.client.write_register(0x0001, lvl, self.mpp_id)
 
-
-    def trapezoid_calculater(self, x, y, T_decay: int, T_rise: int, T_top: int, invert = 0):
+    def trapezoid_calculater(self, x, y, T_decay: int, T_rise: int, T_top: int, invert=0):
         """
-            Calculate Moving Window Deconvolution
+        Calculate Moving Window Deconvolution
         """
         try:
             # dx : int = 1
-            Ndecay : int = T_decay
-            Nrise : int = T_rise
-            Ntop : int = T_top
+            Ndecay: int = T_decay
+            Nrise: int = T_rise
+            Ntop: int = T_top
             # betta: float = m.exp(-dx/self.T_decay)
             Len: int = len(y)
 
@@ -860,22 +870,22 @@ class Engine(QtWidgets.QMainWindow, QThread):
             if invert:
                 yin = [-y for y in y]
             else:
-                yin  = y
+                yin = y
             # 1-Stage Moving window deconvolution
             # allocate memory
             ym = cp.deepcopy(yin)
             # window summation
             for i in range(M + 1, Len):
-                dm = y[i] - yin[i-M]
+                dm = y[i] - yin[i - M]
                 ma = 0
-                for j in range(i-M, i-1):
+                for j in range(i - M, i - 1):
                     ma = ma + yin[j]
-                ym[i] = dm + ma/Ndecay
+                ym[i] = dm + ma / Ndecay
             # 2-Stage Moving average
             ytrp = cp.deepcopy(yin)
-            for i in range(L+1, Len):
+            for i in range(L + 1, Len):
                 ytrp[i] = 0
-                for j in range(i-L, i-1):
+                for j in range(i - L, i - 1):
                     ytrp[i] = ytrp[i] + ym[j]
                 ytrp[i] = ytrp[i] / L
             return x, ytrp
@@ -893,9 +903,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
         Returns:
         int: The calculated CRC-16 value.
         """
-        crc16_func = crcmod.predefined.mkPredefinedCrcFun('modbus')
+        crc16_func = crcmod.predefined.mkPredefinedCrcFun("modbus")
         num_bytes: int = m.ceil(data.bit_length() / 8)
-        data_bytes: bytes = data.to_bytes(num_bytes, byteorder='big')
+        data_bytes: bytes = data.to_bytes(num_bytes, byteorder="big")
         crc = crc16_func(data_bytes)
         return crc
 
@@ -910,8 +920,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
         int: The result of swapping the high and low bytes of the input integer.
         """
         # Получение старшего и младшего байта
-        byte1: int = (data >> 8) & 0xff
-        byte2: int = data & 0xff
+        byte1: int = (data >> 8) & 0xFF
+        byte2: int = data & 0xFF
         # Обмен местами старшего и младшего байта
         swapped_data: int = (byte2 << 8) | byte1
         return swapped_data
@@ -919,13 +929,13 @@ class Engine(QtWidgets.QMainWindow, QThread):
     def init_COMports_comboBox_comport_list(self):
         for n, (portname, desc, hwid) in enumerate(sorted(serial.tools.list_ports.comports())):
             self.comboBox_comm.addItem(portname)
-    
+
     def update_telemetria(self) -> None:
-        self.client.write_registers(address = self.DDII_UPDATE_DATA, values = [0], slave = self.CM_ID)
+        self.client.write_registers(address=self.DDII_UPDATE_DATA, values=[0], slave=self.CM_ID)
 
     def get_telemetria(self) -> ModbusResponse:
         self.update_telemetria()
-        result: ModbusResponse = self.client.read_holding_registers(0x0000, 62, slave=1, timeout = 10)
+        result: ModbusResponse = self.client.read_holding_registers(0x0000, 62, slave=1, timeout=10)
         log_s(self.send_handler.mess)
         return result
 
@@ -1009,9 +1019,9 @@ class Engine(QtWidgets.QMainWindow, QThread):
             ##############
             tel_b = int(self.swap_bytes(tel[63:64]).hex(), 16)
             if tel_b == 1:
-                self.checkBox_enable_test_csa.setChecked(True) 
+                self.checkBox_enable_test_csa.setChecked(True)
             else:
-                self.checkBox_enable_test_csa.setChecked(False) 
+                self.checkBox_enable_test_csa.setChecked(False)
 
             tel_b = int(self.swap_bytes(tel[64:66]).hex(), 16)
             self.ddii_interval_measure = tel_b
@@ -1081,32 +1091,32 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.logger.exception("message")
 
     def swap_bytes(self, byte_str) -> bytes:
-    # Меняем местами первый и второй байты
+        # Меняем местами первый и второй байты
         return byte_str[1:] + byte_str[:1]
-    
+
     def swap_4_dytes(self, byte_str) -> bytes:
         n0 = byte_str[:2]
         n1 = byte_str[2:4]
         n = n1 + n0
         return n
-    
+
     def byte_to_float(self, byte_str) -> float:
-    # Байты в float
+        # Байты в float
         n0 = self.swap_bytes(byte_str[:2])
         n1 = self.swap_bytes(byte_str[2:4])
         n = n1 + n0
         n_i = int(n.hex(), 16)
         # print(n.hex())
-        n_b : bytes = n_i.to_bytes(4, byteorder='big')
-        float_t: float = struct.unpack('!f', n_b)[0]
+        n_b: bytes = n_i.to_bytes(4, byteorder="big")
+        float_t: float = struct.unpack("!f", n_b)[0]
         return float_t
 
     def parse_voltage(self, data: ModbusResponse) -> tuple:
         try:
             data_v = data.encode()
-            cherenkov_v =    self.byte_to_float(data_v[1:5])
-            cherenkov_pwm =  self.byte_to_float(data_v[5:9])
-            cherenkov_cur =  self.byte_to_float(data_v[9:13])
+            cherenkov_v = self.byte_to_float(data_v[1:5])
+            cherenkov_pwm = self.byte_to_float(data_v[5:9])
+            cherenkov_cur = self.byte_to_float(data_v[9:13])
             cherenkov_mode = int(data_v[13:14].hex(), 16)
 
             pips_v = self.byte_to_float(data_v[15:19])
@@ -1119,15 +1129,26 @@ class Engine(QtWidgets.QMainWindow, QThread):
             sipm_cur = self.byte_to_float(data_v[37:41])
             sipm_mode = int(data_v[41:42].hex(), 16)
 
-            data_out = (pips_v, pips_pwm, pips_cur, pips_mode,
-                        sipm_v, sipm_pwm, sipm_cur, sipm_mode,
-                        cherenkov_v, cherenkov_pwm, cherenkov_cur, cherenkov_mode)
+            data_out = (
+                pips_v,
+                pips_pwm,
+                pips_cur,
+                pips_mode,
+                sipm_v,
+                sipm_pwm,
+                sipm_cur,
+                sipm_mode,
+                cherenkov_v,
+                cherenkov_pwm,
+                cherenkov_cur,
+                cherenkov_mode,
+            )
             return data_out
         except Exception as ex:
             self.logger.debug(ex)
             self.logger.exception("message")
-            return 0,
-    
+            return (0,)
+
     def parse_cfg_voltage(self, data: ModbusResponse) -> tuple[float, float, float]:
         try:
             data_v = data.encode()
@@ -1135,12 +1156,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
             v_cfg_cherenkov = self.byte_to_float(data_v[1:5])
             v_cfg_pips = self.byte_to_float(data_v[5:9])
             v_cfg_sipm = self.byte_to_float(data_v[9:13])
-            
+
             return v_cfg_pips, v_cfg_sipm, v_cfg_cherenkov
         except Exception:
             return 0, 0, 0
-        
-    def parse_cfg_pwm(self, data: ModbusResponse)-> tuple: 
+
+    def parse_cfg_pwm(self, data: ModbusResponse) -> tuple:
         try:
             data_v = data.encode()
             ##### pwm #####
@@ -1150,12 +1171,12 @@ class Engine(QtWidgets.QMainWindow, QThread):
             return pwm_cfg_pips, pwm_cfg_sipm, pwm_cfg_cherenkov
         except Exception:
             return 0, 0, 0
-        
+
     def get_cfg_voltage(self):
         result: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_VOLTAGE, 6, slave=self.CM_ID)
         log_s(self.send_handler.mess)
         return result
-    
+
     def get_cfg_pwm(self):
         result: ModbusResponse = self.client.read_holding_registers(self.CM_DBG_GET_CFG_PWM, 6, slave=self.CM_ID)
         log_s(self.send_handler.mess)
@@ -1177,22 +1198,21 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.label_state_2.setText("State: CM - None, MPP - None")
             self.widget_led_2.setStyleSheet(style.widget_led_off())
             self.client.close()
-        
 
-    def cheack_connect(self) -> None:
+    def check_connect(self) -> None:
         self.status_CM = 1
         self.status_MPP = 1
 
         #### CM ####
-        self.client.write_registers(address = self.DDII_SWITCH_MODE, values = self.SILENT_MODE, slave = self.CM_ID)
-        self.tel_result: ModbusResponse  = self.get_telemetria()
+        self.client.write_registers(address=self.DDII_SWITCH_MODE, values=self.SILENT_MODE, slave=self.CM_ID)
+        self.tel_result: ModbusResponse = self.get_telemetria()
         try:
             tmp_res = self.tel_result.registers
         except Exception:
             self.logger.debug("Соединение c ЦМ не установлено")
             self.status_CM = 0
 
-        ######## MPP #######  
+        ######## MPP #######
         result: ModbusResponse = self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
         log_s(self.send_handler.mess)
         try:
@@ -1215,18 +1235,16 @@ class Engine(QtWidgets.QMainWindow, QThread):
             except Exception as e:
                 self.logger.debug(e)
         self.update_telem_signal.emit()
-        
 
     def reverse_bytes(self, data: list):
         for item in data:
-            item = struct.pack('<FF', item)
-
+            item = struct.pack("<FF", item)
 
     ############ function connect mpp ##############
     def serialConnect(self, id: int, baudrate: int, f_comand: int, data: int) -> None:
         """Подключкние к ДДИИ
-        Подключение происходит одновременно к ЦМ и МПП. 
-        Для подключение к МПП нужно задать првельный ID. 
+        Подключение происходит одновременно к ЦМ и МПП.
+        Для подключение к МПП нужно задать првельный ID.
         При успешном подключении ЦМ выдаст структуру ddii_mpp_data.
 
         Parameters:
@@ -1240,7 +1258,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         None
         """
         # logging.basicConfig()
-        log = logging.getLogger('pymodbus')
+        log = logging.getLogger("pymodbus")
         log.setLevel(logging.DEBUG)
         handler = logging.StreamHandler()
         handler.setLevel(logging.DEBUG)
@@ -1262,13 +1280,20 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 parity="N",
                 stopbits=1,
                 handle_local_echo=True,
-                )
+            )
             if self.client.connect():
                 self.state_serial = 1
-                self.logger.debug(port + " ,Baudrate = " + str(baudrate) +
-                                ", Parity = "+"None"+
-                                ", Stopbits = "+ "1" +
-                                ", Bytesize = " + str(self.client.comm_params.bytesize))
+                self.logger.debug(
+                    port
+                    + " ,Baudrate = "
+                    + str(baudrate)
+                    + ", Parity = "
+                    + "None"
+                    + ", Stopbits = "
+                    + "1"
+                    + ", Bytesize = "
+                    + str(self.client.comm_params.bytesize)
+                )
             else:
                 self.label_state_2.setText("State: COM-порт занят. Попробуйте переподключиться")
                 self.state_serial = 0
@@ -1277,8 +1302,8 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 self.pushButton_connect_2.setText("Отключить")
                 self.pushButton_connect_flag = 1
                 self.mpp_id = int(self.lineEdit_IDmpp_2.text())
-                
-                self.qtread_tel = threading.Thread(target=self.cheack_connect(), daemon = True)
+
+                self.qtread_tel = threading.Thread(target=self.check_connect(), daemon=True)
                 self.qtread_tel.start()
         else:
             self.pushButton_connect_2.setText("Подключить")
@@ -1286,7 +1311,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
             self.widget_led_2.setStyleSheet(style.widget_led_off())
             self.client.close()
             self.label_state_2.setText("State: ")
-            
+
     ############ Function MODBUS ################
     def sendModbus(self, data):
         """
@@ -1357,7 +1382,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def start_measure_mpp(self):
         """Принудительный запуск измерения МПП, считывает осциллограммы МПП
-        0E 06 00 00 00 51 48 C9 
+        0E 06 00 00 00 51 48 C9
         """
         self.client.write_register(self.REG_COMAND, 0x0051, self.mpp_id)
         log_s(self.send_handler.mess)
@@ -1390,7 +1415,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         Returns:
             A list containing the waveform data.
         """
-        amount_read_reg = 32 # так как потом умножается на 2
+        amount_read_reg = 32  # так как потом умножается на 2
         # start_measure_comand: int = (self.mpp_id << 40) + (self.f_comand_write << 32) + (self.start_measure << 0)
         # num_bytes, data_crc = self.sendModbus(start_measure_comand)
         # self.reciveModbus(num_bytes*2)
@@ -1420,11 +1445,10 @@ class Engine(QtWidgets.QMainWindow, QThread):
                         amount_read_reg = end_reg - initial_reg
             except Exception:
                 self.logger.debug("Нет ответа от МПП")
-            
+
         # self.logger.debug(waveform_list)
         # print(waveform_list)
         return waveform_list
-
 
     def parserWaveform(self, data: str) -> list[str]:
         """
@@ -1442,18 +1466,18 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.logger.debug(data)
         # data_str: str = data.replace("0x", "")
         # self.logger.debug(data_str)
-        data_list= re.findall(r"\w\w\w\w", data)
+        data_list = re.findall(r"\w\w\w\w", data)
         # self.logger.debug(data_list)
         return data_list
 
-    def qt_plotter(self, data, v_line: pg.Color, plot_widget: pg.PlotWidget, color : tuple = (255, 0, 0)):
-        x, y = self.hex_to_list(data) # map(int, data)?
+    def qt_plotter(self, data, v_line: pg.Color, plot_widget: pg.PlotWidget, color: tuple = (255, 0, 0)):
+        x, y = self.hex_to_list(data)  # map(int, data)?
         plot_widget.clear()
         pen = pg.mkPen(color)
 
-        if self.data_flow_flag == 1: # раскомментировать
+        if self.data_flow_flag == 1:  # раскомментировать
             self.writer_data(color, x, y)
-        
+
         data_line = plot_widget.plot(x, y, pen=pen)
         data_line.setData(x, y)  # обновляем данные графика
         plot_widget.addItem(v_line)
@@ -1461,9 +1485,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.data_line.setData(self.x, self.y)
         # print(y)
 
-    def qt_gistogram_plotter(self, data: list,
-                            plot_widget: pg.PlotWidget,
-                            color : tuple = (0, 0, 255, 150)) -> None:
+    def qt_gistogram_plotter(self, data: list, plot_widget: pg.PlotWidget, color: tuple = (0, 0, 255, 150)) -> None:
         """Построение гистограммы
 
         Args:
@@ -1477,19 +1499,17 @@ class Engine(QtWidgets.QMainWindow, QThread):
         # self.plot_gist_pips.clear()
         # self.plot_gist_sipm.clear()
         plot_widget.clear()
-        y, x  = np.histogram(data, bins=np.linspace(0, bin_count, bin_count))
+        y, x = np.histogram(data, bins=np.linspace(0, bin_count, bin_count))
         plot_widget.plot(x, y, stepMode=True, fillLevel=0, brush=color)
 
-    def change_gistogramm_bins(self, data: list,
-                                bins: np.ndarray,
-                                plot_widget: pg.PlotWidget,
-                                color : tuple = (255, 0, 0)):
+    def change_gistogramm_bins(
+        self, data: list, bins: np.ndarray, plot_widget: pg.PlotWidget, color: tuple = (255, 0, 0)
+    ):
         """
         Изменение количества бинов соответствующей гистограммы.
         Должна быть в классе отдельного окна.
         """
 
-    
     def writer_data(self, color: tuple, x, y):
         current_datetime = datetime.datetime.now()
         match color:
@@ -1497,22 +1517,24 @@ class Engine(QtWidgets.QMainWindow, QThread):
                 time = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
                 with open(self.folder_path + "/" + time + " -- pips.csv", "wb") as file:
                     frame = pd.DataFrame(zip(x, y))
-                    frame.to_csv(file, index = False, sep=" ")
+                    frame.to_csv(file, index=False, sep=" ")
                 file.close()
             case self.color_sipm:
                 time = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
                 with open(self.folder_path + "/" + time + " -- sipm.csv", "wb") as file:
                     frame = pd.DataFrame(zip(x, y))
-                    frame.to_csv(file, index = False, sep=" ")
+                    frame.to_csv(file, index=False, sep=" ")
                 file.close()
 
-    def qt_plotter_trapezoid(self, 
-                            xtr_pips,
-                            ytr_pips,
-                            xtr_sipm,
-                            ytr_sipm,
-                            color_tr_pips : tuple = (255, 120, 10), 
-                            color_tr_sipm : tuple = (134, 255, 82)):
+    def qt_plotter_trapezoid(
+        self,
+        xtr_pips,
+        ytr_pips,
+        xtr_sipm,
+        ytr_sipm,
+        color_tr_pips: tuple = (255, 120, 10),
+        color_tr_sipm: tuple = (134, 255, 82),
+    ):
         xpips, ypips = self.hex_to_list(self.data_pips)
         xsipm, ysipm = self.hex_to_list(self.data_sipm)
         self.plot_pips.clear()
@@ -1562,18 +1584,18 @@ class Engine(QtWidgets.QMainWindow, QThread):
     #     self.x = x
     #     self.y = y
     #     return x, y
-        
+
     def hex_to_list(self, data: list) -> tuple[list, list]:
         x = []  # список для порядковых номеров
         y = []  # список для значений
         hex = []
         for index, value in enumerate(data):
-            hex_value = value # value.replace('e', '0', 1)  # удаляем старший бит E
+            hex_value = value  # value.replace('e', '0', 1)  # удаляем старший бит E
             hex.append(hex_value)
             try:
                 decimal_value = int(hex_value[1:], 16)  # преобразуем значение из
-                                                        # шестнадцатеричного в десятичный формат
-                                                        # и отнимаем смещение E0 00
+                # шестнадцатеричного в десятичный формат
+                # и отнимаем смещение E0 00
                 if decimal_value > 4000:
                     decimal_value = 0
                 x.append(index)
@@ -1591,7 +1613,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def queue_qt_plot(self):
         """
-            Очередь для отрисовки осцилограмм МПП
+        Очередь для отрисовки осцилограмм МПП
         """
         while not self.queue.empty():
             data, v_line, plot, color = self.queue.get()
@@ -1599,7 +1621,7 @@ class Engine(QtWidgets.QMainWindow, QThread):
 
     def queue_qt_hist(self):
         """
-            Очередь для отрисовки гистограмм
+        Очередь для отрисовки гистограмм
         """
         while not self.queue_hist.empty():
             data, plot, color = self.queue_hist.get()
