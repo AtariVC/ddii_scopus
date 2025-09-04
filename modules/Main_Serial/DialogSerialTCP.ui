@@ -21,7 +21,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QTabWidget" name="tabWidget">
+    <widget class="QTabWidget" name="tabWidget_serial">
      <property name="minimumSize">
       <size>
        <width>510</width>
@@ -29,7 +29,7 @@
       </size>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tab_serial">
       <attribute name="title">

@@ -38,7 +38,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
     def __init__(self, logger, **kwargs) -> None:
         super().__init__(**kwargs)
-        loadUi(Path(__file__).parents[0].joinpath("DialogSerialTCP.ui"), self)
+        loadUi(Path(__file__).parents[0].joinpath("DialogSerial.ui"), self)
         self.mw = ModbusWorker()
         self.logger = logger
         self.comboBox_comm = CustomComboBox_COMport()
@@ -121,7 +121,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 if self.status_CM and self.status_MPP == 0:
                     self.client.close()
                     await asyncio.sleep(1)
-                    self.label_state_w.setText("State: Нет подключение к ДДИИ")
+                    self.label_state_w.setText("State: Нет подключения к ДДИИ")
                     self.pushButton_connect_flag = 0
                     self.pushButton_connect_w.setText("Подключить")
         else:
