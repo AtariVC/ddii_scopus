@@ -1,8 +1,17 @@
+__pycache__/
+*.pyc
 /.DS_Store
+.DS_Store
 /.history
 /.venv
 *.log
 *.csv
 *.xlsx
+*.hdf5
+poetry.lock
+/.vscode
+*.sqlite3
+*~
+*.swp
 *.pyc
 poetry.lock

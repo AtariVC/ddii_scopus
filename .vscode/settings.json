@@ -2,5 +2,13 @@
     "python.analysis.autoImportCompletions": false,
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.useLibraryCodeForTypes": false,
-    "cortex-debug.variableUseNaturalFormat": false
+    "cortex-debug.variableUseNaturalFormat": false,
+    "cSpell.words": [
+        "ddii",
+        "modbus",
+        "sipm",
+        "объект",
+        "полей",
+        "список"
+    ]
 }

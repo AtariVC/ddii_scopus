@@ -1,32 +1,38 @@
 from PyQt6 import QtWidgets, QtCore
 import sys
-from engine import Engine
+from modules.Engine.engine import Engine
 import qtmodern.styles
-import os
 from qtmodern.windows import ModernWindow
-
-class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self) -> None:
-        super().__init__()
-        # loadUi(os.path.join(os.path.dirname(__file__),  f'ui/MainWindow.ui'), self)
-        # self.plot_widget = pg.PlotWidget()
-        # self.oscill_layout.addWidget(self.plot_widget)
-        # self.plot_widget.setBackground('#F8F8F4')
-        # self.pushButton_connect.clicked.connect(self.pushButtonConnect_clicked)
-        # self.pushButton_single.clicked.connect(self.pushButton_single_clicked)    
-        # np.array([1])
+import qasync
+import asyncio
+from qcustomwindow import (CustomWindow, QtWidgets, QMovie, QtGui,
+                                   __version__, dark, light, stylesheet)  # noqa: F401
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    qtmodern.styles.dark(app)
+    app.setStyleSheet(stylesheet)
+    dark()
+    # qtmodern.styles.dark(app)
     # light(app)
     w: Engine = Engine()
     # w.show()
-    mw: ModernWindow = ModernWindow(w)
-    mw.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)  # fix flickering on resize window
-    mw.show()
-    # with open("style\Light.css", "r") as f:#QSS not CSS for pyqt5
-    #     stylesheet = f.read()
-    #     w.setStyleSheet(stylesheet)
-    #     f.close()
-    sys.exit(app.exec())
+    # mw: ModernWindow = ModernWindow(w)
+    # mw.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)  # fix flickering on resize window
+
+    event_loop = qasync.QEventLoop(app)
+    asyncio.set_event_loop(event_loop)
+    app_close_event = asyncio.Event()
+    app.aboutToQuit.connect(app_close_event.set)
+    w.show()
+
+    with event_loop:
+        try:
+            event_loop.run_until_complete(app_close_event.wait())
+        except asyncio.CancelledError:
+            ...
+
+
+
+
+
+
