@@ -36,25 +36,49 @@ from modules.Engine.widgets.viewer.graph_viewer_widget import GraphViewerWidget 
 from modules.Engine.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
 from src.craft_custom_widget import add_serial_widget
 from src.main_window_maker import create_split_widget, clear_left_widget, create_tab_widget_items
+from qcustomwindow import (CustomWindow, QtWidgets, QMovie, QtGui,
+                                   __version__, dark, light, stylesheet)  # noqa: F401
 
-class Engine(QtWidgets.QMainWindow):
+class Engine(QtWidgets.QMainWindow, CustomWindow):
 
     gridLayout_main_split        : QtWidgets.QGridLayout
 
     coroutine_get_client_finished = QtCore.pyqtSignal()
 
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
         loadUi(Path(__file__).parent.joinpath('engine.ui'), self)
         self.resize(1300, 800)
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
         self.logger = log_init()
+        self.setTitle('ddii scopus')
+        nyancat_label = QtWidgets.QLabel()
+        assets = Path(__file__).parent / 'assets'
+        
+        
+        self.dark_icon = QtGui.QIcon(str(assets / 'dark.svg'))
+        self.light_icon = QtGui.QIcon(str(assets / 'light.svg'))
+        self.style_button = QtWidgets.QPushButton()
+        self.style_button.setIcon(self.dark_icon)
+        self.style_button.setFlat(True)
+        self.style_button.clicked.connect(self.on_change_style)
+        self.add_right_widget(self.style_button)
+        self.is_dark = True
         
         # self.init_QObjects()
         # self.config = ConfigSaver()
         self.init_widgets()
+        
+    def on_change_style(self):
+        if not self.is_dark:
+            dark()
+            self.style_button.setIcon(self.dark_icon)
+        else:
+            light()
+            self.style_button.setIcon(self.light_icon)
+        self.is_dark = not self.is_dark
 
     def widget_model(self):
         spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
