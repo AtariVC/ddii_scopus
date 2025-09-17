@@ -15,3 +15,4 @@ poetry.lock
 *.swp
 *.pyc
 poetry.lock
+*.lock
