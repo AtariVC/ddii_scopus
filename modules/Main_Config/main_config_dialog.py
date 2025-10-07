@@ -9,7 +9,7 @@ from PyQt6 import QtWidgets
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
 from qtpy.uic import loadUi
-from save_config import ConfigSaver
+from .save_config import ConfigSaver
 
 ####### импорты из других директорий ######
 # /src

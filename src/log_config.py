@@ -25,9 +25,9 @@ def log_init():
     time_now = datetime.now()
     form_time = time_now.strftime("%Y-%m-%d %H_%M_%S")
     home_dir = str(Path().resolve())
-    log_path_debug =    home_dir + "./log/debug/" + str(form_time) + ".log"
-    log_path_serial =   home_dir + "./log/serial/" + str(form_time) + ".log"
-    log_path_emulator = home_dir + "./log/emulator/" + str(form_time) + ".log"
+    log_path_debug =    home_dir + "/log/debug/" + str(form_time) + ".log"
+    log_path_serial =   home_dir + "/log/serial/" + str(form_time) + ".log"
+    log_path_emulator = home_dir + "/log/emulator/" + str(form_time) + ".log"
     log_format_debug = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <4}</level> | \
 <yellow>{file}:{line}</yellow> | <w>{message}</w>"
     log_format_tx = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <1}</level> | \
