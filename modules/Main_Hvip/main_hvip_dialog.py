@@ -8,7 +8,7 @@ from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QSizePolicy, QSpacerItem
 from qtpy.uic import loadUi
-from .save_config import ConfigSaver
+from save_config import ConfigSaver
 
 ####### импорты из других директорий ######
 # /src
@@ -25,7 +25,7 @@ from src.log_config import log_init, log_s  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
-from custom.styleSheet import widget_led_off, widget_led_on  # noqa: E402
+from style.styleSheet import widget_led_off, widget_led_on  # noqa: E402
 
 
 class MainHvipDialog(QtWidgets.QDialog):
@@ -186,7 +186,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             "label_desired_v_sipm"          : self.label_desired_v_sipm
         }
         self.label_desired_v_T: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp="f")
-            for  i, (key, value) in enumerate(self.label_desired_v.items())]
+            for  (key, value) in self.label_desired_v.items()]
 
         self.spin_box_A_B: dict[str, QtWidgets.QDoubleSpinBox] = {
             "spinBox_ch_a_u"                : self.spinBox_ch_a_u,
@@ -261,7 +261,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             answer: bytes = await self.cm_cmd.get_voltage()
             desired_v: bytes = await self.cm_cmd.get_desired_voltage()
             data: dict[str, str] = await self.parser.pars_voltage(answer)
-            data_desired_v: dict[str, str] = await self.parser.pars_everything(self.label_desired_v_T, desired_v, endian="little")
+            data_desired_v: dict[str, str] = await self.parser.pars_everything(self.label_desired_v_T, desired_v, endian="big")
             for key, val in self.label_desired_v.items():
                 val.setText(data_desired_v[key])
             for i, (key, val) in enumerate(self.label_meas.items()):
