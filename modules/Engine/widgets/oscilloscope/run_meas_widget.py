@@ -145,6 +145,28 @@ class RunMeasWidget(QtWidgets.QDialog):
         except Exception:
             return False
 
+    def _is_devices_ready(self) -> bool:
+        """Проверка доступности ЦМ и МПП по флагам диалога Serial."""
+        try:
+            return (
+                self.w_ser_dialog is not None
+                and getattr(self.w_ser_dialog, "status_CM", 0) == 1
+                and getattr(self.w_ser_dialog, "status_MPP", 0) == 1
+            )
+        except Exception:
+            return False
+
+    async def _ensure_connection(self) -> bool:
+        """Обновляет статусы подключения и проверяет готовность ЦМ/МПП."""
+        if not self._is_modbus_ready():
+            return False
+        try:
+            await self.w_ser_dialog.check_connect()
+        except Exception as e:
+            self.logger.error(f"Ошибка проверки соединения: {e}")
+            return False
+        return self._is_devices_ready()
+
     async def _stop_measuring(self, reason: str | None = None):
         """Останавливает измерения, гасит задачи и приводит UI в исходное состояние."""
         if reason:
@@ -178,6 +200,12 @@ class RunMeasWidget(QtWidgets.QDialog):
         mpp_id = self.w_ser_dialog.mpp_id
         self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
         self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
+        try:
+            await self.w_ser_dialog.check_connect()
+            if not self._is_devices_ready():
+                self.logger.warning("ЦМ/МПП недоступны — запуск измерений невозможен")
+        except Exception:
+            self.logger.warning("Не удалось обновить статус ЦМ/МПП при инициализации команд")
 
     @qasync.asyncSlot()
     async def on_serial_disconnected(self):
@@ -185,8 +213,8 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def pushButton_calibr_acq_handler(self):
-        if not self._is_modbus_ready():
-            self.logger.error("Нет подключения")
+        if not await self._ensure_connection():
+            self.logger.error("Нет подключения (ЦМ/МПП недоступны)")
             return
         try:
             await self.mpp_cmd.calibrate_ACQ()
@@ -212,7 +240,7 @@ class RunMeasWidget(QtWidgets.QDialog):
 
         ACQ_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if self._is_modbus_ready():
+        if await self._ensure_connection():
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag]
             if self.flags[self.start_measure_flag]:
                 self.pushButton_run_measure.setText("Остановить изм.")
@@ -250,7 +278,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.graph_widget.hp_pips.hist_clear()
             lvl = int(self.lineEdit_trigger.text())
             save: bool = False
-            if not self._is_modbus_ready():
+            if not self._is_modbus_ready() or not self._is_devices_ready():
                 await self._stop_measuring("Потеряно соединение (ACQ init)")
                 return
             if self.flags[self.enable_trig_meas_flag]:
@@ -258,7 +286,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 await self.mpp_cmd.start_measure(on=1)
             self.graph_widget.show()
             while 1:
-                if not self._is_modbus_ready():
+                if not self._is_modbus_ready() or not self._is_devices_ready():
                     await self._stop_measuring("Потеряно соединение (ACQ loop)")
                     return
                 current_datetime = datetime.datetime.now()
@@ -328,7 +356,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         """Опрос счетчика частиц"""
         self.graph_widget.hp_counter.hist_clear()
         try:
-            if not self._is_modbus_ready():
+            if not self._is_modbus_ready() or not self._is_devices_ready():
                 await self._stop_measuring("Потеряно соединение (HH init)")
                 return
             await self.mpp_cmd.clear_hist()
@@ -343,7 +371,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         accumulate_data = np.array([0] * 12)
         bins = [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
         while 1:
-            if not self._is_modbus_ready():
+            if not self._is_modbus_ready() or not self._is_devices_ready():
                 await self._stop_measuring("Потеряно соединение (HH loop)")
                 return
             # counter_clear += 1
