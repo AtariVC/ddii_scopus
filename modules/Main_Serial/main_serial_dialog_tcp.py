@@ -246,9 +246,9 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     async def pushButton_connect_Handler(self) -> None:
         await self.serialConnect()
         if self.client is not None:
+            # Обновляем интерфейс TCP при изменении состояния serial
+            self.update_tcp_interface(self.tabWidget_serial.currentIndex())
             self.coroutine_finished.emit()
-        # Обновляем интерфейс TCP при изменении состояния serial
-        self.update_tcp_interface(self.tabWidget_serial.currentIndex())
 
     @qasync.asyncSlot()
     async def serialConnect(self) -> None:

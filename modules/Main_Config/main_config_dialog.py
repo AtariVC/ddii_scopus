@@ -9,6 +9,7 @@ from PyQt6 import QtWidgets
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
 from qtpy.uic import loadUi
+
 from .save_config import ConfigSaver
 
 ####### импорты из других директорий ######
@@ -19,7 +20,7 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.env_var import EnvironmentVar  # noqa: E402
 from src.log_config import log_init  # noqa: E402
@@ -29,52 +30,52 @@ from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
 
 
 class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
-    lineEdit_interval                   : QtWidgets.QLineEdit
+    lineEdit_interval: QtWidgets.QLineEdit
 
-    lineEdit_hvip_pips                  : QtWidgets.QLineEdit
-    lineEdit_hvip_sipm                  : QtWidgets.QLineEdit
-    lineEdit_hvip_ch                    : QtWidgets.QLineEdit
+    lineEdit_hvip_pips: QtWidgets.QLineEdit
+    lineEdit_hvip_sipm: QtWidgets.QLineEdit
+    lineEdit_hvip_ch: QtWidgets.QLineEdit
 
-    lineEdit_pwm_sipm                   : QtWidgets.QLineEdit
-    lineEdit_pwm_pips                   : QtWidgets.QLineEdit
-    lineEdit_pwm_ch                     : QtWidgets.QLineEdit
+    lineEdit_pwm_sipm: QtWidgets.QLineEdit
+    lineEdit_pwm_pips: QtWidgets.QLineEdit
+    lineEdit_pwm_ch: QtWidgets.QLineEdit
 
-    lineEdit_pwm_max_sipm               : QtWidgets.QLineEdit
-    lineEdit_pwm_max_pips               : QtWidgets.QLineEdit
-    lineEdit_pwm_max_ch                 : QtWidgets.QLineEdit
+    lineEdit_pwm_max_sipm: QtWidgets.QLineEdit
+    lineEdit_pwm_max_pips: QtWidgets.QLineEdit
+    lineEdit_pwm_max_ch: QtWidgets.QLineEdit
 
-    lineEdit_lvl_0_1                    : QtWidgets.QLineEdit
-    lineEdit_lvl_0_5                    : QtWidgets.QLineEdit
-    lineEdit_lvl_0_8                    : QtWidgets.QLineEdit
-    lineEdit_lvl_1_6                    : QtWidgets.QLineEdit
-    lineEdit_lvl_3                      : QtWidgets.QLineEdit
-    lineEdit_lvl_5                      : QtWidgets.QLineEdit
+    lineEdit_lvl_0_1: QtWidgets.QLineEdit
+    lineEdit_lvl_0_5: QtWidgets.QLineEdit
+    lineEdit_lvl_0_8: QtWidgets.QLineEdit
+    lineEdit_lvl_1_6: QtWidgets.QLineEdit
+    lineEdit_lvl_3: QtWidgets.QLineEdit
+    lineEdit_lvl_5: QtWidgets.QLineEdit
 
-    lineEdit_lvl_10                     : QtWidgets.QLineEdit
-    lineEdit_lvl_30                     : QtWidgets.QLineEdit
-    lineEdit_lvl_60                     : QtWidgets.QLineEdit
+    lineEdit_lvl_10: QtWidgets.QLineEdit
+    lineEdit_lvl_30: QtWidgets.QLineEdit
+    lineEdit_lvl_60: QtWidgets.QLineEdit
 
-    label_check_cfg                    : QtWidgets.QLabel
+    label_check_cfg: QtWidgets.QLabel
 
-    pushButton_save_hvip                : QtWidgets.QPushButton
-    pushButton_save_mpp                 : QtWidgets.QPushButton
-    lineEdit_cfg_mpp_id                 : QtWidgets.QLineEdit
-    vLayout_ser_connect                 : QtWidgets.QVBoxLayout
+    pushButton_save_hvip: QtWidgets.QPushButton
+    pushButton_save_mpp: QtWidgets.QPushButton
+    lineEdit_cfg_mpp_id: QtWidgets.QLineEdit
+    vLayout_ser_connect: QtWidgets.QVBoxLayout
 
-    radioButton_mpp                     : QtWidgets.QRadioButton
-    radioButton_cm                      : QtWidgets.QRadioButton
+    radioButton_mpp: QtWidgets.QRadioButton
+    radioButton_cm: QtWidgets.QRadioButton
 
-    pushButton_Get_Rst                  : QtWidgets.QPushButton
+    pushButton_Get_Rst: QtWidgets.QPushButton
 
     CM_DBG_SET_CFG = 0x0005
     CM_ID = 1
-    #CM_DBG_SET_VOLTAGE = 0x0006
-    #CM_DBG_GET_VOLTAGE = 0x0009
-    #CMD_HVIP_ON_OFF = 0x000B
+    # CM_DBG_SET_VOLTAGE = 0x0006
+    # CM_DBG_GET_VOLTAGE = 0x0009
+    # CMD_HVIP_ON_OFF = 0x000B
 
     def __init__(self, logger, *args) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.joinpath('DialogConfig.ui'), self)
+        loadUi(Path(__file__).resolve().parent.joinpath("DialogConfig.ui"), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
@@ -97,47 +98,46 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         self.update_pack_from_widget()
 
     def update_pack_from_widget(self):
-        self.pack: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp=('f' if 8 < i < 15 else 'i'))
-        for  i, (key, value) in enumerate(self.le_obj.items())]
-        self.pack_pwm_max: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp='f')
-        for  i, (key, value) in enumerate(self.le_obj_pwm_max.items())]
+        self.pack: list[LineEObj] = [
+            LineEObj(key=key, lineobj_txt=value.text(), tp=("f" if 8 < i < 15 else "i"))
+            for i, (key, value) in enumerate(self.le_obj.items())
+        ]
+        self.pack_pwm_max: list[LineEObj] = [
+            LineEObj(key=key, lineobj_txt=value.text(), tp="f")
+            for i, (key, value) in enumerate(self.le_obj_pwm_max.items())
+        ]
 
     def init_linEdit_list(self) -> tuple[dict[str, QLineEdit], dict[str, QLineEdit]]:
         le_obj: dict[str, QtWidgets.QLineEdit] = {
-                    "lineEdit_lvl_0_1": self.lineEdit_lvl_0_1,
-
-                    "lineEdit_lvl_0_5": self.lineEdit_lvl_0_5,
-                    "lineEdit_lvl_0_8": self.lineEdit_lvl_0_8,
-                    "lineEdit_lvl_1_6": self.lineEdit_lvl_1_6,
-                    "lineEdit_lvl_3": self.lineEdit_lvl_3,
-                    "lineEdit_lvl_5": self.lineEdit_lvl_5,
-                    "lineEdit_lvl_10": self.lineEdit_lvl_10,
-                    "lineEdit_lvl_30": self.lineEdit_lvl_30,
-                    "lineEdit_lvl_60": self.lineEdit_lvl_60,
-
-                    "lineEdit_pwm_ch": self.lineEdit_pwm_ch,
-                    "lineEdit_pwm_pips": self.lineEdit_pwm_pips,
-                    "lineEdit_pwm_sipm": self.lineEdit_pwm_sipm,
-
-                    "lineEdit_hvip_ch": self.lineEdit_hvip_ch,
-                    "lineEdit_hvip_pips": self.lineEdit_hvip_pips,
-                    "lineEdit_hvip_sipm": self.lineEdit_hvip_sipm,
-
-                    "lineEdit_cfg_mpp_id": self.lineEdit_cfg_mpp_id,
-                    "lineEdit_interval": self.lineEdit_interval
+            "lineEdit_lvl_0_1": self.lineEdit_lvl_0_1,
+            "lineEdit_lvl_0_5": self.lineEdit_lvl_0_5,
+            "lineEdit_lvl_0_8": self.lineEdit_lvl_0_8,
+            "lineEdit_lvl_1_6": self.lineEdit_lvl_1_6,
+            "lineEdit_lvl_3": self.lineEdit_lvl_3,
+            "lineEdit_lvl_5": self.lineEdit_lvl_5,
+            "lineEdit_lvl_10": self.lineEdit_lvl_10,
+            "lineEdit_lvl_30": self.lineEdit_lvl_30,
+            "lineEdit_lvl_60": self.lineEdit_lvl_60,
+            "lineEdit_pwm_ch": self.lineEdit_pwm_ch,
+            "lineEdit_pwm_pips": self.lineEdit_pwm_pips,
+            "lineEdit_pwm_sipm": self.lineEdit_pwm_sipm,
+            "lineEdit_hvip_ch": self.lineEdit_hvip_ch,
+            "lineEdit_hvip_pips": self.lineEdit_hvip_pips,
+            "lineEdit_hvip_sipm": self.lineEdit_hvip_sipm,
+            "lineEdit_cfg_mpp_id": self.lineEdit_cfg_mpp_id,
+            "lineEdit_interval": self.lineEdit_interval,
         }
 
         le_obj_pwm_max: dict[str, QtWidgets.QLineEdit] = {
-                    "lineEdit_pwm_max_ch"   : self.lineEdit_pwm_max_ch,
-                    "lineEdit_pwm_max_pips" : self.lineEdit_pwm_max_pips,
-                    "lineEdit_pwm_max_sipm" : self.lineEdit_pwm_max_sipm
+            "lineEdit_pwm_max_ch": self.lineEdit_pwm_max_ch,
+            "lineEdit_pwm_max_pips": self.lineEdit_pwm_max_pips,
+            "lineEdit_pwm_max_sipm": self.lineEdit_pwm_max_sipm,
         }
         return le_obj, le_obj_pwm_max
 
     @qasync.asyncSlot()
     async def get_client(self) -> None:
-        """Функция перехватывает client и переподключается к нему
-        """
+        """Функция перехватывает client и переподключается к нему"""
         try:
             if self.w_ser_dialog.pushButton_connect_flag == 1:
                 self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
@@ -155,13 +155,13 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                     else:
                         self.radioButton_mpp.setEnabled(True)
                 if self.w_ser_dialog.status_CM == 0:
-                        self.radioButton_cm.setChecked(False)
-                        self.radioButton_cm.setEnabled(False)
+                    self.radioButton_cm.setChecked(False)
+                    self.radioButton_cm.setEnabled(False)
                 if self.w_ser_dialog.status_CM == 0 and self.w_ser_dialog.status_MPP == 0:
                     self.radioButton_cm.setChecked(True)
                     self.radioButton_cm.setEnabled(False)
                     self.radioButton_mpp.setEnabled(False)
-                
+
         except Exception:
             pass
 
@@ -178,19 +178,21 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
             for i, (key, val) in enumerate(self.le_obj.items()):
                 if 0 < i < 9:
-                    val.setText(list(tel_dict.values())[i-1])
+                    val.setText(list(tel_dict.values())[i - 1])
 
         except Exception as e:
             self.logger.error(e)
 
-    @qasync.asyncSlot()    
+    @qasync.asyncSlot()
     async def update_gui_data_cm(self) -> None:
         try:
             answer: bytes = await self.cm_cmd.get_cfg_ddii()
-            tel_dict: dict = await self.parser.pars_everything(self.pack+self.pack_pwm_max, answer[3:], "little") # отбрасываем 0x0FF1
+            tel_dict: dict = await self.parser.pars_everything(
+                self.pack + self.pack_pwm_max, answer[3:], "little"
+            )  # отбрасываем 0x0FF1
             total_struct = self.le_obj | self.le_obj_pwm_max
             for i, (key, val) in enumerate(total_struct.items()):
-                val.setText(list(tel_dict.values())[i])        
+                val.setText(list(tel_dict.values())[i])
         except Exception as e:
             self.logger.error(e)
 
@@ -203,7 +205,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
     @qasync.asyncSlot()
     async def pushButton_save_cfg_handler(self) -> None:
-        head: list[int] = [int(self.HEAD.to_bytes(2, 'little').hex(), 16)]
+        head: list[int] = [int(self.HEAD.to_bytes(2, "little").hex(), 16)]
         # await self.cm_cmd.set_mode(self.SILENT_MODE)
         # await asyncio.sleep(0.5)
         if self.radioButton_cm.isChecked():
@@ -237,13 +239,12 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         # await asyncio.sleep(0.5)
         # await self.cm_cmd.set_mode(self.COMBAT_MODE)
 
-    
     @qasync.asyncSlot()
     async def check_writed_cfg(self, data: list[int], device: str) -> bool:
         """Поверяет записалась ли в память конфигурация
         Args:
             data (list[int]): отправленные данные концигурации
-            device (str): 
+            device (str):
             - "cm"
             - "mpp"
         Returns:
@@ -255,10 +256,12 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
             if device == "mpp":
                 cheack_lvl: bytes = await self.mpp_cmd.get_level()
                 cheack_hh: bytes = await self.mpp_cmd.get_hh()
-                d_cheack_lvl: dict[str, str] =  await self.parser.pars_mpp_lvl(cheack_lvl)
+                d_cheack_lvl: dict[str, str] = await self.parser.pars_mpp_lvl(cheack_lvl)
                 d_cheack_hh: dict[str, str] = await self.parser.pars_mpp_hh(cheack_hh)
-                if list(map(int, d_cheack_hh.values())) == data[1:9] and \
-                        list(map(int, d_cheack_lvl.values())) == data[:1]:
+                if (
+                    list(map(int, d_cheack_hh.values())) == data[1:9]
+                    and list(map(int, d_cheack_lvl.values())) == data[:1]
+                ):
                     return True
                 else:
                     return False
@@ -266,9 +269,11 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
             self.logger.error(e)
 
         try:
-            if device == "cm": # для цм не работает из-за точности float
+            if device == "cm":  # для цм не работает из-за точности float
                 cheack_cfg_ddii: bytes = await self.cm_cmd.get_cfg_ddii()
-                d_cheack_cfg_ddii:list[int] =  [int.from_bytes(cheack_cfg_ddii[i*2:i*2+2], "little") for i in range(2, 24)]
+                d_cheack_cfg_ddii: list[int] = [
+                    int.from_bytes(cheack_cfg_ddii[i * 2 : i * 2 + 2], "little") for i in range(2, 24)
+                ]
                 if d_cheack_cfg_ddii == data[1:]:
                     return True
                 else:
@@ -278,8 +283,6 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         # await asyncio.sleep(0.5)
         # await self.cm_cmd.set_mode(self.COMBAT_MODE)
         return False
-
-
 
     @qasync.asyncSlot()
     async def pushButton_get_rst_handler(self) -> None:
@@ -294,13 +297,12 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                 self.pushButton_Get_Rst.setText("R")
                 self.label_check_cfg.setText("Status: Get MMP config")
                 self.flg_get_rst = 1
-            
+
         else:
             self.pushButton_Get_Rst.setText("G")
             self.label_check_cfg.setText("Status: Reset data")
             self.config.load_from_config()
             self.flg_get_rst = 0
-
 
     @qasync.asyncSlot()
     async def get_cfg_data_from_widget(self, device: str) -> list[int]:
@@ -315,13 +317,12 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         self.update_pack_from_widget()
         pack = self.pack + self.pack_pwm_max
         get_data_widget = LineEditPack()
-        if device == 'mpp':
-            return get_data_widget(pack, 'big')
-        if device == 'cm':
-            return get_data_widget(pack, 'little')
+        if device == "mpp":
+            return get_data_widget(pack, "big")
+        if device == "cm":
+            return get_data_widget(pack, "little")
         else:
             return []
-
 
     def initValidator(self, validator, d_validator) -> None:
         self.lineEdit_lvl_0_1.setValidator(validator)
@@ -335,11 +336,12 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         self.lineEdit_lvl_60.setValidator(validator)
         self.lineEdit_pwm_pips.setValidator(d_validator)
         self.lineEdit_hvip_pips.setValidator(d_validator)
-        self.lineEdit_pwm_sipm .setValidator(d_validator)
+        self.lineEdit_pwm_sipm.setValidator(d_validator)
         self.lineEdit_hvip_sipm.setValidator(d_validator)
         self.lineEdit_pwm_ch.setValidator(d_validator)
         self.lineEdit_hvip_ch.setValidator(d_validator)
         self.lineEdit_interval.setValidator(d_validator)
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
@@ -350,13 +352,13 @@ if __name__ == "__main__":
     spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
     w_ser_dialog: SerialConnect = SerialConnect(logger)
     w: MainConfigDialog = MainConfigDialog(logger, w_ser_dialog)
-    grBox : QGroupBox = QGroupBox("Подключение")
+    grBox: QGroupBox = QGroupBox("Подключение")
     # Настройка шрифта для QGroupBox
     font = QFont()
-    font.setFamily("Arial")         # Шрифт
-    font.setPointSize(12)           # Размер шрифта
-    font.setBold(False)             # Жирный текст
-    font.setItalic(False)           # Курсив
+    font.setFamily("Arial")  # Шрифт
+    font.setPointSize(12)  # Размер шрифта
+    font.setBold(False)  # Жирный текст
+    font.setItalic(False)  # Курсив
     grBox.setFont(font)
     gridL: QGridLayout = QGridLayout()
     w.vLayout_ser_connect.addWidget(grBox)

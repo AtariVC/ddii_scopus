@@ -21,7 +21,7 @@ sys.path.append(str(modules_path))
 sys.path.append(str(widgets_path))
 
 from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
-from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.log_config import log_init  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
@@ -30,18 +30,17 @@ from src.parsers_pack import LineEObj  # noqa: E402
 
 
 class MainGraphWidget(QtWidgets.QDialog):
-    lineEdit_T_cher                     : QtWidgets.QLineEdit
-    lineEdit_T_sipm                     : QtWidgets.QLineEdit
-    pushButton_OK                       : QtWidgets.QPushButton
-    vLayout_ser_connect                 : QtWidgets.QVBoxLayout
-    verticalLayout_graph                : QtWidgets.QVBoxLayout
+    lineEdit_T_cher: QtWidgets.QLineEdit
+    lineEdit_T_sipm: QtWidgets.QLineEdit
+    pushButton_OK: QtWidgets.QPushButton
+    vLayout_ser_connect: QtWidgets.QVBoxLayout
+    verticalLayout_graph: QtWidgets.QVBoxLayout
 
     coroutine_get_temp_finished = QtCore.pyqtSignal()
 
-
     def __init__(self, logger, *args) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.joinpath('DialogGraphWidget.ui'), self)
+        loadUi(Path(__file__).resolve().parent.joinpath("DialogGraphWidget.ui"), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
@@ -54,12 +53,11 @@ class MainGraphWidget(QtWidgets.QDialog):
             self.client: AsyncModbusSerialClient = args[0]
             self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
-        self.task = None # type: ignore
+        self.task = None  # type: ignore
         # self.pushButton_OK.clicked.connect(self.pushButton_OK_handler)
         # self.coroutine_get_temp_finished.connect(self.creator_task)
         # # инициализация структур обновляемых полей приложения
         # self.le_obj: list[LineEObj] = self.init_linEdit_list()
-
 
     @qasync.asyncSlot()
     async def get_client(self) -> None:
@@ -74,6 +72,7 @@ class MainGraphWidget(QtWidgets.QDialog):
 
         if self.w_ser_dialog.status_CM == 1:
             self.coroutine_get_temp_finished.emit()
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
@@ -102,7 +101,7 @@ if __name__ == "__main__":
     # gridL.addItem(spacer_g, 0, 2)
     # gridL.addItem(spacer_v, 2, 1, 1, 3)
     # gridL.addWidget(w_ser_dialog, 0, 1)
-    
+
     w.verticalLayout_graph.addWidget(graph_widget)
 
     event_loop = qasync.QEventLoop(app)

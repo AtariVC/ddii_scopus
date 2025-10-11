@@ -1,16 +1,25 @@
-from PyQt6 import QtWidgets, QtCore
-from qtpy.uic import loadUi
-import qasync
 import asyncio
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QSpacerItem, QSizePolicy, QSplitter, QTabWidget, QScrollArea
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QFont
-import qtmodern.styles
 import sys
-from pymodbus.client import AsyncModbusSerialClient
-from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from pathlib import Path
+
+import qasync
+import qtmodern.styles
+from pymodbus.client import AsyncModbusSerialClient
+from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
+from PyQt6.QtWidgets import (
+    QGroupBox,
+    QScrollArea,
+    QSizePolicy,
+    QSpacerItem,
+    QSplitter,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 from qtmodern.windows import ModernWindow
+from qtpy.uic import loadUi
 
 ####### импорты из других директорий ######````
 # /src
@@ -21,58 +30,56 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from src.modbus_worker import ModbusWorker                                         # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand                     # noqa: E402
-from src.parsers import  Parsers                                                   # noqa: E402
-from Main_Serial.main_serial_dialog_tcp import SerialConnect                   # noqa: E402
-from src.log_config import log_init, log_s                                         # noqa: E402
-from src.parsers_pack import LineEObj, LineEditPack                                # noqa: E402
-from Engine.widgets.oscilloscope.graph_widget import GraphWidget           # noqa: E402
-from Engine.widgets.oscilloscope.run_meas_widget import RunMeasWidget      # noqa: E402
-from Engine.widgets.oscilloscope.flux_widget import FluxWidget             # noqa: E402
-from Engine.widgets.oscilloscope.run_flux_widget import RunFluxWidget      # noqa: E402
-from Engine.widgets.viewer.graph_viewer_widget import GraphViewerWidget    # noqa: E402
+from Engine.widgets.oscilloscope.flux_widget import FluxWidget  # noqa: E402
+from Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
+from Engine.widgets.oscilloscope.run_flux_widget import RunFluxWidget  # noqa: E402
+from Engine.widgets.oscilloscope.run_meas_widget import RunMeasWidget  # noqa: E402
 from Engine.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
+from Engine.widgets.viewer.graph_viewer_widget import GraphViewerWidget  # noqa: E402
+from Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
+
 from src.craft_custom_widget import add_serial_widget
-from src.main_window_maker import create_split_widget, clear_left_widget, create_tab_widget_items
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from src.log_config import log_init, log_s  # noqa: E402
+from src.main_window_maker import clear_left_widget, create_split_widget, create_tab_widget_items
+from src.modbus_worker import ModbusWorker  # noqa: E402
+from src.parsers import Parsers  # noqa: E402
+from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
+
 
 class Engine(QtWidgets.QMainWindow):
-
-    gridLayout_main_split        : QtWidgets.QGridLayout
+    gridLayout_main_split: QtWidgets.QGridLayout
 
     coroutine_get_client_finished = QtCore.pyqtSignal()
 
-
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path(__file__).parent.joinpath('engine.ui'), self)
+        loadUi(Path(__file__).parent.joinpath("engine.ui"), self)
         self.resize(1300, 800)
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
         self.logger = log_init()
-        
+
         # self.init_QObjects()
         # self.config = ConfigSaver()
         self.init_widgets()
 
     def widget_model(self):
         spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        return{
+        return {
             "Осциллограф": {
                 "Меню запуска": self.run_meas_widget,
                 "Опрос счетчика частиц": self.run_flux_widget,
                 "Счетчик частиц": self.flux_widget,
-                "spacer": spacer_v, 
-                "Подключение": self.w_ser_dialog
+                "spacer": spacer_v,
+                "Подключение": self.w_ser_dialog,
             },
-            "Вьюер":{
+            "Вьюер": {
                 "Файл менеджер": self.explorer_hdf5_widget,
             },
-            "Парсер": {
-
-            }
+            "Парсер": {},
         }
-    
+
     def on_tab_widget_handler(self, index: int):
         tab_text: str = self.tab_widget.tabText(index)
         if tab_text == "Вьюер":
@@ -95,7 +102,7 @@ class Engine(QtWidgets.QMainWindow):
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
         self.client = self.w_ser_dialog.client
         self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget(self)
-        self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self) 
+        self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self)
         model = self.widget_model()
         self.tab_widget = create_tab_widget_items(model, self.on_tab_widget_handler)
         #### отдельно добавляем SerialConnectWidget
@@ -105,7 +112,6 @@ class Engine(QtWidgets.QMainWindow):
         # tab_widget.layout.addItem(spacer_v)
         # tab_widget.layout.addLayout(vLayout_ser_connect)
         create_split_widget(self.gridLayout_main_split, self.w_graph_widget, self.tab_widget)
-
 
 
 if __name__ == "__main__":
@@ -120,7 +126,6 @@ if __name__ == "__main__":
     app.aboutToQuit.connect(app_close_event.set)
 
     mw.show()
-
 
     with event_loop:
         try:

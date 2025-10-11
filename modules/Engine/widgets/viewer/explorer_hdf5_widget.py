@@ -45,14 +45,13 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
 # from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
-# from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+# from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 # from src.async_task_manager import AsyncTaskManager  # noqa: E402
 # from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 # from src.modbus_worker import ModbusWorker  # noqa: E402
 # from src.parsers import Parsers  # noqa: E402
 # from src.print_logger import PrintLogger  # noqa: E402
 from src.event.event import Event  # noqa: E402
-
 
 
 class ExplorerHDF5Widget(QtWidgets.QDialog):
@@ -141,14 +140,14 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         self.current_model = "fs"
 
     # def load_hdf5_file(self, file_path):
-        # if self.hdf5_model.load_hdf5(file_path):
-        #     folder_path = os.path.dirname(file_path)
-        #     self.lineEdit_path_edit.setText(folder_path)
-        #     self.current_folder = folder_path
+    # if self.hdf5_model.load_hdf5(file_path):
+    #     folder_path = os.path.dirname(file_path)
+    #     self.lineEdit_path_edit.setText(folder_path)
+    #     self.current_folder = folder_path
 
-            # self.treeView_file_tree.setModel(self.hdf5_model)
-            # self.current_model = "hdf5"
-            # self.treeView_file_tree.expandAll()
+    # self.treeView_file_tree.setModel(self.hdf5_model)
+    # self.current_model = "hdf5"
+    # self.treeView_file_tree.expandAll()
 
 
 class HDF5TreeModel(QAbstractItemModel):

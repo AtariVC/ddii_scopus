@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from pathlib import Path
+
 import qasync
 import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
@@ -18,71 +19,72 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from modules.Main_Serial.main_serial_dialog import SerialConnect  # noqa: E402
+from style.styleSheet import widget_led_off, widget_led_on  # noqa: E402
+
+from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.craft_custom_widget import add_serial_widget  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.log_config import log_init, log_s  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
-from style.styleSheet import widget_led_off, widget_led_on  # noqa: E402
 
 
 class MainHvipDialog(QtWidgets.QDialog):
-    spinBox_ch_volt                     : QtWidgets.QDoubleSpinBox
-    spinBox_pips_volt                   : QtWidgets.QDoubleSpinBox
-    spinBox_sipm_volt                   : QtWidgets.QDoubleSpinBox
+    spinBox_ch_volt: QtWidgets.QDoubleSpinBox
+    spinBox_pips_volt: QtWidgets.QDoubleSpinBox
+    spinBox_sipm_volt: QtWidgets.QDoubleSpinBox
 
-    doubleSpinBox_ch_pwm                : QtWidgets.QDoubleSpinBox
-    doubleSpinBox_pips_pwm              : QtWidgets.QDoubleSpinBox
-    doubleSpinBox_sipm_pwm              : QtWidgets.QDoubleSpinBox
+    doubleSpinBox_ch_pwm: QtWidgets.QDoubleSpinBox
+    doubleSpinBox_pips_pwm: QtWidgets.QDoubleSpinBox
+    doubleSpinBox_sipm_pwm: QtWidgets.QDoubleSpinBox
 
-    label_ch_cur                        : QtWidgets.QLabel
-    label_sipm_cur                      : QtWidgets.QLabel
-    label_pips_cur                      : QtWidgets.QLabel
+    label_ch_cur: QtWidgets.QLabel
+    label_sipm_cur: QtWidgets.QLabel
+    label_pips_cur: QtWidgets.QLabel
 
-    label_ch_pwm_mes                    : QtWidgets.QLabel
-    label_pips_pwm_mes                  : QtWidgets.QLabel
-    label_sipm_pwm_mes                  : QtWidgets.QLabel
+    label_ch_pwm_mes: QtWidgets.QLabel
+    label_pips_pwm_mes: QtWidgets.QLabel
+    label_sipm_pwm_mes: QtWidgets.QLabel
 
-    label_ch_v_mes                      : QtWidgets.QLabel
-    label_pips_v_mes                    : QtWidgets.QLabel
-    label_sipm_v_mes                    : QtWidgets.QLabel
+    label_ch_v_mes: QtWidgets.QLabel
+    label_pips_v_mes: QtWidgets.QLabel
+    label_sipm_v_mes: QtWidgets.QLabel
 
-    label_status                        : QtWidgets.QLabel
+    label_status: QtWidgets.QLabel
 
-    spinBox_ch_a_u                      : QtWidgets.QDoubleSpinBox
-    spinBox_ch_b_u                      : QtWidgets.QDoubleSpinBox
-    spinBox_ch_a_i                      : QtWidgets.QDoubleSpinBox
-    spinBox_ch_b_i                      : QtWidgets.QDoubleSpinBox
+    spinBox_ch_a_u: QtWidgets.QDoubleSpinBox
+    spinBox_ch_b_u: QtWidgets.QDoubleSpinBox
+    spinBox_ch_a_i: QtWidgets.QDoubleSpinBox
+    spinBox_ch_b_i: QtWidgets.QDoubleSpinBox
 
-    spinBox_pips_a_u                    : QtWidgets.QDoubleSpinBox
-    spinBox_pips_b_u                    : QtWidgets.QDoubleSpinBox
-    spinBox_pips_a_i                    : QtWidgets.QDoubleSpinBox
-    spinBox_pips_b_i                    : QtWidgets.QDoubleSpinBox
+    spinBox_pips_a_u: QtWidgets.QDoubleSpinBox
+    spinBox_pips_b_u: QtWidgets.QDoubleSpinBox
+    spinBox_pips_a_i: QtWidgets.QDoubleSpinBox
+    spinBox_pips_b_i: QtWidgets.QDoubleSpinBox
 
-    spinBox_sipm_a_u                    : QtWidgets.QDoubleSpinBox
-    spinBox_sipm_b_u                    : QtWidgets.QDoubleSpinBox
-    spinBox_sipm_a_i                    : QtWidgets.QDoubleSpinBox
-    spinBox_sipm_b_i                    : QtWidgets.QDoubleSpinBox
+    spinBox_sipm_a_u: QtWidgets.QDoubleSpinBox
+    spinBox_sipm_b_u: QtWidgets.QDoubleSpinBox
+    spinBox_sipm_a_i: QtWidgets.QDoubleSpinBox
+    spinBox_sipm_b_i: QtWidgets.QDoubleSpinBox
 
-    pushButton_ok                       : QtWidgets.QPushButton
-    pushButton_apply                    : QtWidgets.QPushButton
+    pushButton_ok: QtWidgets.QPushButton
+    pushButton_apply: QtWidgets.QPushButton
 
-    pushButton_pips_on                  : QtWidgets.QPushButton
-    pushButton_sipm_on                  : QtWidgets.QPushButton
-    pushButton_ch_on                    : QtWidgets.QPushButton
-    pushButton_get_rst                  : QtWidgets.QPushButton
+    pushButton_pips_on: QtWidgets.QPushButton
+    pushButton_sipm_on: QtWidgets.QPushButton
+    pushButton_ch_on: QtWidgets.QPushButton
+    pushButton_get_rst: QtWidgets.QPushButton
 
-    led_pips                            : QtWidgets.QWidget
-    led_sipm                            : QtWidgets.QWidget
-    led_ch                              : QtWidgets.QWidget
+    led_pips: QtWidgets.QWidget
+    led_sipm: QtWidgets.QWidget
+    led_ch: QtWidgets.QWidget
 
-    label_desired_v_pips                : QtWidgets.QLabel
-    label_desired_v_sipm                : QtWidgets.QLabel
-    label_desired_v_ch                  : QtWidgets.QLabel
+    label_desired_v_pips: QtWidgets.QLabel
+    label_desired_v_sipm: QtWidgets.QLabel
+    label_desired_v_ch: QtWidgets.QLabel
 
-    vLayout_ser_connect                 : QtWidgets.QVBoxLayout
+    vLayout_ser_connect: QtWidgets.QVBoxLayout
 
     PIPS_CH_VOLTAGE = 1
     SIPM_CH_VOLTAGE = 2
@@ -90,10 +92,9 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     coroutine_get_client_finished = QtCore.pyqtSignal()
 
-
     def __init__(self, logger, *args) -> None:
         super().__init__()
-        loadUi(Path(__file__).resolve().parent.joinpath('HVIP_window.ui'), self)
+        loadUi(Path(__file__).resolve().parent.joinpath("HVIP_window.ui"), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.logger = logger
@@ -107,7 +108,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.client: AsyncModbusSerialClient = args[0]
             self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
-        self.task = None # type: ignore
+        self.task = None  # type: ignore
         self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
         self.pushButton_get_rst.clicked.connect(self.pushButton_get_rst_handler)
         self.pushButton_apply.clicked.connect(self.pushButton_apply_handler)
@@ -149,61 +150,57 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     def init_QObjects(self) -> None:
         self.spin_box_cfg_volt: dict[str, QtWidgets.QDoubleSpinBox] = {
-            "spinBox_ch_volt"               : self.spinBox_ch_volt,
-            "spinBox_pips_volt"             : self.spinBox_pips_volt,
-            "spinBox_sipm_volt"             : self.spinBox_sipm_volt,
+            "spinBox_ch_volt": self.spinBox_ch_volt,
+            "spinBox_pips_volt": self.spinBox_pips_volt,
+            "spinBox_sipm_volt": self.spinBox_sipm_volt,
         }
         self.spin_box_cfg_pwm: dict[str, QtWidgets.QDoubleSpinBox] = {
-            "doubleSpinBox_ch_pwm"          : self.doubleSpinBox_ch_pwm,
-            "doubleSpinBox_pips_pwm"        : self.doubleSpinBox_pips_pwm,
-            "doubleSpinBox_sipm_pwm"        : self.doubleSpinBox_sipm_pwm
+            "doubleSpinBox_ch_pwm": self.doubleSpinBox_ch_pwm,
+            "doubleSpinBox_pips_pwm": self.doubleSpinBox_pips_pwm,
+            "doubleSpinBox_sipm_pwm": self.doubleSpinBox_sipm_pwm,
         }
         self.spin_box_cfg_pwm: dict[str, QtWidgets.QDoubleSpinBox] = {
-            "doubleSpinBox_ch_pwm"          : self.doubleSpinBox_ch_pwm,
-            "doubleSpinBox_pips_pwm"        : self.doubleSpinBox_pips_pwm,
-            "doubleSpinBox_sipm_pwm"        : self.doubleSpinBox_sipm_pwm
+            "doubleSpinBox_ch_pwm": self.doubleSpinBox_ch_pwm,
+            "doubleSpinBox_pips_pwm": self.doubleSpinBox_pips_pwm,
+            "doubleSpinBox_sipm_pwm": self.doubleSpinBox_sipm_pwm,
         }
         self.label_meas: dict[str, QtWidgets.QLabel | int] = {
-            "label_ch_v_mes"                : self.label_ch_v_mes,
-            "label_ch_pwm_mes"              : self.label_ch_pwm_mes,
-            "label_ch_cur"                  : self.label_ch_cur,
-            "hvip_mode_ch"                  : 1,
-
-            "label_pips_v_mes"                : self.label_pips_v_mes,
-            "label_pips_pwm_mes"            : self.label_pips_pwm_mes,
-            "label_pips_cur"                : self.label_pips_cur,
-            "hvip_mode_pips"                : 1,
-
-            "label_sipm_v_mes"              : self.label_sipm_v_mes,
-            "label_sipm_pwm_mes"            : self.label_sipm_pwm_mes,
-            "label_sipm_cur"                : self.label_sipm_cur,
-            "hvip_mode_sipm"                : 1
+            "label_ch_v_mes": self.label_ch_v_mes,
+            "label_ch_pwm_mes": self.label_ch_pwm_mes,
+            "label_ch_cur": self.label_ch_cur,
+            "hvip_mode_ch": 1,
+            "label_pips_v_mes": self.label_pips_v_mes,
+            "label_pips_pwm_mes": self.label_pips_pwm_mes,
+            "label_pips_cur": self.label_pips_cur,
+            "hvip_mode_pips": 1,
+            "label_sipm_v_mes": self.label_sipm_v_mes,
+            "label_sipm_pwm_mes": self.label_sipm_pwm_mes,
+            "label_sipm_cur": self.label_sipm_cur,
+            "hvip_mode_sipm": 1,
         }
 
         self.label_desired_v: dict[str, QtWidgets.QLabel] = {
-            "label_desired_v_ch"            : self.label_desired_v_ch,
-            "label_desired_v_pips"          : self.label_desired_v_pips,
-            "label_desired_v_sipm"          : self.label_desired_v_sipm
+            "label_desired_v_ch": self.label_desired_v_ch,
+            "label_desired_v_pips": self.label_desired_v_pips,
+            "label_desired_v_sipm": self.label_desired_v_sipm,
         }
-        self.label_desired_v_T: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.text(), tp="f")
-            for  (key, value) in self.label_desired_v.items()]
+        self.label_desired_v_T: list[LineEObj] = [
+            LineEObj(key=key, lineobj_txt=value.text(), tp="f") for (key, value) in self.label_desired_v.items()
+        ]
 
         self.spin_box_A_B: dict[str, QtWidgets.QDoubleSpinBox] = {
-            "spinBox_ch_a_u"                : self.spinBox_ch_a_u,
-            "spinBox_pips_a_u"              : self.spinBox_pips_a_u,
-            "spinBox_sipm_a_u"              : self.spinBox_sipm_a_u,
-
-            "spinBox_ch_b_u"                : self.spinBox_ch_b_u,
-            "spinBox_pips_b_u"              : self.spinBox_pips_b_u,
-            "spinBox_sipm_b_u"              : self.spinBox_sipm_b_u,
-
-            "spinBox_ch_a_i"                : self.spinBox_ch_a_i,
-            "spinBox_pips_a_i"              : self.spinBox_pips_a_i,
-            "spinBox_sipm_a_i"              : self.spinBox_sipm_a_i,
-
-            "spinBox_ch_b_i"                : self.spinBox_ch_b_i,
-            "spinBox_pips_b_i"              : self.spinBox_pips_b_i,
-            "spinBox_sipm_b_i"              : self.spinBox_sipm_b_i,
+            "spinBox_ch_a_u": self.spinBox_ch_a_u,
+            "spinBox_pips_a_u": self.spinBox_pips_a_u,
+            "spinBox_sipm_a_u": self.spinBox_sipm_a_u,
+            "spinBox_ch_b_u": self.spinBox_ch_b_u,
+            "spinBox_pips_b_u": self.spinBox_pips_b_u,
+            "spinBox_sipm_b_u": self.spinBox_sipm_b_u,
+            "spinBox_ch_a_i": self.spinBox_ch_a_i,
+            "spinBox_pips_a_i": self.spinBox_pips_a_i,
+            "spinBox_sipm_a_i": self.spinBox_sipm_a_i,
+            "spinBox_ch_b_i": self.spinBox_ch_b_i,
+            "spinBox_pips_b_i": self.spinBox_pips_b_i,
+            "spinBox_sipm_b_i": self.spinBox_sipm_b_i,
         }
 
     async def asyncio_loop_request(self) -> None:
@@ -215,11 +212,12 @@ class MainHvipDialog(QtWidgets.QDialog):
             ...
 
     @qasync.asyncSlot()
-    async def get_cfg_data_from_widget(self, d_struct: dict, tp : str) -> list[int]:
-        pack: list[LineEObj] = [LineEObj(key=key, lineobj_txt=value.value(), tp=tp)
-            for  i, (key, value) in enumerate(d_struct.items())]
+    async def get_cfg_data_from_widget(self, d_struct: dict, tp: str) -> list[int]:
+        pack: list[LineEObj] = [
+            LineEObj(key=key, lineobj_txt=value.value(), tp=tp) for i, (key, value) in enumerate(d_struct.items())
+        ]
         get_data_widget = LineEditPack()
-        return get_data_widget(pack, 'little')
+        return get_data_widget(pack, "little")
 
     @qasync.asyncSlot()
     async def update_gui_data_spinbox(self) -> None:
@@ -246,14 +244,14 @@ class MainHvipDialog(QtWidgets.QDialog):
             err_cfg_a_b = 1
             self.logger.error(e)
         if err_cfg_volt == 0:
-            for (key, val) in self.spin_box_cfg_volt.items():
-                val.setValue(float(data_cfg_volt.get(key)))   # type: ignore
+            for key, val in self.spin_box_cfg_volt.items():
+                val.setValue(float(data_cfg_volt.get(key)))  # type: ignore
         if err_cfg_pwm == 0:
-            for (key, val) in self.spin_box_cfg_pwm.items():
-                val.setValue(float(data_cfg_pwm.get(key)))    # type: ignore
+            for key, val in self.spin_box_cfg_pwm.items():
+                val.setValue(float(data_cfg_pwm.get(key)))  # type: ignore
         if err_cfg_a_b == 0:
-            for (key, val) in self.spin_box_A_B.items():
-                val.setValue(float(data_cfg_a_b.get(key)))    # type: ignore
+            for key, val in self.spin_box_A_B.items():
+                val.setValue(float(data_cfg_a_b.get(key)))  # type: ignore
 
     @qasync.asyncSlot()
     async def update_gui_data_label(self) -> None:
@@ -261,7 +259,9 @@ class MainHvipDialog(QtWidgets.QDialog):
             answer: bytes = await self.cm_cmd.get_voltage()
             desired_v: bytes = await self.cm_cmd.get_desired_voltage()
             data: dict[str, str] = await self.parser.pars_voltage(answer)
-            data_desired_v: dict[str, str] = await self.parser.pars_everything(self.label_desired_v_T, desired_v, endian="big")
+            data_desired_v: dict[str, str] = await self.parser.pars_everything(
+                self.label_desired_v_T, desired_v, endian="big"
+            )
             for key, val in self.label_desired_v.items():
                 val.setText(data_desired_v[key])
             for i, (key, val) in enumerate(self.label_meas.items()):
@@ -273,7 +273,7 @@ class MainHvipDialog(QtWidgets.QDialog):
                     if key == "hvip_mode_sipm":
                         self.update_power_status([self.SIPM_CH_VOLTAGE, int(data[key])])
                 else:
-                    val.setText("{:.2f}".format(float(list(data.values())[i]))) # type: ignore
+                    val.setText("{:.2f}".format(float(list(data.values())[i])))  # type: ignore
         except Exception as e:
             self.logger.error(e)
 
@@ -322,23 +322,21 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def pushButton_apply_handler(self) -> None:
-        vlt_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_volt, 'f')
-        pwm_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, 'f')
-        pwm_max_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, 'i')
+        vlt_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_volt, "f")
+        pwm_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, "f")
+        pwm_max_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, "i")
         await self.cm_cmd.set_voltage_pwm(vlt_data + pwm_data)
-        cfg_a_b_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_A_B, 'f')
+        cfg_a_b_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_A_B, "f")
         await asyncio.sleep(0.1)
         await self.cm_cmd.set_cfg_a_b(cfg_a_b_data)
         self.label_status.setText("Status: cfg was written")
         # self.save_gui_data()
 
     def save_gui_data(self):
-        loaded_cfg: list[dict[str, float|int|str]] = [
+        loaded_cfg: list[dict[str, float | int | str]] = [
             {key: spin_box.value() for key, spin_box in item.items()}
-            for item in [self.spin_box_cfg_volt,
-                    self.spin_box_cfg_pwm,
-                    self.spin_box_A_B]
-            ]
+            for item in [self.spin_box_cfg_volt, self.spin_box_cfg_pwm, self.spin_box_A_B]
+        ]
         # Объединение всех словарей в один
         combined_cfg: dict[str, float | int | str] = {}
         for item in loaded_cfg:
@@ -355,9 +353,11 @@ class MainHvipDialog(QtWidgets.QDialog):
         else:
             self.label_status.setText("Status: Config loaded from file")
             self.pushButton_get_rst.setText("G")
-            for_updt: list[dict[str, QtWidgets.QDoubleSpinBox]] = [self.spin_box_cfg_volt,
-                    self.spin_box_cfg_pwm,
-                    self.spin_box_A_B]
+            for_updt: list[dict[str, QtWidgets.QDoubleSpinBox]] = [
+                self.spin_box_cfg_volt,
+                self.spin_box_cfg_pwm,
+                self.spin_box_A_B,
+            ]
             for item in for_updt:
                 self.config.load_from_config(item)
             self.flg_get_rst = 0
@@ -370,7 +370,6 @@ class MainHvipDialog(QtWidgets.QDialog):
         #     self.logger.debug(VErr)
         self.save_gui_data()
         # self.close()
-
 
     ############# update label ###############
     def update_power_status(self, data) -> None:
@@ -405,7 +404,6 @@ class MainHvipDialog(QtWidgets.QDialog):
         except Exception as ex:
             self.logger.debug(ex)
 
-
     def closeEvent(self, event) -> None:
         try:
             if self.client.connected:
@@ -414,6 +412,7 @@ class MainHvipDialog(QtWidgets.QDialog):
                     self.update_power_status([i, 0])
         except Exception:
             pass
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
@@ -428,7 +427,6 @@ if __name__ == "__main__":
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
     w.show()
-
 
     with event_loop:
         try:
