@@ -89,7 +89,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
             self.w_ser_dialog: SerialConnect = args[0]
             self.w_ser_dialog.coroutine_finished.connect(self.get_client)
         else:
-            self.client: AsyncModbusSerialClient = args[0]
+            self.client: AsyncModbusSerialClient|None = args[0]
             self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         self.pushButton_save_mpp.clicked.connect(self.pushButton_save_cfg_handler)
@@ -139,8 +139,9 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
     async def get_client(self) -> None:
         """Функция перехватывает client и переподключается к нему"""
         try:
-            if self.w_ser_dialog.pushButton_connect_flag == 1:
-                self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
+            if self.w_ser_dialog:
+                self.client: AsyncModbusSerialClient|None = self.w_ser_dialog.client
+            if self.client and self.client.connected is False:
                 await self.client.connect()
                 # print(self.client.is_connected())
                 self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
@@ -198,7 +199,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
     def closeEvent(self, event) -> None:
         try:
-            if self.client.connected:
+            if self.client and self.client.connected:
                 self.client.close()
         except Exception:
             pass

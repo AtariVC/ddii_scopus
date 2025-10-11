@@ -19,7 +19,7 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from style.styleSheet import widget_led_off, widget_led_on  # noqa: E402
+from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
 
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.craft_custom_widget import add_serial_widget  # noqa: E402
@@ -105,7 +105,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             self.w_ser_dialog: SerialConnect = args[0]
             self.w_ser_dialog.coroutine_finished.connect(self.get_client)
         else:
-            self.client: AsyncModbusSerialClient = args[0]
+            self.client: AsyncModbusSerialClient|None = args[0]
             self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
             self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
         self.task = None  # type: ignore
@@ -123,15 +123,16 @@ class MainHvipDialog(QtWidgets.QDialog):
     @qasync.asyncSlot()
     async def get_client(self) -> None:
         """Перехватывает client от SerialConnect и переподключается к нему"""
-        if self.w_ser_dialog.pushButton_connect_flag == 1:
-            self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
+        if self.w_ser_dialog:
+            self.client: AsyncModbusSerialClient|None = self.w_ser_dialog.client
+        if self.client and self.client.connected is False:
             await self.client.connect()
             self.cm_cmd = ModbusCMCommand(self.client, self.logger)
             self.pushButton_get_rst.setText("R")
             self.flg_get_rst = 1
             await self.update_gui_data_label()
             await self.update_gui_data_spinbox()
-        if self.w_ser_dialog.pushButton_connect_flag == 0:
+        elif self.client is None:
             if self.task:
                 self.task.cancel()
         if self.w_ser_dialog.status_CM == 1:
@@ -143,7 +144,7 @@ class MainHvipDialog(QtWidgets.QDialog):
                 self.task: asyncio.Task[None] = asyncio.create_task(self.asyncio_loop_request())
         except Exception as e:
             self.logger.error(f"Error in creating task: {str(e)}")
-        if self.w_ser_dialog.pushButton_connect_flag == 0:
+        if self.w_ser_dialog:
             # Если соединение закрыто, отменяем задачу
             if self.task:
                 self.task.cancel()
@@ -406,7 +407,7 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     def closeEvent(self, event) -> None:
         try:
-            if self.client.connected:
+            if self.client and self.client.connected:
                 self.client.close()
                 for i in range(3):
                     self.update_power_status([i, 0])

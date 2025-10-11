@@ -25,7 +25,7 @@ from src.customComboBox_COMport import CustomComboBox_COMport  # noqa: E402
 from src.env_var import EnvironmentVar  # noqa: E402
 from src.log_config import log_init, log_s  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
-from custom.styleSheet import widget_led_off, widget_led_on  # noqa: E402
+from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
 
 
 class ModbusRelayServer:

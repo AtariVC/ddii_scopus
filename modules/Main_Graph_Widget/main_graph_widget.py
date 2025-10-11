@@ -62,7 +62,7 @@ class MainGraphWidget(QtWidgets.QDialog):
     @qasync.asyncSlot()
     async def get_client(self) -> None:
         """Перехватывает client от SerialConnect и переподключается к нему"""
-        if self.w_ser_dialog.pushButton_connect_flag == 1:
+        if self.w_ser_dialog:
             self.client: AsyncModbusSerialClient = self.w_ser_dialog.client
             await self.client.connect()
             self.cm_cmd = ModbusCMCommand(self.client, self.logger)
