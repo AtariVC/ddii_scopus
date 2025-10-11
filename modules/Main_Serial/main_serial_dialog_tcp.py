@@ -89,6 +89,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
     coroutine_finished = QtCore.pyqtSignal()
     tcp_status_changed = QtCore.pyqtSignal(str, bool)
+    disconnected = QtCore.pyqtSignal()
 
     def __init__(self, logger, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -226,6 +227,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.pushButton_connect_w.setText("Подключить")
             self.tcp_status_changed.emit("Отключено", False)
             self.logger.info("TCP подключение закрыто")
+            self.disconnected.emit()
 
     def update_tcp_status(self, message, is_connected):
         """Обновление статуса TCP"""
@@ -280,6 +282,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                     self.client = None
                     self.label_state_w.setText("State: Нет подключения к ДДИИ")
                     self.pushButton_connect_w.setText("Подключить")
+                    self.disconnected.emit()
             else:
                 self.label_state_w.setText("State: COM-порт занят. Попробуйте переподключиться")
         else:
@@ -291,6 +294,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 self.client = None
             else:
                 ...
+            self.disconnected.emit()
 
     @qasync.asyncSlot()
     async def check_connect(self) -> None:

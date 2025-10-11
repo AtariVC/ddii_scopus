@@ -109,6 +109,8 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore
             self.logger = self.parent.logger  # type: ignore
             self.w_ser_dialog.coroutine_finished.connect(self.init_mb_cmd)
+            # Остановка измерений при отключении Serial
+            self.w_ser_dialog.disconnected.connect(self.on_serial_disconnected)
             self.task_manager = AsyncTaskManager(self.logger)
             self.comboBox_filter.currentIndexChanged.connect(self.comboBox_filter_handler)
             self.pushButton_run_measure.clicked.connect(self.pushButton_run_measure_handler)
@@ -134,25 +136,68 @@ class RunMeasWidget(QtWidgets.QDialog):
     def comboBox_filter_handler(self):
         self.hist_filters = self.filtrs_data.filters[self.comboBox_filter.currentText()]
 
+    def _is_modbus_ready(self) -> bool:
+        """Проверка готовности Modbus-подключения.
+        Возвращает True, если есть диалог Serial и активный клиент.
+        """
+        try:
+            return bool(self.w_ser_dialog and self.w_ser_dialog.client is not None)
+        except Exception:
+            return False
+
+    async def _stop_measuring(self, reason: str | None = None):
+        """Останавливает измерения, гасит задачи и приводит UI в исходное состояние."""
+        if reason:
+            self.logger.error(reason)
+        # Пытаемся остановить измерение на стороне МПП
+        try:
+            if hasattr(self, "mpp_cmd"):
+                await self.mpp_cmd.start_measure(on=0)
+        except Exception:
+            pass
+        # Отменяем задачи
+        try:
+            self.task_manager.cancel_task("ACQ_task")
+        except Exception:
+            pass
+        try:
+            if self.flags.get(self.request_hist_flag, False):
+                self.task_manager.cancel_task("HH_task")
+        except Exception:
+            pass
+        # Сбрасываем флаг и UI
+        self.flags[self.start_measure_flag] = False
+        self.pushButton_run_measure.setText("Запустить изм.")
+
     @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:
         """Инициализация командного интерфейса МПП и ЦМ"""
+        if not self._is_modbus_ready():
+            self.logger.warning("Modbus не готов: нет активного serial-соединения")
+            return
         mpp_id = self.w_ser_dialog.mpp_id
         self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
         self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
 
     @qasync.asyncSlot()
+    async def on_serial_disconnected(self):
+        await self._stop_measuring("Serial отключен")
+
+    @qasync.asyncSlot()
     async def pushButton_calibr_acq_handler(self):
-        if self.w_ser_dialog:
+        if not self._is_modbus_ready():
+            self.logger.error("Нет подключения")
+            return
+        try:
             await self.mpp_cmd.calibrate_ACQ()
-            bufer = self.w_ser_dialog.label_state_w.text()
+            buffer = self.w_ser_dialog.label_state_w.text()
             self.w_ser_dialog.label_state_w.setText("Выполняется калибровка АЦП...")
             await asyncio.sleep(5)
             self.w_ser_dialog.label_state_w.setText("Калибровка АЦП завершена.")
             await asyncio.sleep(2)
-            self.w_ser_dialog.label_state_w.setText(bufer)
-        else:
-            self.logger.error(f"Нет подключения к ДДИИ")
+            self.w_ser_dialog.label_state_w.setText(buffer)
+        except Exception as e:
+            await self._stop_measuring(f"Ошибка при калибровке: {e}")
 
     @qasync.asyncSlot()
     async def pushButton_run_measure_handler(self) -> None:
@@ -167,7 +212,7 @@ class RunMeasWidget(QtWidgets.QDialog):
 
         ACQ_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if self.w_ser_dialog:
+        if self._is_modbus_ready():
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag]
             if self.flags[self.start_measure_flag]:
                 self.pushButton_run_measure.setText("Остановить изм.")
@@ -180,17 +225,23 @@ class RunMeasWidget(QtWidgets.QDialog):
                         self.task_manager.create_task(HH_task(), "HH_task")
                     # await ACQ_task()
                 except Exception as e:
-                    self.logger.error(f"Ошибка: {e}")
+                    await self._stop_measuring(f"Ошибка запуска задач: {e}")
             else:
                 # self.graph_done_signal.emit()
-                await self.mpp_cmd.start_measure(on=0)
+                try:
+                    await self.mpp_cmd.start_measure(on=0)
+                except Exception:
+                    pass
                 self.task_manager.cancel_task("ACQ_task")
                 if self.flags[self.request_hist_flag]:
-                    await self.mpp_cmd.clear_hist()
+                    try:
+                        await self.mpp_cmd.clear_hist()
+                    except Exception:
+                        pass
                     self.task_manager.cancel_task("HH_task")
                 self.pushButton_run_measure.setText("Запустить изм.")
         else:
-            self.logger.error(f"Нет подключения к ДДИИ")
+            self.logger.error(f"Нет подключения")
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
@@ -199,11 +250,17 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.graph_widget.hp_pips.hist_clear()
             lvl = int(self.lineEdit_trigger.text())
             save: bool = False
+            if not self._is_modbus_ready():
+                await self._stop_measuring("Потеряно соединение (ACQ init)")
+                return
             if self.flags[self.enable_trig_meas_flag]:
                 await self.mpp_cmd.set_level(lvl)
                 await self.mpp_cmd.start_measure(on=1)
             self.graph_widget.show()
             while 1:
+                if not self._is_modbus_ready():
+                    await self._stop_measuring("Потеряно соединение (ACQ loop)")
+                    return
                 current_datetime = datetime.datetime.now()
                 self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
                 self.ACQ_task_sync_time_event.emit(self.name_data)  # для синхронизации данных по времени
@@ -263,12 +320,22 @@ class RunMeasWidget(QtWidgets.QDialog):
                     return None
         except asyncio.CancelledError:
             ...
+        except Exception as e:
+            await self._stop_measuring(f"Ошибка (ACQ): {e}")
+            return
 
     async def asyncio_HH_loop_request(self) -> None:
         """Опрос счетчика частиц"""
         self.graph_widget.hp_counter.hist_clear()
-        await self.mpp_cmd.clear_hist()
-        await self.mpp_cmd.clear_hcp_hist()
+        try:
+            if not self._is_modbus_ready():
+                await self._stop_measuring("Потеряно соединение (HH init)")
+                return
+            await self.mpp_cmd.clear_hist()
+            await self.mpp_cmd.clear_hcp_hist()
+        except Exception as e:
+            await self._stop_measuring(f"Ошибка подготовки гистограмм: {e}")
+            return
         save: bool = False
         self.graph_widget.show()
         # counter_clear = 0
@@ -276,13 +343,20 @@ class RunMeasWidget(QtWidgets.QDialog):
         accumulate_data = np.array([0] * 12)
         bins = [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
         while 1:
+            if not self._is_modbus_ready():
+                await self._stop_measuring("Потеряно соединение (HH loop)")
+                return
             # counter_clear += 1
             # if counter_clear > 50:
             #     counter_clear = 0
             #     await self.mpp_cmd.clear_hist()
-            result_hist32: bytes = await self.mpp_cmd.get_hist32()
-            result_hist16: bytes = await self.mpp_cmd.get_hist16()
-            result_hcp_hist: bytes = await self.mpp_cmd.get_hcp_hist()
+            try:
+                result_hist32: bytes = await self.mpp_cmd.get_hist32()
+                result_hist16: bytes = await self.mpp_cmd.get_hist16()
+                result_hcp_hist: bytes = await self.mpp_cmd.get_hcp_hist()
+            except Exception as e:
+                await self._stop_measuring(f"Ошибка чтения гистограмм: {e}")
+                return
 
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
