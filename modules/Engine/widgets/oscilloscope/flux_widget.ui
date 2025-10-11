@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>452</width>
+    <width>430</width>
     <height>190</height>
    </rect>
   </property>
@@ -42,6 +42,19 @@
     <number>0</number>
    </property>
    <item row="0" column="0">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="0" column="1">
     <layout class="QGridLayout" name="gridLayout_meas" rowstretch="0,0,0,0,0,0" columnstretch="0,0,0,0,0,0">
      <property name="sizeConstraint">
       <enum>QLayout::SetDefaultConstraint</enum>
@@ -509,6 +522,9 @@
          <height>25</height>
         </size>
        </property>
+       <property name="styleSheet">
+        <string notr="true">font: 10pt &quot;MS Shell Dlg 2&quot;;</string>
+       </property>
       </widget>
      </item>
      <item row="5" column="2">
@@ -518,6 +534,9 @@
          <width>0</width>
          <height>25</height>
         </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">font: 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
       </widget>
      </item>
@@ -529,6 +548,9 @@
          <height>25</height>
         </size>
        </property>
+       <property name="styleSheet">
+        <string notr="true">font: 10pt &quot;MS Shell Dlg 2&quot;;</string>
+       </property>
       </widget>
      </item>
      <item row="5" column="4">
@@ -538,6 +560,9 @@
          <width>0</width>
          <height>25</height>
         </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">font: 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
       </widget>
      </item>
@@ -549,9 +574,25 @@
          <height>25</height>
         </size>
        </property>
+       <property name="styleSheet">
+        <string notr="true">font: 10pt &quot;MS Shell Dlg 2&quot;;</string>
+       </property>
       </widget>
      </item>
     </layout>
+   </item>
+   <item row="0" column="2">
+    <spacer name="horizontalSpacer_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>

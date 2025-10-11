@@ -24,7 +24,7 @@ sys.path.append(str(modules_path))
 from src.modbus_worker import ModbusWorker                                         # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand                     # noqa: E402
 from src.parsers import  Parsers                                                   # noqa: E402
-from Main_Serial.main_serial_dialog import SerialConnect                   # noqa: E402
+from Main_Serial.main_serial_dialog_tcp import SerialConnect                   # noqa: E402
 from src.log_config import log_init, log_s                                         # noqa: E402
 from src.parsers_pack import LineEObj, LineEditPack                                # noqa: E402
 from Engine.widgets.oscilloscope.graph_widget import GraphWidget           # noqa: E402
