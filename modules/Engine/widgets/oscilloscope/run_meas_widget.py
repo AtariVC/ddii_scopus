@@ -26,13 +26,13 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
 
-from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
+from src.filters_data import FiltersData  # noqa: E402
 
 from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
+from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.event.event import Event  # noqa: E402
-from src.filtrs_data import FiltrsData  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
@@ -79,7 +79,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.get_electron_hist_event.subscribe(self.parent.flux_widget.update_gui_data_electron)  # type: ignore
         self.get_proton_hist_event.subscribe(self.parent.flux_widget.update_gui_data_proton)  # type: ignore
         self.get_hcp_hist_event.subscribe(self.parent.flux_widget.update_gui_data_hcp)  # type: ignore
-        self.filtrs_data: FiltrsData = FiltrsData()
+        self.filters_data: FiltersData = FiltersData()
         self.hist_filters = None
         self.enable_test_csa_flag: str = "enable_test_csa_flag"
         self.enable_trig_meas_flag: str = "enable_trig_meas_flag"
@@ -103,7 +103,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         }
 
         self.init_flags()
-        self.init_combobox_filtrer()
+        self.init_combobox_filter()
 
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore
@@ -129,43 +129,14 @@ class RunMeasWidget(QtWidgets.QDialog):
         for checkbox, flag_name in self.checkbox_flag_mapping.items():
             checkbox.clicked.connect(partial(self.flag_exhibit, flag=flag_name))
 
-    def init_combobox_filtrer(self) -> None:
-        for key, value in self.filtrs_data.filters.items():
+    def init_combobox_filter(self) -> None:
+        for key in self.filters_data.filters.keys():
             self.comboBox_filter.addItem(key)
 
     def comboBox_filter_handler(self):
-        self.hist_filters = self.filtrs_data.filters[self.comboBox_filter.currentText()]
+        self.hist_filters = self.filters_data.filters[self.comboBox_filter.currentText()]
 
-    def _is_modbus_ready(self) -> bool:
-        """Проверка готовности Modbus-подключения.
-        Возвращает True, если есть диалог Serial и активный клиент.
-        """
-        try:
-            return bool(self.w_ser_dialog and self.w_ser_dialog.client is not None)
-        except Exception:
-            return False
-
-    def _is_devices_ready(self) -> bool:
-        """Проверка доступности ЦМ и МПП по флагам диалога Serial."""
-        try:
-            return (
-                self.w_ser_dialog is not None
-                and getattr(self.w_ser_dialog, "status_CM", 0) == 1
-                and getattr(self.w_ser_dialog, "status_MPP", 0) == 1
-            )
-        except Exception:
-            return False
-
-    async def _ensure_connection(self) -> bool:
-        """Обновляет статусы подключения и проверяет готовность ЦМ/МПП."""
-        if not self._is_modbus_ready():
-            return False
-        try:
-            await self.w_ser_dialog.check_connect()
-        except Exception as e:
-            self.logger.error(f"Ошибка проверки соединения: {e}")
-            return False
-        return self._is_devices_ready()
+    # Проверки перенесены в SerialConnect: is_modbus_ready/is_devices_ready/ensure_ready
 
     async def _stop_measuring(self, reason: str | None = None):
         """Останавливает измерения, гасит задачи и приводит UI в исходное состояние."""
@@ -194,28 +165,47 @@ class RunMeasWidget(QtWidgets.QDialog):
     @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:
         """Инициализация командного интерфейса МПП и ЦМ"""
-        if not self._is_modbus_ready():
+        # Сначала проверяем и подтверждаем готовность устройств
+        if not self.w_ser_dialog or not self.w_ser_dialog.is_modbus_ready():
             self.logger.warning("Modbus не готов: нет активного serial-соединения")
+            self.cm_cmd = None
+            self.mpp_cmd = None
             return
-        mpp_id = self.w_ser_dialog.mpp_id
-        self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
-        self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
         try:
-            await self.w_ser_dialog.check_connect()
-            if not self._is_devices_ready():
-                self.logger.warning("ЦМ/МПП недоступны — запуск измерений невозможен")
-        except Exception:
-            self.logger.warning("Не удалось обновить статус ЦМ/МПП при инициализации команд")
+            ready = await self.w_ser_dialog.ensure_ready()
+        except Exception as e:
+            self.logger.warning(f"Не удалось обновить статус ЦМ/МПП при инициализации команд: {e}")
+            self.cm_cmd = None
+            self.mpp_cmd = None
+            return
+        if not ready:
+            self.logger.warning("ЦМ/МПП недоступны — запуск измерений невозможен")
+            self.cm_cmd = None
+            self.mpp_cmd = None
+            return
+        # Только после успешной проверки создаем интерфейсы команд
+        mpp_id = self.w_ser_dialog.mpp_id
+        self.cm_cmd: ModbusCMCommand | None = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
+        self.mpp_cmd: ModbusMPPCommand | None = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
 
     @qasync.asyncSlot()
     async def on_serial_disconnected(self):
         await self._stop_measuring("Serial отключен")
+        # Сбрасываем интерфейсы команд при отключении
+        self.cm_cmd = None
+        self.mpp_cmd = None
 
     @qasync.asyncSlot()
     async def pushButton_calibr_acq_handler(self):
-        if not await self._ensure_connection():
+        if not await self.w_ser_dialog.ensure_ready():
             self.logger.error("Нет подключения (ЦМ/МПП недоступны)")
             return
+        # Гарантируем, что интерфейсы команд созданы
+        if getattr(self, "mpp_cmd", None) is None or getattr(self, "cm_cmd", None) is None:
+            await self.init_mb_cmd()
+            if getattr(self, "mpp_cmd", None) is None:
+                self.logger.error("Не удалось инициализировать команды МПП/ЦМ")
+                return
         try:
             await self.mpp_cmd.calibrate_ACQ()
             buffer = self.w_ser_dialog.label_state_w.text()
@@ -240,13 +230,22 @@ class RunMeasWidget(QtWidgets.QDialog):
 
         ACQ_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if await self._ensure_connection():
+        if await self.w_ser_dialog.ensure_ready():
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag]
             if self.flags[self.start_measure_flag]:
                 self.pushButton_run_measure.setText("Остановить изм.")
                 # TODO: сделать чек боксы не активными
                 current_datetime = datetime.datetime.now()
                 self.name_file_save: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
+                # Гарантируем, что интерфейсы команд созданы
+                if getattr(self, "mpp_cmd", None) is None or getattr(self, "cm_cmd", None) is None:
+                    await self.init_mb_cmd()
+                    if getattr(self, "mpp_cmd", None) is None:
+                        self.logger.error("Не удалось инициализировать команды МПП/ЦМ")
+                        # Отменяем старт
+                        self.flags[self.start_measure_flag] = False
+                        self.pushButton_run_measure.setText("Запустить изм.")
+                        return
                 try:
                     self.task_manager.create_task(ACQ_task(), "ACQ_task")
                     if self.flags[self.request_hist_flag]:
@@ -278,7 +277,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.graph_widget.hp_pips.hist_clear()
             lvl = int(self.lineEdit_trigger.text())
             save: bool = False
-            if not self._is_modbus_ready() or not self._is_devices_ready():
+            if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
                 await self._stop_measuring("Потеряно соединение (ACQ init)")
                 return
             if self.flags[self.enable_trig_meas_flag]:
@@ -286,7 +285,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 await self.mpp_cmd.start_measure(on=1)
             self.graph_widget.show()
             while 1:
-                if not self._is_modbus_ready() or not self._is_devices_ready():
+                if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
                     await self._stop_measuring("Потеряно соединение (ACQ loop)")
                     return
                 current_datetime = datetime.datetime.now()
@@ -356,7 +355,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         """Опрос счетчика частиц"""
         self.graph_widget.hp_counter.hist_clear()
         try:
-            if not self._is_modbus_ready() or not self._is_devices_ready():
+            if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
                 await self._stop_measuring("Потеряно соединение (HH init)")
                 return
             await self.mpp_cmd.clear_hist()
@@ -371,7 +370,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         accumulate_data = np.array([0] * 12)
         bins = [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
         while 1:
-            if not self._is_modbus_ready() or not self._is_devices_ready():
+            if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
                 await self._stop_measuring("Потеряно соединение (HH loop)")
                 return
             # counter_clear += 1
