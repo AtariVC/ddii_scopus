@@ -1,6 +1,6 @@
 
 
-class FiltrsData():
+class FiltersData():
     
     def __init__(self):
         self.filters = {

@@ -338,6 +338,26 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.label_state_w.setText("State: CM - None, MPP - None")
             self.widget_led_w.setStyleSheet(widget_led_off())
 
+    # ===== Унифицированные проверки состояния =====
+    def is_modbus_ready(self) -> bool:
+        """Готово ли Modbus-подключение (есть активный serial-клиент)."""
+        return self.client is not None
+
+    def is_devices_ready(self) -> bool:
+        """Готовность устройств ЦМ и МПП по последним флагам."""
+        return (self.status_CM == 1 and self.status_MPP == 1)
+
+    async def ensure_ready(self, require_devices: bool = True) -> bool:
+        """Проверяет/обновляет готовность подключения и устройств.
+        - Если нет клиента, возвращает False.
+        - Иначе вызывает check_connect() и возвращает True, если устройства готовы
+          (или если require_devices=False — достаточно только клиента).
+        """
+        if not self.is_modbus_ready():
+            return False
+        await self.check_connect()
+        return self.is_devices_ready() if require_devices else True
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
