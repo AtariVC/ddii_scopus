@@ -25,6 +25,7 @@ from src.customComboBox_COMport import CustomComboBox_COMport  # noqa: E402
 from src.env_var import EnvironmentVar  # noqa: E402
 from src.log_config import log_init, log_s  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
 
 
@@ -117,6 +118,20 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         
         # Обновляем интерфейс при смене вкладок
         self.tabWidget_serial.currentChanged.connect(self.update_tcp_interface)
+
+        # Нулевой клиент для безопасных команд при отсутствии связи
+        class _NullModbusClient(AsyncModbusSerialClient):
+            def __init__(self):
+                pass
+            async def read_holding_registers(self, *args, **kwargs):
+                raise RuntimeError("No Modbus client connected")
+            async def write_registers(self, *args, **kwargs):
+                raise RuntimeError("No Modbus client connected")
+            async def connect(self, *args, **kwargs):
+                return False
+            def close(self):
+                return None
+        self._null_client = _NullModbusClient()
 
     def update_tcp_interface(self, index):
         """Обновление интерфейса TCP в зависимости от состояния serial"""
@@ -337,6 +352,32 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         elif cheak_st_connect == (0, 0):
             self.label_state_w.setText("State: CM - None, MPP - None")
             self.widget_led_w.setStyleSheet(widget_led_off())
+
+    # ===== Унифицированные проверки состояния и фабрики команд =====
+    def is_modbus_ready(self) -> bool:
+        return self.client is not None
+
+    def is_devices_ready(self) -> bool:
+        return (self.status_CM == 1 and self.status_MPP == 1)
+
+    async def ensure_ready(self, require_devices: bool = True) -> bool:
+        if not self.is_modbus_ready():
+            return False
+        await self.check_connect()
+        return self.is_devices_ready() if require_devices else True
+
+    def get_commands(self, logger) -> tuple[ModbusCMCommand, ModbusMPPCommand]:
+        """Возвращает новые объекты команд с актуальным клиентом и MPP_ID.
+        Если соединения нет, возвращает команды с null‑клиентом.
+        """
+        cli = self.client if self.client is not None else self._null_client
+        cm = ModbusCMCommand(cli, logger)
+        try:
+            mpp = ModbusMPPCommand(cli, logger, self.mpp_id)
+        except Exception:
+            # В случае отсутствия mpp_id создаём с дефолтным
+            mpp = ModbusMPPCommand(cli, logger)
+        return cm, mpp
 
     # ===== Унифицированные проверки состояния =====
     def is_modbus_ready(self) -> bool:

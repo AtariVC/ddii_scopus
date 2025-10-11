@@ -415,7 +415,7 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
-    async def stop_measure(self, ch: int|None) -> bytes:
+    async def stop_measure(self, ch: int|None = None) -> bytes:
         try:
             if ch:
                 MPP_STOP_MEASURE = self.MPP_STOP_MEASURE.copy()

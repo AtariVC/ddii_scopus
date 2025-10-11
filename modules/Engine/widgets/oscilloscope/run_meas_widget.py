@@ -119,31 +119,26 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.task_manager = AsyncTaskManager()
             self.logger = PrintLogger()
 
-        # Постоянные командные интерфейсы + "нулевой" клиент на случай отсутствия связи
-        class _NullModbusClient(AsyncModbusSerialClient):
-            def __init__(self):
-                # Не вызываем super().__init__; этот клиент не использует транспорт
-                pass
-            async def read_holding_registers(self, *args, **kwargs):
-                raise RuntimeError("No Modbus client connected")
-            async def write_registers(self, *args, **kwargs):
-                raise RuntimeError("No Modbus client connected")
-            async def connect(self, *args, **kwargs):
-                return False
-            def close(self):
-                return None
-
-        self._null_client = _NullModbusClient()
-        try:
-            init_mpp_id = getattr(self.w_ser_dialog, "mpp_id", None) if __name__ != "__main__" else None
-        except Exception:
-            init_mpp_id = None
-        if init_mpp_id is None:
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self._null_client, self.logger)
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self._null_client, self.logger)
+        # Инициализация команд через фабрику SerialConnect (или заглушки, если нет родителя)
+        if __name__ != "__main__":
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
         else:
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self._null_client, self.logger)
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self._null_client, self.logger, init_mpp_id)
+            # Режим самозапуска виджета (без диалога Serial)
+            class _NullModbusClient(AsyncModbusSerialClient):
+                def __init__(self):
+                    # Не вызываем super().__init__; клиент-заглушка
+                    pass
+                async def read_holding_registers(self, *args, **kwargs):
+                    raise RuntimeError("No Modbus client connected")
+                async def write_registers(self, *args, **kwargs):
+                    raise RuntimeError("No Modbus client connected")
+                async def connect(self, *args, **kwargs):
+                    return False
+                def close(self):
+                    return None
+            _nc = _NullModbusClient()
+            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(_nc, self.logger)
+            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(_nc, self.logger)
 
     def init_flags(self):
         for checkBox, flag in self.checkbox_flag_mapping.items():
@@ -172,17 +167,25 @@ class RunMeasWidget(QtWidgets.QDialog):
         try:
             await self.mpp_cmd.start_measure(on=0)
         except Exception:
-            pass
-        # Отменяем задачи
+            ...
+        # Отменяем все активные задачи по списку
         try:
-            self.task_manager.cancel_task("ACQ_task")
+            for name in self.task_manager.get_active_tasks():
+                # Очистку гистограмм делаем только если была HH задача
+                if name == "HH_task":
+                    try:
+                        await self.mpp_cmd.clear_hist()
+                    except Exception:
+                        ...
+                    self.task_manager.cancel_task(name)
+                if name == "ACQ_task":
+                    try:
+                        await self.mpp_cmd.stop_measure()
+                    except Exception:
+                        ...
+                    self.task_manager.cancel_task(name)
         except Exception:
-            pass
-        try:
-            if self.flags.get(self.request_hist_flag, False):
-                self.task_manager.cancel_task("HH_task")
-        except Exception:
-            pass
+            ...
         # Сбрасываем флаг и UI
         self.flags[self.start_measure_flag] = False
         self.pushButton_run_measure.setText("Запустить изм.")
@@ -192,34 +195,25 @@ class RunMeasWidget(QtWidgets.QDialog):
         """Инициализация командного интерфейса МПП и ЦМ"""
         if not self.w_ser_dialog or not self.w_ser_dialog.is_modbus_ready():
             self.logger.warning("Modbus не готов: нет активного serial-соединения")
-            # Переинициализируем команды с null‑клиентом
-            self.cm_cmd = ModbusCMCommand(self._null_client, self.logger)
-            self.mpp_cmd = ModbusMPPCommand(self._null_client, self.logger)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger) if self.w_ser_dialog else (self.cm_cmd, self.mpp_cmd)
             return
         try:
             ready = await self.w_ser_dialog.ensure_ready()
         except Exception as e:
             self.logger.warning(f"Не удалось обновить статус ЦМ/МПП при инициализации команд: {e}")
-            self.cm_cmd = ModbusCMCommand(self._null_client, self.logger)
-            self.mpp_cmd = ModbusMPPCommand(self._null_client, self.logger)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
             return
-        # Переинициализируем команды с актуальным клиентом и MPP_ID
-        mpp_id = getattr(self.w_ser_dialog, "mpp_id", None)
-        if mpp_id is None:
-            self.cm_cmd = ModbusCMCommand(self.w_ser_dialog.client, self.logger)  # type: ignore
-            self.mpp_cmd = ModbusMPPCommand(self.w_ser_dialog.client, self.logger)  # type: ignore
-        else:
-            self.cm_cmd = ModbusCMCommand(self.w_ser_dialog.client, self.logger)  # type: ignore
-            self.mpp_cmd = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)  # type: ignore
+        # Всегда берём команды через фабрику, она сама подставит нужный клиент/mpp_id
+        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
         if not ready:
             self.logger.warning("ЦМ/МПП недоступны — запуск измерений невозможен")
 
     @qasync.asyncSlot()
     async def on_serial_disconnected(self):
         await self._stop_measuring("Serial отключен")
-        # Переинициализируем команды с null‑клиентом
-        self.cm_cmd = ModbusCMCommand(self._null_client, self.logger)
-        self.mpp_cmd = ModbusMPPCommand(self._null_client, self.logger)
+        # Обновляем команды через фабрику (вернутся null‑клиент команды)
+        if self.w_ser_dialog:
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
 
     @qasync.asyncSlot()
     async def pushButton_calibr_acq_handler(self):
@@ -382,7 +376,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         # counter_clear = 0
         data: list[int] = []
         accumulate_data = np.array([0] * 12)
-        bins = [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
+        bins = np.linspace(1, 13, 12) # [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
         while 1:
             if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
                 await self._stop_measuring("Потеряно соединение (HH loop)")
