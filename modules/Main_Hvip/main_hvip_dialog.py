@@ -437,7 +437,9 @@ if __name__ == "__main__":
     logger = log_init()
     w_ser_dialog: SerialConnect = SerialConnect(logger)
     w: MainHvipDialog = MainHvipDialog(logger, w_ser_dialog)
-    add_serial_widget(w.vLayout_ser_connect, w_ser_dialog)
+    # add_serial_widget(w.vLayout_ser_connect, w_ser_dialog)
+    w.vLayout_ser_connect.addWidget(w_ser_dialog)
+    
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()
