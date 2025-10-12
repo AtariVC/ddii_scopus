@@ -102,14 +102,17 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.init_QObjects()
         self.config = ConfigSaver()
         self.flg_get_rst = 0
-        if __name__ != "__main__":
-            self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore
-            self.logger = self.parent.logger  # type: ignore
-            self.w_ser_dialog.coroutine_finished.connect(self.cmd_interface_init)
-        else:
+        if __name__ == "__main__":
+            self.logger = args[0]
+            self.w_ser_dialog: SerialConnect = args[1]
             self.task_manager = AsyncTaskManager()
             self.logger = PrintLogger()
-
+            
+        else:
+            self.logger = self.parent.logger  # type: ignore
+            self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore
+            
+        self.w_ser_dialog.coroutine_finished.connect(self.cmd_interface_init)
         self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
         self.pushButton_get_rst.clicked.connect(self.pushButton_get_rst_handler)
         self.pushButton_apply.clicked.connect(self.pushButton_apply_handler)
