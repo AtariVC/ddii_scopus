@@ -290,7 +290,7 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def update_gui_data_label(self) -> None:
-        if not self.w_ser_dialog.check_connection():
+        if not self.w_ser_dialog.check_connection(only_cm=True):
             await self.on_serial_disconnected()
             return
         try:

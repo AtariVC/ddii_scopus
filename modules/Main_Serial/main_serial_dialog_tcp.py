@@ -373,7 +373,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             mpp = ModbusMPPCommand(cli, logger)
         return cm, mpp
 
-    async def check_connection(self) -> bool:
+    async def check_connection(self, only_cm = True, only_mpp = True) -> bool:
         """
         Проверка подключения CM и MPP по Serial. Для внешнего использования.
 
@@ -393,6 +393,10 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             return True  # Оба устройства подключены
         elif self.status_MPP and self.checkBox_mpp_only.isChecked():
             return True  # Только МПП подключен, ЦМ игнорируется
+        elif self.status_CM and not only_mpp:
+            return True  # Только ЦМ требуется и он подключен
+        elif self.status_MPP and not only_cm:
+            return True  # Только МПП требуется и он подключен
         else:
             return False  # Устройства не готовы
 
