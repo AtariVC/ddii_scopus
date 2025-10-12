@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from pathlib import Path
+from typing import Any, Awaitable, Callable, Coroutine
 
 import qasync
 import qtmodern.styles
@@ -21,12 +22,14 @@ sys.path.append(str(modules_path))
 
 from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
+from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.craft_custom_widget import add_serial_widget  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.log_config import log_init, log_s  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
+from src.print_logger import PrintLogger  # noqa: E402
 
 
 class MainHvipDialog(QtWidgets.QDialog):
@@ -89,29 +92,24 @@ class MainHvipDialog(QtWidgets.QDialog):
     SIPM_CH_VOLTAGE = 2
     CHERENKOV_CH_VOLTAGE = 3
 
-    coroutine_get_client_finished = QtCore.pyqtSignal()
+    cmd_interface_init_signal = QtCore.pyqtSignal()
 
-    def __init__(self, logger, *args) -> None:
+    def __init__(self, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).resolve().parent.joinpath("HVIP_window.ui"), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
-        self.logger = logger
         self.init_QObjects()
         self.config = ConfigSaver()
         self.flg_get_rst = 0
-        # Поддержка двух режимов: с SerialConnect и с прямым client
-        if len(args) > 0 and isinstance(args[0], SerialConnect):
-            self.w_ser_dialog: SerialConnect = args[0]
-            self.w_ser_dialog.coroutine_finished.connect(self.get_client)
-            # Инициализируем командные интерфейсы через фабрику
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+        if __name__ != "__main__":
+            self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore
+            self.logger = self.parent.logger  # type: ignore
+            self.w_ser_dialog.coroutine_finished.connect(self.cmd_interface_init)
         else:
-            self.w_ser_dialog = None  # type: ignore
-            self.client: AsyncModbusSerialClient | None = args[0] if len(args) > 0 else None  # type: ignore
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)  # type: ignore
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)  # type: ignore
-        self.task = None  # type: ignore
+            self.task_manager = AsyncTaskManager()
+            self.logger = PrintLogger()
+
         self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
         self.pushButton_get_rst.clicked.connect(self.pushButton_get_rst_handler)
         self.pushButton_apply.clicked.connect(self.pushButton_apply_handler)
@@ -119,38 +117,73 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.pushButton_pips_on.clicked.connect(self.pushButton_pips_on_handler)
         self.pushButton_sipm_on.clicked.connect(self.pushButton_sipm_on_handler)
         self.pushButton_ch_on.clicked.connect(self.pushButton_ch_on_handler)
-        self.coroutine_get_client_finished.connect(self.creator_task)
+        self.cmd_interface_init_signal.connect(self.creator_task)
+        # Остановка измерений при отключении Serial
+        self.w_ser_dialog.disconnected.connect(self.on_serial_disconnected)
         self.flag_measure = 1
         self.label_status.setText("Status:")
 
     @qasync.asyncSlot()
-    async def get_client(self) -> None:
+    async def cmd_interface_init(self) -> None:
         """Перехватывает client от SerialConnect и переподключается к нему"""
-        if self.w_ser_dialog:
-            self.client: AsyncModbusSerialClient | None = self.w_ser_dialog.client
-        if self.client and self.client.connected is False:
-            await self.client.connect()
-            self.cm_cmd = ModbusCMCommand(self.client, self.logger)
-            self.pushButton_get_rst.setText("R")
-            self.flg_get_rst = 1
-            await self.update_gui_data_label()
-            await self.update_gui_data_spinbox()
-        elif self.client is None:
-            if self.task:
-                self.task.cancel()
-        if self.w_ser_dialog.status_CM == 1:
-            self.coroutine_get_client_finished.emit()
+        if self.w_ser_dialog.check_connection():
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+            self.cmd_interface_init_signal.emit()
+        await self.update_gui_data_spinbox()
+        await self.update_gui_data_label()
+        # if self.w_ser_dialog:
+        #     self.client: AsyncModbusSerialClient | None = self.w_ser_dialog.client
+        # if self.client and self.client.connected is False:
+        #     await self.client.connect()
+        #     self.cm_cmd = ModbusCMCommand(self.client, self.logger)
+        #     self.pushButton_get_rst.setText("R")
+        #     self.flg_get_rst = 1
+        #     await self.update_gui_data_label()
+        #     await self.update_gui_data_spinbox()
+        # elif self.client is None:
+        #     if self.task:
+        #         self.task.cancel()
+        # if self.w_ser_dialog.status_CM == 1:
+        #     self.coroutine_get_client_finished.emit()
 
-    def creator_task(self) -> None:
+    async def creator_task(self) -> None:
+        v_loop_req = self.asyncio_voltage_loop_request
         try:
-            if self.task is None or self.task.done():
-                self.task: asyncio.Task[None] = asyncio.create_task(self.asyncio_loop_request())
+            self.task_manager.create_task(v_loop_req(), "ACQ_task")
         except Exception as e:
-            self.logger.error(f"Error in creating task: {str(e)}")
+            await self._stop_measuring(f"Ошибка запуска задач: {e}")
+
+    async def asyncio_voltage_loop_request(self) -> None:
+        await self.update_gui_data_label()
+
+    async def _stop_measuring(self, reason: str | None = None):
+        """Останавливает измерения, гасит задачи и приводит UI в исходное состояние."""
+        if reason:
+            self.logger.error(reason)
+        # Пытаемся остановить измерение на стороне МПП
+        try:
+            await self.mpp_cmd.start_measure(on=0)
+        except Exception:
+            ...
+        # Отменяем все активные задачи по списку
+        try:
+            for name in self.task_manager.get_active_tasks():
+                # Очистку гистограмм делаем только если была HH задача
+                if name == "voltage_loop_request":
+                    try:
+                        await self.mpp_cmd.clear_hist()
+                    except Exception:
+                        ...
+                    self.task_manager.cancel_task(name)
+        except Exception as e:
+            self.logger.error(f"Error in stopping measurements: {str(e)}")
+
+    @qasync.asyncSlot()
+    async def on_serial_disconnected(self):
+        await self._stop_measuring("Serial отключен")
+        # Обновляем команды через фабрику (вернутся null‑клиент команды)
         if self.w_ser_dialog:
-            # Если соединение закрыто, отменяем задачу
-            if self.task:
-                self.task.cancel()
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
 
     def init_QObjects(self) -> None:
         self.spin_box_cfg_volt: dict[str, QtWidgets.QDoubleSpinBox] = {
@@ -207,14 +240,6 @@ class MainHvipDialog(QtWidgets.QDialog):
             "spinBox_sipm_b_i": self.spinBox_sipm_b_i,
         }
 
-    async def asyncio_loop_request(self) -> None:
-        try:
-            while 1:
-                await self.update_gui_data_label()
-                await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            ...
-
     @qasync.asyncSlot()
     async def get_cfg_data_from_widget(self, d_struct: dict, tp: str) -> list[int]:
         pack: list[LineEObj] = [
@@ -226,6 +251,7 @@ class MainHvipDialog(QtWidgets.QDialog):
     @qasync.asyncSlot()
     async def update_gui_data_spinbox(self) -> None:
         if not self.w_ser_dialog.check_connection():
+            await self.on_serial_disconnected()
             return
         err_cfg_volt = 0
         err_cfg_pwm = 0
@@ -235,20 +261,20 @@ class MainHvipDialog(QtWidgets.QDialog):
             data_cfg_volt: dict[str, str] = await self.parser.pars_cfg_volt(answ_cfg_volt)
         except Exception as e:
             err_cfg_volt = 1
-            self.logger.error(e)
+            self.logger.error(str(e))
         try:
             answ_cfg_pwm: bytes = await self.cm_cmd.get_cfg_pwm()
             data_cfg_pwm: dict[str, str] = await self.parser.pars_cfg_pwm(answ_cfg_pwm)
         except Exception as e:
             err_cfg_pwm = 1
-            self.logger.error(e)
+            self.logger.error(str(e))
         try:
             await asyncio.sleep(0.1)
             answ_cfg_a_b: bytes = await self.cm_cmd.get_cfg_a_b()
             data_cfg_a_b: dict[str, str] = await self.parser.pars_cfg_a_b(answ_cfg_a_b)
         except Exception as e:
             err_cfg_a_b = 1
-            self.logger.error(e)
+            self.logger.error(str(e))
         if err_cfg_volt == 0:
             for key, val in self.spin_box_cfg_volt.items():
                 val.setValue(float(data_cfg_volt.get(key)))  # type: ignore
@@ -262,6 +288,7 @@ class MainHvipDialog(QtWidgets.QDialog):
     @qasync.asyncSlot()
     async def update_gui_data_label(self) -> None:
         if not self.w_ser_dialog.check_connection():
+            await self.on_serial_disconnected()
             return
         try:
             answer: bytes = await self.cm_cmd.get_voltage()
@@ -283,7 +310,7 @@ class MainHvipDialog(QtWidgets.QDialog):
                 else:
                     val.setText("{:.2f}".format(float(list(data.values())[i])))  # type: ignore
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(str(e))
 
     ############ handler button ##############
     @qasync.asyncSlot()
@@ -418,14 +445,14 @@ class MainHvipDialog(QtWidgets.QDialog):
                     self.pushButton_ch_on.setText("Включить")
                     self.led_ch.setStyleSheet(widget_led_off())
         except Exception as ex:
-            self.logger.debug(ex)
+            self.logger.debug(str(ex))
 
-    def closeEvent(self, event) -> None:
+    @qasync.asyncSlot()
+    async def closeEvent(self, event) -> None:
         try:
-            if self.client and self.client.connected:
-                self.client.close()
-                for i in range(3):
-                    self.update_power_status([i, 0])
+            await self._stop_measuring("Все задачи завершены")
+            if __name__ == "__main__":
+                await self.w_ser_dialog.disconnect_serial_client()
         except Exception:
             pass
 
@@ -439,7 +466,7 @@ if __name__ == "__main__":
     w: MainHvipDialog = MainHvipDialog(logger, w_ser_dialog)
     # add_serial_widget(w.vLayout_ser_connect, w_ser_dialog)
     w.vLayout_ser_connect.addWidget(w_ser_dialog)
-    
+
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()

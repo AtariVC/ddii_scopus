@@ -9,7 +9,6 @@ from PyQt6 import QtWidgets
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
 from qtpy.uic import loadUi
-
 from save_config import ConfigSaver
 
 ####### импорты из других директорий ######
@@ -186,7 +185,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                     val.setText(list(tel_dict.values())[i - 1])
 
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(str(e))
 
     @qasync.asyncSlot()
     async def update_gui_data_cm(self) -> None:
@@ -201,7 +200,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
             for i, (key, val) in enumerate(total_struct.items()):
                 val.setText(list(tel_dict.values())[i])
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(str(e))
 
     def closeEvent(self, event) -> None:
         try:
@@ -277,7 +276,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                 else:
                     return False
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(str(e))
 
         try:
             if device == "cm":  # для цм не работает из-за точности float
@@ -290,7 +289,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                 else:
                     return False
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(str(e))
         # await asyncio.sleep(0.5)
         # await self.cm_cmd.set_mode(self.COMBAT_MODE)
         return False
@@ -352,7 +351,6 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         self.lineEdit_pwm_ch.setValidator(d_validator)
         self.lineEdit_hvip_ch.setValidator(d_validator)
         self.lineEdit_interval.setValidator(d_validator)
-
 
 
 if __name__ == "__main__":

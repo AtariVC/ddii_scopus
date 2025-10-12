@@ -28,8 +28,8 @@ from src.env_var import EnvironmentVar  # noqa: E402
 from src.log_config import log_init, log_s  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 
-
 BAUDRATE = 125000
+
 
 class ModbusRelayServer:
     """Сервер для ретрансляции Modbus данных"""
@@ -122,13 +122,10 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         class _NullModbusClient(AsyncModbusSerialClient):
             def __init__(self):
                 pass
-
             async def read_holding_registers(self, *args, **kwargs):
                 raise RuntimeError("No Modbus client connected")
-
             async def write_registers(self, *args, **kwargs):
                 raise RuntimeError("No Modbus client connected")
-
             async def connect(self, *args, **kwargs):
                 return False
 
@@ -244,7 +241,6 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.label_state_w.setText("State: Отключено")
             self.pushButton_connect_w.setText("Подключить")
 
-
     def update_tcp_status(self, message, is_connected):
         """Обновление статуса TCP"""
         if self.client is not None:  # Режим сервера
@@ -315,8 +311,8 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         except Exception as e:
             self.status_MPP = 0
             self.logger.debug("Соединение c МПП не установлено")
-            self.logger.error(e)
-        
+            self.logger.error(str(e))
+
         #### CM ####
         if self.checkBox_mpp_only.isChecked() is False:
             try:
@@ -327,7 +323,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                     await log_s(self.mw.send_handler.mess)
             except Exception as e:
                 self.logger.debug("Соединение c ЦМ не установлено")
-                self.logger.error(e)
+                self.logger.error(str(e))
                 self.status_CM = 0
         else:
             self.status_CM = 0
@@ -380,12 +376,12 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     async def check_connection(self) -> bool:
         """
         Проверка подключения CM и MPP по Serial. Для внешнего использования.
-        
+
         - Проверяет наличие клиента; при его отсутствии возвращает False.
         - Обновляет статусы устройств через `check_connect()`.
         - Если активен `checkBox_mpp_only`, то для готовности устройств достаточно
         доступности МПП; ЦМ игнорируется. Иначе требуются ЦМ и МПП.
-        
+
         Returns:
             bool: True, если условия подключения выполнены, иначе False.
         """
@@ -394,7 +390,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             return False
         await self._check_connect()
         if self.status_CM and self.status_MPP:
-            return True # Оба устройства подключены
+            return True  # Оба устройства подключены
         elif self.status_MPP and self.checkBox_mpp_only.isChecked():
             return True  # Только МПП подключен, ЦМ игнорируется
         else:

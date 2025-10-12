@@ -114,35 +114,10 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.comboBox_filter.currentIndexChanged.connect(self.comboBox_filter_handler)
             self.pushButton_run_measure.clicked.connect(self.pushButton_run_measure_handler)
             self.pushButton_calibr_acq.clicked.connect(self.pushButton_calibr_acq_handler)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         else:
             self.task_manager = AsyncTaskManager()
             self.logger = PrintLogger()
-
-        # Инициализация команд через фабрику SerialConnect (или заглушки, если нет родителя)
-        if __name__ != "__main__":
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
-        else:
-            # Режим самозапуска виджета (без диалога Serial)
-            class _NullModbusClient(AsyncModbusSerialClient):
-                def __init__(self):
-                    # Не вызываем super().__init__; клиент-заглушка
-                    pass
-
-                async def read_holding_registers(self, *args, **kwargs):
-                    raise RuntimeError("No Modbus client connected")
-
-                async def write_registers(self, *args, **kwargs):
-                    raise RuntimeError("No Modbus client connected")
-
-                async def connect(self, *args, **kwargs):
-                    return False
-
-                def close(self):
-                    return None
-
-            _nc = _NullModbusClient()
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(_nc, self.logger)
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(_nc, self.logger)
 
     def init_flags(self):
         for checkBox, flag in self.checkbox_flag_mapping.items():
@@ -160,8 +135,6 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     def comboBox_filter_handler(self):
         self.hist_filters = self.filters_data.filters[self.comboBox_filter.currentText()]
-
-    # Проверки перенесены в SerialConnect: is_modbus_ready/is_devices_ready/ensure_ready
 
     async def _stop_measuring(self, reason: str | None = None):
         """Останавливает измерения, гасит задачи и приводит UI в исходное состояние."""
@@ -188,8 +161,8 @@ class RunMeasWidget(QtWidgets.QDialog):
                     except Exception:
                         ...
                     self.task_manager.cancel_task(name)
-        except Exception:
-            ...
+        except Exception as e:
+            self.logger.error(f"Error in stopping measurements: {str(e)}")
         # Сбрасываем флаг и UI
         self.flags[self.start_measure_flag] = False
         self.pushButton_run_measure.setText("Запустить изм.")
