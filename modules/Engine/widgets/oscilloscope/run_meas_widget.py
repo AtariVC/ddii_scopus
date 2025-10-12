@@ -26,13 +26,12 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
 
-from src.filters_data import FiltersData  # noqa: E402
-
 from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.event.event import Event  # noqa: E402
+from src.filters_data import FiltersData  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
@@ -121,21 +120,26 @@ class RunMeasWidget(QtWidgets.QDialog):
 
         # Инициализация команд через фабрику SerialConnect (или заглушки, если нет родителя)
         if __name__ != "__main__":
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         else:
             # Режим самозапуска виджета (без диалога Serial)
             class _NullModbusClient(AsyncModbusSerialClient):
                 def __init__(self):
                     # Не вызываем super().__init__; клиент-заглушка
                     pass
+
                 async def read_holding_registers(self, *args, **kwargs):
                     raise RuntimeError("No Modbus client connected")
+
                 async def write_registers(self, *args, **kwargs):
                     raise RuntimeError("No Modbus client connected")
+
                 async def connect(self, *args, **kwargs):
                     return False
+
                 def close(self):
                     return None
+
             _nc = _NullModbusClient()
             self.cm_cmd: ModbusCMCommand = ModbusCMCommand(_nc, self.logger)
             self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(_nc, self.logger)
@@ -195,16 +199,20 @@ class RunMeasWidget(QtWidgets.QDialog):
         """Инициализация командного интерфейса МПП и ЦМ"""
         if not self.w_ser_dialog or not self.w_ser_dialog.is_modbus_ready():
             self.logger.warning("Modbus не готов: нет активного serial-соединения")
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger) if self.w_ser_dialog else (self.cm_cmd, self.mpp_cmd)
+            self.cm_cmd, self.mpp_cmd = (
+                self.w_ser_dialog.get_commands_interface(self.logger)
+                if self.w_ser_dialog
+                else (self.cm_cmd, self.mpp_cmd)
+            )
             return
         try:
-            ready = await self.w_ser_dialog.ensure_ready()
+            ready = await self.w_ser_dialog.check_connection()
         except Exception as e:
             self.logger.warning(f"Не удалось обновить статус ЦМ/МПП при инициализации команд: {e}")
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
             return
         # Всегда берём команды через фабрику, она сама подставит нужный клиент/mpp_id
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
+        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         if not ready:
             self.logger.warning("ЦМ/МПП недоступны — запуск измерений невозможен")
 
@@ -213,11 +221,11 @@ class RunMeasWidget(QtWidgets.QDialog):
         await self._stop_measuring("Serial отключен")
         # Обновляем команды через фабрику (вернутся null‑клиент команды)
         if self.w_ser_dialog:
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
 
     @qasync.asyncSlot()
     async def pushButton_calibr_acq_handler(self):
-        if not await self.w_ser_dialog.ensure_ready():
+        if not await self.w_ser_dialog.check_connection():
             self.logger.error("Нет подключения (ЦМ/МПП недоступны)")
             return
         # Обновляем клиент/ID для команд
@@ -246,7 +254,7 @@ class RunMeasWidget(QtWidgets.QDialog):
 
         ACQ_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if await self.w_ser_dialog.ensure_ready():
+        if await self.w_ser_dialog.check_connection():
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag]
             if self.flags[self.start_measure_flag]:
                 self.pushButton_run_measure.setText("Остановить изм.")
@@ -287,7 +295,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             lvl = int(self.lineEdit_trigger.text())
             save: bool = False
             if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
-                await self._stop_measuring("Потеряно соединение (ACQ init)")
+                await self._stop_measuring("Потеряно соединение")
                 return
             if self.flags[self.enable_trig_meas_flag]:
                 await self.mpp_cmd.set_level(lvl)
@@ -295,7 +303,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.graph_widget.show()
             while 1:
                 if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
-                    await self._stop_measuring("Потеряно соединение (ACQ loop)")
+                    await self._stop_measuring("Потеряно соединение")
                     return
                 current_datetime = datetime.datetime.now()
                 self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
@@ -376,10 +384,12 @@ class RunMeasWidget(QtWidgets.QDialog):
         # counter_clear = 0
         data: list[int] = []
         accumulate_data = np.array([0] * 12)
-        bins = np.linspace(1, 13, 12) # [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
+        bins = np.linspace(
+            1, 13, 12
+        )  # [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
         while 1:
             if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
-                await self._stop_measuring("Потеряно соединение (HH loop)")
+                await self._stop_measuring("Потеряно соединение")
                 return
             # counter_clear += 1
             # if counter_clear > 50:

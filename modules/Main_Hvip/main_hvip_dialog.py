@@ -20,7 +20,6 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
 from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
-
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.craft_custom_widget import add_serial_widget  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
@@ -101,13 +100,17 @@ class MainHvipDialog(QtWidgets.QDialog):
         self.init_QObjects()
         self.config = ConfigSaver()
         self.flg_get_rst = 0
-        if __name__ == "__main__":
+        # Поддержка двух режимов: с SerialConnect и с прямым client
+        if len(args) > 0 and isinstance(args[0], SerialConnect):
             self.w_ser_dialog: SerialConnect = args[0]
             self.w_ser_dialog.coroutine_finished.connect(self.get_client)
+            # Инициализируем командные интерфейсы через фабрику
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         else:
-            self.client: AsyncModbusSerialClient|None = args[0]
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
+            self.w_ser_dialog = None  # type: ignore
+            self.client: AsyncModbusSerialClient | None = args[0] if len(args) > 0 else None  # type: ignore
+            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)  # type: ignore
+            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)  # type: ignore
         self.task = None  # type: ignore
         self.pushButton_ok.clicked.connect(self.pushButton_ok_handler)
         self.pushButton_get_rst.clicked.connect(self.pushButton_get_rst_handler)
@@ -124,7 +127,7 @@ class MainHvipDialog(QtWidgets.QDialog):
     async def get_client(self) -> None:
         """Перехватывает client от SerialConnect и переподключается к нему"""
         if self.w_ser_dialog:
-            self.client: AsyncModbusSerialClient|None = self.w_ser_dialog.client
+            self.client: AsyncModbusSerialClient | None = self.w_ser_dialog.client
         if self.client and self.client.connected is False:
             await self.client.connect()
             self.cm_cmd = ModbusCMCommand(self.client, self.logger)
@@ -222,6 +225,8 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def update_gui_data_spinbox(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         err_cfg_volt = 0
         err_cfg_pwm = 0
         err_cfg_a_b = 0
@@ -256,6 +261,8 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def update_gui_data_label(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         try:
             answer: bytes = await self.cm_cmd.get_voltage()
             desired_v: bytes = await self.cm_cmd.get_desired_voltage()
@@ -281,6 +288,8 @@ class MainHvipDialog(QtWidgets.QDialog):
     ############ handler button ##############
     @qasync.asyncSlot()
     async def pushButton_pips_on_handler(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         if self.pips_on == 1:
             await self.cm_cmd.switch_power([self.PIPS_CH_VOLTAGE, 0])
             self.pips_on = 0
@@ -295,6 +304,8 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def pushButton_sipm_on_handler(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         if self.sipm_on == 1:
             await self.cm_cmd.switch_power([self.SIPM_CH_VOLTAGE, 0])
             self.sipm_on = 0
@@ -309,6 +320,8 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def pushButton_ch_on_handler(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         if self.ch_on == 1:
             await self.cm_cmd.switch_power([self.CHERENKOV_CH_VOLTAGE, 0])
             self.ch_on = 0
@@ -323,6 +336,8 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def pushButton_apply_handler(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         vlt_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_volt, "f")
         pwm_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, "f")
         pwm_max_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, "i")

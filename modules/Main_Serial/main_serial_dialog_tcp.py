@@ -5,9 +5,9 @@ from pathlib import Path
 import qasync
 import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
-from pymodbus.server import StartAsyncTcpServer
-from pymodbus.datastore import ModbusServerContext, ModbusSlaveContext, ModbusSequentialDataBlock
+from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusSlaveContext
 from pymodbus.pdu import ModbusResponse
+from pymodbus.server import StartAsyncTcpServer
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtWidgets import QSizePolicy
 from qtmodern.windows import ModernWindow
@@ -21,49 +21,49 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
+from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
 from src.customComboBox_COMport import CustomComboBox_COMport  # noqa: E402
+from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.env_var import EnvironmentVar  # noqa: E402
 from src.log_config import log_init, log_s  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
 
+
+BAUDRATE = 125000
 
 class ModbusRelayServer:
     """Сервер для ретрансляции Modbus данных"""
-    
-    def __init__(self, serial_client, host='0.0.0.0', port=5012):
+
+    def __init__(self, serial_client, host="0.0.0.0", port=5012):
         self.serial_client = serial_client
         self.host = host
         self.port = port
         self.server = None
         self.context = None
         self._setup_datastore()
-    
+
     def _setup_datastore(self):
         """Настройка хранилища данных Modbus"""
         store = ModbusSlaveContext(
-            di=ModbusSequentialDataBlock(0, [0]*100),
-            co=ModbusSequentialDataBlock(0, [0]*100),
-            hr=ModbusSequentialDataBlock(0, [0]*100),
-            ir=ModbusSequentialDataBlock(0, [0]*100)
+            di=ModbusSequentialDataBlock(0, [0] * 100),
+            co=ModbusSequentialDataBlock(0, [0] * 100),
+            hr=ModbusSequentialDataBlock(0, [0] * 100),
+            ir=ModbusSequentialDataBlock(0, [0] * 100),
         )
         self.context = ModbusServerContext(slaves=store, single=True)
-    
+
     async def start_server(self):
         """Запуск TCP сервера"""
         try:
             self.server = await StartAsyncTcpServer(
-                context=self.context,
-                address=(self.host, self.port),
-                defer_start=False
+                context=self.context, address=(self.host, self.port), defer_start=False
             )
             print(f"Modbus TCP сервер запущен на {self.host}:{self.port}")
             return True
         except Exception as e:
             print(f"Ошибка запуска сервера: {e}")
             return False
-    
+
     async def stop_server(self):
         """Остановка TCP сервера"""
         if self.server:
@@ -72,11 +72,10 @@ class ModbusRelayServer:
 
 
 class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
-
     tabWidget_serial: QtWidgets.QTabWidget
     # serial
     pushButton_connect_w: QtWidgets.QPushButton
-    lineEdit_Bauderate_w: QtWidgets.QLineEdit
+    checkBox_mpp_only: QtWidgets.QCheckBox
     lineEdit_ID_w: QtWidgets.QLineEdit
     widget_led_w: QtWidgets.QWidget
     label_state_w: QtWidgets.QLabel
@@ -110,12 +109,12 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.tcp_client: AsyncModbusTcpClient | None = None
         self.relay_server: ModbusRelayServer | None = None
         # Признаки TCP клиента/сервера определяются по self.tcp_client/self.relay_server
-        
+
         # Подключаем обработчики
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
         self.pushButton_connect_tcp.clicked.connect(self.tcp_button_handler)
         self.tcp_status_changed.connect(self.update_tcp_status)
-        
+
         # Обновляем интерфейс при смене вкладок
         self.tabWidget_serial.currentChanged.connect(self.update_tcp_interface)
 
@@ -123,14 +122,19 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         class _NullModbusClient(AsyncModbusSerialClient):
             def __init__(self):
                 pass
+
             async def read_holding_registers(self, *args, **kwargs):
                 raise RuntimeError("No Modbus client connected")
+
             async def write_registers(self, *args, **kwargs):
                 raise RuntimeError("No Modbus client connected")
+
             async def connect(self, *args, **kwargs):
                 return False
+
             def close(self):
                 return None
+
         self._null_client = _NullModbusClient()
 
     def update_tcp_interface(self, index):
@@ -169,10 +173,10 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         """Запуск TCP сервера"""
         host = self.lineEdit_ip.text()
         port = int(self.lineEdit_tcp_port.text())
-        
+
         # Создаем сервер и сохраняем только при успешном запуске
         relay_server = ModbusRelayServer(self.client, host, port)
-        
+
         if await relay_server.start_server():
             self.relay_server = relay_server
             self.tcp_status_changed.emit(f"Сервер запущен на {host}:{port}", True)
@@ -192,14 +196,10 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         """Подключение как TCP клиент"""
         host = self.lineEdit_ip.text()
         port = int(self.lineEdit_tcp_port.text())
-        
+
         try:
-            tcp_client = AsyncModbusTcpClient(
-                host=host,
-                port=port,
-                timeout=2
-            )
-            
+            tcp_client = AsyncModbusTcpClient(host=host, port=port, timeout=2)
+
             connected = await tcp_client.connect()
             if connected:
                 self.tcp_client = tcp_client
@@ -212,7 +212,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 except Exception:
                     pass
                 self.tcp_status_changed.emit("Не удалось подключиться", False)
-                
+
         except Exception as e:
             self.tcp_status_changed.emit(f"Ошибка подключения: {e}", False)
             self.logger.error(f"Ошибка TCP подключения: {e}")
@@ -224,25 +224,26 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.tcp_client = None
             self.tcp_status_changed.emit("Отключено", False)
             self.logger.info("TCP подключение закрыто")
-            
+
     async def disconnect_serial_client(self):
         """Отключение Serial клиента"""
         # Останавливаем TCP сервер при отключении
         if self.relay_server is not None:
             await self.stop_tcp_server()
-        
+
         # Закрываем TCP клиент если был подключен
         if self.tcp_client is not None:
             await self.disconnect_tcp_client()
-        
+            self.logger.info("TCP подключение закрыто")
+            self.tcp_status_changed.emit("Отключено", False)
+            self.disconnected.emit()
+
         if self.client:
             self.client.close()
             self.client = None
             self.label_state_w.setText("State: Отключено")
             self.pushButton_connect_w.setText("Подключить")
-            self.tcp_status_changed.emit("Отключено", False)
-            self.logger.info("TCP подключение закрыто")
-            self.disconnected.emit()
+
 
     def update_tcp_status(self, message, is_connected):
         """Обновление статуса TCP"""
@@ -250,9 +251,9 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.label_tcp.setText(f"Состояние сервера: {message}")
         else:  # Режим клиента
             self.label_tcp.setText(f"Состояние подключения: {message}")
-        
+
         self.widget_led_tcp.setStyleSheet(widget_led_on() if is_connected else widget_led_off())
-        
+
         # Обновляем текст кнопки
         if self.client is not None:
             self.pushButton_connect_tcp.setText("Остановить" if is_connected else "Запустить")
@@ -269,35 +270,25 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
     @qasync.asyncSlot()
     async def serialConnect(self) -> None:
-        baudrate = int(self.lineEdit_Bauderate_w.text())
         self.mpp_id = int(self.lineEdit_ID_w.text())
-        
+
         if self.client is None:
             port = self.comboBox_comm.currentText()
             self.client = AsyncModbusSerialClient(
                 port,
                 timeout=1,
-                baudrate=baudrate,
+                baudrate=BAUDRATE,
                 bytesize=8,
                 parity="N",
                 stopbits=1,
                 handle_local_echo=True,
             )
-            
+
             connected: bool = await self.client.connect()
             if connected:
-                self.logger.debug(
-                    f"{port}, Baudrate={baudrate}, Parity=None, Stopbits=1, Bytesize=8"
-                )
+                self.logger.debug(f"{port}, Baudrate={BAUDRATE}, Parity=None, Stopbits=1, Bytesize=8")
                 self.pushButton_connect_w.setText("Отключить")
-                await self.check_connect()
-                if self.status_CM and self.status_MPP == 0:
-                    self.client.close()
-                    await asyncio.sleep(1)
-                    self.client = None
-                    self.label_state_w.setText("State: Нет подключения к ДДИИ")
-                    self.pushButton_connect_w.setText("Подключить")
-                    self.disconnected.emit()
+                await self._check_connect()
             else:
                 self.label_state_w.setText("State: COM-порт занят. Попробуйте переподключиться")
         else:
@@ -312,19 +303,9 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.disconnected.emit()
 
     @qasync.asyncSlot()
-    async def check_connect(self) -> None:
+    async def _check_connect(self) -> None:
         self.status_CM = 1
         self.status_MPP = 1
-
-        #### CM ####
-        try:
-            if self.client:
-                await self.client.write_registers(address=self.DDII_SWITCH_MODE, values=self.SILENT_MODE, slave=self.CM_ID)
-                await log_s(self.mw.send_handler.mess)
-        except Exception as e:
-            self.logger.debug("Соединение c ЦМ не установлено")
-            self.logger.error(e)
-            self.status_CM = 0
 
         ######## MPP #######
         try:
@@ -335,8 +316,29 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.status_MPP = 0
             self.logger.debug("Соединение c МПП не установлено")
             self.logger.error(e)
-
+        
+        #### CM ####
+        if self.checkBox_mpp_only.isChecked() is False:
+            try:
+                if self.client:
+                    await self.client.write_registers(
+                        address=self.DDII_SWITCH_MODE, values=self.SILENT_MODE, slave=self.CM_ID
+                    )
+                    await log_s(self.mw.send_handler.mess)
+            except Exception as e:
+                self.logger.debug("Соединение c ЦМ не установлено")
+                self.logger.error(e)
+                self.status_CM = 0
+        else:
+            self.status_CM = 0
         await self.update_label_connect()
+        if self.status_CM and self.status_MPP == 0 and self.client:
+            self.client.close()
+            await asyncio.sleep(1)
+            self.client = None
+            self.label_state_w.setText("State: Нет подключения к ДДИИ")
+            self.pushButton_connect_w.setText("Подключить")
+            self.disconnected.emit()
 
     @qasync.asyncSlot()
     async def update_label_connect(self):
@@ -353,51 +355,50 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.label_state_w.setText("State: CM - None, MPP - None")
             self.widget_led_w.setStyleSheet(widget_led_off())
 
-    # ===== Унифицированные проверки состояния и фабрики команд =====
+    # ===== Проверки состояния подключения по Serial =====
     def is_modbus_ready(self) -> bool:
         return self.client is not None
 
     def is_devices_ready(self) -> bool:
-        return (self.status_CM == 1 and self.status_MPP == 1)
+        return self.status_CM == 1 and self.status_MPP == 1
 
-    async def ensure_ready(self, require_devices: bool = True) -> bool:
-        if not self.is_modbus_ready():
-            return False
-        await self.check_connect()
-        return self.is_devices_ready() if require_devices else True
-
-    def get_commands(self, logger) -> tuple[ModbusCMCommand, ModbusMPPCommand]:
+    def get_commands_interface(self, logger) -> tuple[ModbusCMCommand, ModbusMPPCommand]:
         """Возвращает новые объекты команд с актуальным клиентом и MPP_ID.
         Если соединения нет, возвращает команды с null‑клиентом.
         """
         cli = self.client if self.client is not None else self._null_client
-        cm = ModbusCMCommand(cli, logger)
+        if bool(self.checkBox_mpp_only.isChecked()):
+            cm = ModbusCMCommand(self._null_client, logger)
+        else:
+            cm = ModbusCMCommand(cli, logger)
         try:
             mpp = ModbusMPPCommand(cli, logger, self.mpp_id)
         except Exception:
-            # В случае отсутствия mpp_id создаём с дефолтным
             mpp = ModbusMPPCommand(cli, logger)
         return cm, mpp
 
-    # ===== Унифицированные проверки состояния =====
-    def is_modbus_ready(self) -> bool:
-        """Готово ли Modbus-подключение (есть активный serial-клиент)."""
-        return self.client is not None
-
-    def is_devices_ready(self) -> bool:
-        """Готовность устройств ЦМ и МПП по последним флагам."""
-        return (self.status_CM == 1 and self.status_MPP == 1)
-
-    async def ensure_ready(self, require_devices: bool = True) -> bool:
-        """Проверяет/обновляет готовность подключения и устройств.
-        - Если нет клиента, возвращает False.
-        - Иначе вызывает check_connect() и возвращает True, если устройства готовы
-          (или если require_devices=False — достаточно только клиента).
+    async def check_connection(self) -> bool:
+        """
+        Проверка подключения CM и MPP по Serial. Для внешнего использования.
+        
+        - Проверяет наличие клиента; при его отсутствии возвращает False.
+        - Обновляет статусы устройств через `check_connect()`.
+        - Если активен `checkBox_mpp_only`, то для готовности устройств достаточно
+        доступности МПП; ЦМ игнорируется. Иначе требуются ЦМ и МПП.
+        
+        Returns:
+            bool: True, если условия подключения выполнены, иначе False.
         """
         if not self.is_modbus_ready():
+            self.logger.debug("Modbus клиент не подключен")
             return False
-        await self.check_connect()
-        return self.is_devices_ready() if require_devices else True
+        await self._check_connect()
+        if self.status_CM and self.status_MPP:
+            return True # Оба устройства подключены
+        elif self.status_MPP and self.checkBox_mpp_only.isChecked():
+            return True  # Только МПП подключен, ЦМ игнорируется
+        else:
+            return False  # Устройства не готовы
 
 
 if __name__ == "__main__":
@@ -405,7 +406,7 @@ if __name__ == "__main__":
     qtmodern.styles.dark(app)
     logger = log_init()
     w: SerialConnect = SerialConnect(logger)
-    
+
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()

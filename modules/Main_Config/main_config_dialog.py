@@ -85,13 +85,15 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         self.flg_get_rst = 0
         self.label_check_cfg.setText("Status: ")
         self.initValidator(i_validator, d_validator)
-        if __name__ == "__main__":
+        if len(args) > 0 and isinstance(args[0], SerialConnect):
             self.w_ser_dialog: SerialConnect = args[0]
             self.w_ser_dialog.coroutine_finished.connect(self.get_client)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         else:
-            self.client: AsyncModbusSerialClient|None = args[0]
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
+            self.w_ser_dialog = None  # type: ignore
+            self.client: AsyncModbusSerialClient | None = args[0] if len(args) > 0 else None  # type: ignore
+            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)  # type: ignore
+            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)  # type: ignore
         self.pushButton_save_mpp.clicked.connect(self.pushButton_save_cfg_handler)
         self.pushButton_Get_Rst.clicked.connect(self.pushButton_get_rst_handler)
         self.le_obj, self.le_obj_pwm_max = self.init_linEdit_list()
@@ -140,7 +142,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         """Функция перехватывает client и переподключается к нему"""
         try:
             if self.w_ser_dialog:
-                self.client: AsyncModbusSerialClient|None = self.w_ser_dialog.client
+                self.client: AsyncModbusSerialClient | None = self.w_ser_dialog.client
             if self.client and self.client.connected is False:
                 await self.client.connect()
                 # print(self.client.is_connected())
@@ -168,6 +170,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
     @qasync.asyncSlot()
     async def update_gui_data_mpp(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         try:
             answer: bytes = await self.mpp_cmd.get_hh()
             tel_dict: dict[str, str] = await self.parser.pars_mpp_hh(answer)
@@ -186,6 +190,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
     @qasync.asyncSlot()
     async def update_gui_data_cm(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         try:
             answer: bytes = await self.cm_cmd.get_cfg_ddii()
             tel_dict: dict = await self.parser.pars_everything(
@@ -206,6 +212,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
     @qasync.asyncSlot()
     async def pushButton_save_cfg_handler(self) -> None:
+        if not self.w_ser_dialog.check_connection():
+            return
         head: list[int] = [int(self.HEAD.to_bytes(2, "little").hex(), 16)]
         # await self.cm_cmd.set_mode(self.SILENT_MODE)
         # await asyncio.sleep(0.5)
@@ -242,6 +250,8 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
     @qasync.asyncSlot()
     async def check_writed_cfg(self, data: list[int], device: str) -> bool:
+        if not await self.w_ser_dialog.check_connection():
+            return False
         """Поверяет записалась ли в память конфигурация
         Args:
             data (list[int]): отправленные данные концигурации
@@ -342,6 +352,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         self.lineEdit_pwm_ch.setValidator(d_validator)
         self.lineEdit_hvip_ch.setValidator(d_validator)
         self.lineEdit_interval.setValidator(d_validator)
+
 
 
 if __name__ == "__main__":

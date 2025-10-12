@@ -71,9 +71,7 @@ class RunFluxWidget(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:
-        mpp_id = self.w_ser_dialog.mpp_id
-        self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.w_ser_dialog.client, self.logger)
-        self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.w_ser_dialog.client, self.logger, mpp_id)
+        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
 
     @qasync.asyncSlot()
     async def pushButton_hist_run_measure_handler(self) -> None:
@@ -83,7 +81,7 @@ class RunFluxWidget(QtWidgets.QDialog):
         asyncio_HH_loop_request для непрерывного получения данных гистограмм МПП
         """
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
-        if self.w_ser_dialog.pushButton_connect_flag != 0:
+        if await self.w_ser_dialog.check_connection():
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag]
             if self.flags[self.start_measure_flag]:
                 self.pushButton_hist_run_measure.setText("Остановить изм.")
@@ -94,7 +92,10 @@ class RunFluxWidget(QtWidgets.QDialog):
                     self.logger.error(f"Ошибка: {e}")
             else:
                 # self.graph_done_signal.emit()
-                await self.mpp_cmd.start_measure(on=0)
+                try:
+                    await self.mpp_cmd.start_measure(on=0)
+                except Exception:
+                    ...
                 self.task_manager.cancel_task("HH_task")
                 self.pushButton_hist_run_measure.setText("Запустить изм.")
         else:
@@ -106,6 +107,9 @@ class RunFluxWidget(QtWidgets.QDialog):
         save: bool = False
         self.graph_widget.show()
         while 1:
+            if not await self.w_ser_dialog.check_connection():
+                self.task_manager.cancel_task("HH_task")
+                return
             current_datetime = datetime.datetime.now()
             name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
             self.HH_task_sync_time_event.emit(name_data)  # для синхронизации данных по времени
