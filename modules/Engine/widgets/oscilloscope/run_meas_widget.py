@@ -262,12 +262,11 @@ class RunMeasWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_loop_request(self) -> None:
         try:
-            print("Task1")
             self.graph_widget.hp_sipm.hist_clear()
             self.graph_widget.hp_pips.hist_clear()
             lvl = int(self.lineEdit_trigger.text())
             save: bool = False
-            if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
+            if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение")
                 return
             if self.flags[self.enable_trig_meas_flag]:
@@ -275,7 +274,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 await self.mpp_cmd.start_measure(on=1)
             self.graph_widget.show()
             while 1:
-                if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
+                if not self.w_ser_dialog.is_modbus_ready():
                     await self._stop_measuring("Потеряно соединение")
                     return
                 current_datetime = datetime.datetime.now()
@@ -344,7 +343,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         """Опрос счетчика частиц"""
         self.graph_widget.hp_counter.hist_clear()
         try:
-            if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
+            if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение (HH init)")
                 return
             await self.mpp_cmd.clear_hist()
@@ -361,7 +360,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             1, 13, 12
         )  # [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
         while 1:
-            if (not self.w_ser_dialog.is_modbus_ready()) or (not self.w_ser_dialog.is_devices_ready()):
+            if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение")
                 return
             # counter_clear += 1

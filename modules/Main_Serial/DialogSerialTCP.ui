@@ -69,6 +69,11 @@
          <height>130</height>
         </size>
        </property>
+       <property name="font">
+        <font>
+         <pointsize>12</pointsize>
+        </font>
+       </property>
        <property name="currentIndex">
         <number>0</number>
        </property>
@@ -170,6 +175,11 @@
            </item>
            <item>
             <widget class="QCheckBox" name="checkBox_mpp_only">
+             <property name="font">
+              <font>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>MPP only</string>
              </property>

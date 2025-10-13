@@ -5,7 +5,7 @@ from pathlib import Path
 import qasync
 import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
 from qtpy.uic import loadUi
@@ -23,6 +23,7 @@ from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E4
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.env_var import EnvironmentVar  # noqa: E402
 from src.log_config import log_init  # noqa: E402
+from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
@@ -66,13 +67,9 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
     pushButton_Get_Rst: QtWidgets.QPushButton
 
-    CM_DBG_SET_CFG = 0x0005
-    CM_ID = 1
-    # CM_DBG_SET_VOLTAGE = 0x0006
-    # CM_DBG_GET_VOLTAGE = 0x0009
-    # CMD_HVIP_ON_OFF = 0x000B
+    cmd_interface_init_signal = QtCore.pyqtSignal()
 
-    def __init__(self, logger, *args) -> None:
+    def __init__(self, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).resolve().parent.joinpath("DialogConfig.ui"), self)
         self.mw = ModbusWorker()
@@ -84,15 +81,16 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         self.flg_get_rst = 0
         self.label_check_cfg.setText("Status: ")
         self.initValidator(i_validator, d_validator)
-        if len(args) > 0 and isinstance(args[0], SerialConnect):
-            self.w_ser_dialog: SerialConnect = args[0]
-            self.w_ser_dialog.coroutine_finished.connect(self.get_client)
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+        if __name__ == "__main__":
+            self.logger = args[0]
+            self.w_ser_dialog: SerialConnect = args[1]
+            self.task_manager = AsyncTaskManager(self.logger)
+            w_ser_dialog.checkBox_mpp_only.setHidden(True)
         else:
-            self.w_ser_dialog = None  # type: ignore
-            self.client: AsyncModbusSerialClient | None = args[0] if len(args) > 0 else None  # type: ignore
-            self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)  # type: ignore
-            self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)  # type: ignore
+            self.logger = self.parent.logger  # type: ignore
+            self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore
+
+        self.w_ser_dialog.coroutine_finished.connect(self.cmd_interface_init)
         self.pushButton_save_mpp.clicked.connect(self.pushButton_save_cfg_handler)
         self.pushButton_Get_Rst.clicked.connect(self.pushButton_get_rst_handler)
         self.le_obj, self.le_obj_pwm_max = self.init_linEdit_list()
@@ -136,36 +134,30 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         }
         return le_obj, le_obj_pwm_max
 
-    @qasync.asyncSlot()
-    async def get_client(self) -> None:
-        """Функция перехватывает client и переподключается к нему"""
-        try:
-            if self.w_ser_dialog:
-                self.client: AsyncModbusSerialClient | None = self.w_ser_dialog.client
-            if self.client and self.client.connected is False:
-                await self.client.connect()
-                # print(self.client.is_connected())
-                self.cm_cmd: ModbusCMCommand = ModbusCMCommand(self.client, self.logger)
-                self.mpp_cmd: ModbusMPPCommand = ModbusMPPCommand(self.client, self.logger)
-                if self.w_ser_dialog.status_CM == 1:
-                    await self.update_gui_data_cm()
-                    self.radioButton_cm.setChecked(True)
-                    self.radioButton_cm.setEnabled(True)
-                    if self.w_ser_dialog.status_MPP == 0:
-                        self.radioButton_mpp.setEnabled(False)
-                        self.radioButton_mpp.setChecked(False)
-                    else:
-                        self.radioButton_mpp.setEnabled(True)
-                if self.w_ser_dialog.status_CM == 0:
-                    self.radioButton_cm.setChecked(False)
-                    self.radioButton_cm.setEnabled(False)
-                if self.w_ser_dialog.status_CM == 0 and self.w_ser_dialog.status_MPP == 0:
-                    self.radioButton_cm.setChecked(True)
-                    self.radioButton_cm.setEnabled(False)
-                    self.radioButton_mpp.setEnabled(False)
 
-        except Exception:
-            pass
+    @qasync.asyncSlot()
+    async def cmd_interface_init(self) -> None:
+        """Перехватывает client от SerialConnect и переподключается к нему"""
+        if await self.w_ser_dialog.check_connection():
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+            self.cmd_interface_init_signal.emit()
+        # Обновление radioButton
+        if self.w_ser_dialog.status_CM == 1:
+            await self.update_gui_data_cm()
+            self.radioButton_cm.setChecked(True)
+            self.radioButton_cm.setEnabled(True)
+            if self.w_ser_dialog.status_MPP == 0:
+                self.radioButton_mpp.setEnabled(False)
+                self.radioButton_mpp.setChecked(False)
+            else:
+                self.radioButton_mpp.setEnabled(True)
+        if self.w_ser_dialog.status_CM == 0:
+            self.radioButton_cm.setChecked(False)
+            self.radioButton_cm.setEnabled(False)
+        if self.w_ser_dialog.status_CM == 0 and self.w_ser_dialog.status_MPP == 0:
+            self.radioButton_cm.setChecked(True)
+            self.radioButton_cm.setEnabled(False)
+            self.radioButton_mpp.setEnabled(False)
 
     @qasync.asyncSlot()
     async def update_gui_data_mpp(self) -> None:
@@ -202,16 +194,9 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         except Exception as e:
             self.logger.error(str(e))
 
-    def closeEvent(self, event) -> None:
-        try:
-            if self.client and self.client.connected:
-                self.client.close()
-        except Exception:
-            pass
-
     @qasync.asyncSlot()
     async def pushButton_save_cfg_handler(self) -> None:
-        if not self.w_ser_dialog.check_connection():
+        if not await self.w_ser_dialog.check_connection():
             return
         head: list[int] = [int(self.HEAD.to_bytes(2, "little").hex(), 16)]
         # await self.cm_cmd.set_mode(self.SILENT_MODE)
@@ -222,12 +207,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                 await self.cm_cmd.set_cfg_ddii(head + data)
                 self.config.save_to_config()
                 self.logger.debug("config_dialog.yaml update")
-                self.label_check_cfg.setText("Status: CM config writed")
-                # await asyncio.sleep(0.3)
-                # if await self.cheack_writed_cfg(data, "cm"):
-                #     self.label_check_cfg.setText("Проверка записи: CM data correct")
-                # else:
-                #     self.label_check_cfg.setText("Проверка записи: CM data uncorrect")
+                self.label_check_cfg.setText("Status: CM config is written")
             except Exception as e:
                 self.logger.debug(e)
         if self.radioButton_mpp.isChecked():
@@ -236,24 +216,24 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
                 await self.mpp_cmd.set_level(data[0])
                 await self.mpp_cmd.set_hh(data[1:9])
                 await asyncio.sleep(0.3)
-                if await self.check_writed_cfg(data[0:9], "mpp"):
-                    self.label_check_cfg.setText("Status: MPP config writed correct")
+                if await self.check_wrote_cfg(data[0:9], "mpp"):
+                    self.label_check_cfg.setText("Status: MPP config is written correct")
                     self.config.save_to_config()
                     self.logger.debug("config_dialog.yaml update")
                 else:
-                    self.label_check_cfg.setText("Status: MPP config writed uncorrect")
+                    self.label_check_cfg.setText("Status: MPP config is written incorrect")
             except Exception as e:
                 self.logger.debug(e)
         # await asyncio.sleep(0.5)
         # await self.cm_cmd.set_mode(self.COMBAT_MODE)
 
     @qasync.asyncSlot()
-    async def check_writed_cfg(self, data: list[int], device: str) -> bool:
+    async def check_wrote_cfg(self, data: list[int], device: str) -> bool:
         if not await self.w_ser_dialog.check_connection():
             return False
         """Поверяет записалась ли в память конфигурация
         Args:
-            data (list[int]): отправленные данные концигурации
+            data (list[int]): отправленные данные конфигурации
             device (str):
             - "cm"
             - "mpp"
@@ -264,13 +244,13 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         # await asyncio.sleep(0.5)
         try:
             if device == "mpp":
-                cheack_lvl: bytes = await self.mpp_cmd.get_level()
-                cheack_hh: bytes = await self.mpp_cmd.get_hh()
-                d_cheack_lvl: dict[str, str] = await self.parser.pars_mpp_lvl(cheack_lvl)
-                d_cheack_hh: dict[str, str] = await self.parser.pars_mpp_hh(cheack_hh)
+                check_lvl: bytes = await self.mpp_cmd.get_level()
+                check_hh: bytes = await self.mpp_cmd.get_hh()
+                d_check_lvl: dict[str, str] = await self.parser.pars_mpp_lvl(check_lvl)
+                d_check_hh: dict[str, str] = await self.parser.pars_mpp_hh(check_hh)
                 if (
-                    list(map(int, d_cheack_hh.values())) == data[1:9]
-                    and list(map(int, d_cheack_lvl.values())) == data[:1]
+                    list(map(int, d_check_hh.values())) == data[1:9]
+                    and list(map(int, d_check_lvl.values())) == data[:1]
                 ):
                     return True
                 else:
@@ -280,9 +260,9 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
 
         try:
             if device == "cm":  # для цм не работает из-за точности float
-                cheack_cfg_ddii: bytes = await self.cm_cmd.get_cfg_ddii()
+                check_cfg_ddii: bytes = await self.cm_cmd.get_cfg_ddii()
                 d_cheack_cfg_ddii: list[int] = [
-                    int.from_bytes(cheack_cfg_ddii[i * 2 : i * 2 + 2], "little") for i in range(2, 24)
+                    int.from_bytes(check_cfg_ddii[i * 2 : i * 2 + 2], "little") for i in range(2, 24)
                 ]
                 if d_cheack_cfg_ddii == data[1:]:
                     return True
@@ -351,6 +331,14 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
         self.lineEdit_pwm_ch.setValidator(d_validator)
         self.lineEdit_hvip_ch.setValidator(d_validator)
         self.lineEdit_interval.setValidator(d_validator)
+
+
+    def closeEvent(self, event) -> None:
+        try:
+            if __name__ == "__main__":
+                self.w_ser_dialog.disconnect_serial_client()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

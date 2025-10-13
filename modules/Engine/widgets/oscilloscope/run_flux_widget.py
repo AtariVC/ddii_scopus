@@ -71,7 +71,8 @@ class RunFluxWidget(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands(self.logger)
+        if await self.w_ser_dialog.check_connection():
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
 
     @qasync.asyncSlot()
     async def pushButton_hist_run_measure_handler(self) -> None:

@@ -39,6 +39,8 @@ def log_init():
 
     logger.add(sys.stderr, level="WARNING", format=log_format_debug,
             colorize=True, backtrace=True, diagnose=True, filter=warning_filter)
+    logger.add(sys.stderr, level="INFO", format=log_format_debug,
+            colorize=True, backtrace=True, diagnose=True, filter=info_filter)
     logger.add(sys.stderr, level="DEBUG", format=log_format_debug,
             colorize=True, backtrace=True, diagnose=True, filter=debug_filter)
     logger.add(sys.stderr, level="ERROR", format=log_format_debug,
@@ -80,6 +82,9 @@ def error_filter(record):
 def warning_filter(record):
     return record["level"].name == "WARNING"
 
+def info_filter(record):
+    return record["level"].name == "INFO"
+
 async def log_s(message: list):
     mess: list[str]= [r'']
     for item in message:
@@ -106,57 +111,3 @@ async def log_s(message: list):
         elif mode == "TX":
             logger.log("TX", new_mess.upper())
     message.clear()
-
-# def log_init_debug():
-#     logger.remove(0)
-#     log_level = "DEBUG"
-#     log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <4}</level> | \
-# <yellow>Line{line:} ({file}):</yellow> <b>{message}</b>"
-#     logger.add(sys.stderr, level=log_level, format=log_format, colorize=True, backtrace=True, diagnose=True)
-#     time_now = datetime.now()
-#     form_time = time_now.strftime("%Y-%m-%d %H_%M_%S")
-#     log_path_debug = "./log/debug/" + str(form_time) + ".log"
-#     # логгирование в файл
-#     # logger.add(log_path_debug, level=log_level, format=log_format, colorize=False, backtrace=True, diagnose=True)
-#     return logger
-
-
-# # class CustomLogger_Serial(logging.Logger):
-
-#     # def __init__(self, name, level=logging.NOTSET):
-#     #     super().__init__(name, level=level)
-#     #     log_level = "INFO"
-#     #     log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <4}</level> | \
-#     #     <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
-#     #     logger.add("SERIAL", level=log_level, format=log_format, colorize=True, backtrace=True, diagnose=True)
-#     #     time_now = datetime.now()
-#     #     form_time = time_now.strftime("%Y-%m-%d %H_%M_%S")
-#     #     log_path_debug = f"./log/serial/{form_time}.log"
-#     #     logger.add(log_path_debug, level=log_level, format=log_format, colorize=False, backtrace=True, diagnose=True)
-
-# def log_init_serial():
-#     log_level = "INFO"
-#     log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <4}</level> | \
-#     <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
-#     logger.add("SERIAL", level=log_level, format=log_format, colorize=True, backtrace=True, diagnose=True)
-#     time_now = datetime.now()
-#     form_time = time_now.strftime("%Y-%m-%d %H_%M_%S")
-#     log_path_debug = "./log/serial/" + str(form_time) + ".log"
-#     # логгирование в файл
-#     # logger.add(log_path_debug, level=log_level, format=log_format, colorize=False, backtrace=True, diagnose=True)
-#     return logger
-
-# def log_s(massage):
-#     print(massage)
-#     mass = str(massage)
-#     print(mass)
-#     mass = re.findall(r"\w\w", mass)
-#     print(mass)
-#     new_mass = ""
-#     for i in range(0, len(mass)):
-#         new_mass = new_mass + mass[i] + " "
-#     logger.log("INFO", new_mass)
-
-
-
-

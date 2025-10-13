@@ -64,7 +64,7 @@ class ModbusRelayServer:
             print(f"Ошибка запуска сервера: {e}")
             return False
 
-    async def stop_server(self):
+    def stop_server(self):
         """Остановка TCP сервера"""
         if self.server:
             self.server.server_close()
@@ -155,14 +155,14 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     async def tcp_server_handler(self):
         """Обработчик для режима сервера"""
         if self.relay_server is not None:
-            await self.stop_tcp_server()
+            self.stop_tcp_server()
         else:
             await self.start_tcp_server()
 
     async def tcp_client_handler(self):
         """Обработчик для режима клиента"""
         if self.tcp_client is not None:
-            await self.disconnect_tcp_client()
+            self.disconnect_tcp_client()
         else:
             await self.connect_tcp_client()
 
@@ -181,10 +181,10 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         else:
             self.tcp_status_changed.emit("Ошибка запуска сервера", False)
 
-    async def stop_tcp_server(self):
+    def stop_tcp_server(self):
         """Остановка TCP сервера"""
         if self.relay_server:
-            await self.relay_server.stop_server()
+            self.relay_server.stop_server()
             self.relay_server = None
             self.tcp_status_changed.emit("Сервер остановлен", False)
             self.logger.info("TCP сервер остановлен")
@@ -214,7 +214,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.tcp_status_changed.emit(f"Ошибка подключения: {e}", False)
             self.logger.error(f"Ошибка TCP подключения: {e}")
 
-    async def disconnect_tcp_client(self):
+    def disconnect_tcp_client(self):
         """Отключение TCP клиента"""
         if self.tcp_client:
             self.tcp_client.close()
@@ -222,15 +222,15 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             self.tcp_status_changed.emit("Отключено", False)
             self.logger.info("TCP подключение закрыто")
 
-    async def disconnect_serial_client(self):
+    def disconnect_serial_client(self):
         """Отключение Serial клиента"""
         # Останавливаем TCP сервер при отключении
         if self.relay_server is not None:
-            await self.stop_tcp_server()
+            self.stop_tcp_server()
 
         # Закрываем TCP клиент если был подключен
         if self.tcp_client is not None:
-            await self.disconnect_tcp_client()
+            self.disconnect_tcp_client()
             self.logger.info("TCP подключение закрыто")
             self.tcp_status_changed.emit("Отключено", False)
             self.disconnected.emit()
@@ -308,6 +308,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             if self.client:
                 response: ModbusResponse = await self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
                 await log_s(self.mw.send_handler.mess)
+                self.status_MPP = 1
         except Exception as e:
             self.status_MPP = 0
             self.logger.debug("Соединение c МПП не установлено")
@@ -321,6 +322,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                         address=self.DDII_SWITCH_MODE, values=self.SILENT_MODE, slave=self.CM_ID
                     )
                     await log_s(self.mw.send_handler.mess)
+                    self.status_CM = 1
             except Exception as e:
                 self.logger.debug("Соединение c ЦМ не установлено")
                 self.logger.error(str(e))
@@ -354,9 +356,6 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     # ===== Проверки состояния подключения по Serial =====
     def is_modbus_ready(self) -> bool:
         return self.client is not None
-
-    def is_devices_ready(self) -> bool:
-        return self.status_CM == 1 and self.status_MPP == 1
 
     def get_commands_interface(self, logger) -> tuple[ModbusCMCommand, ModbusMPPCommand]:
         """Возвращает новые объекты команд с актуальным клиентом и MPP_ID.
@@ -398,6 +397,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         elif self.status_MPP and not only_cm:
             return True  # Только МПП требуется и он подключен
         else:
+            self.logger.error("Подключение потеряно")
             return False  # Устройства не готовы
 
 
