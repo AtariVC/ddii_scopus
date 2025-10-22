@@ -19,11 +19,8 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from src.log_config import log_init, log_s  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
-from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
 from src.plot_renderer import GraphPen, HistPen  # noqa: E402
 
 
@@ -53,7 +50,6 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
     # light(app)
-    logger = log_init()
     w: GraphWidget = GraphWidget()
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)

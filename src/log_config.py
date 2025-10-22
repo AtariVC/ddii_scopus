@@ -15,8 +15,26 @@ from pathlib import Path
 
 # from logger import logging
 
+_initialized = False
+# Global flags to enable/disable logging at runtime
+LOG_ENABLED = True           # General loguru logging
+SERIAL_LOG_ENABLED = True    # TX/RX serial hex stream logging (log_s)
+
 def log_init():
-    logger.remove(0)
+    """Инициализировать loguru один раз и вернуть общий logger.
+
+    Делает функцию идемпотентной: повторные вызовы не ломают обработчики
+    и не вызывают ошибок вида "There is no existing handler with id 0".
+    """
+    global _initialized
+    if _initialized:
+        return logger
+
+    # Удаляем все существующие обработчики безопасно, без указания id
+    try:
+        logger.remove()
+    except Exception:
+        pass
 
     rx_level= logger.level("RX", no=0, color="<red>", icon="")
     tx_level= logger.level("TX", no=0, color="<green>", icon="")
@@ -57,11 +75,21 @@ def log_init():
     # логирование в файл
     logger.add(log_path_debug, level="DEBUG", format=log_format_debug, rotation="100 MB", enqueue=True, filter=debug_filter)
     logger.add(log_path_debug, level="ERROR", format=log_format_debug, rotation="100 MB", enqueue=True, filter=error_filter)
-    logger.add(log_path_serial, level=rx_level.name, format=log_format_rx, enqueue=True, filter=rx_filter)
-    logger.add(log_path_serial, level=tx_level.name, format=log_format_tx, enqueue=True, filter=tx_filter)
-    logger.add(log_path_emulator, level=emulator_level.name, format=log_format_emulator, enqueue=True, filter=emulator_filter)
+    logger.add(log_path_debug, level="INFO", format=log_format_debug, rotation="100 MB", enqueue=True, filter=error_filter)
+    # logger.add(log_path_serial, level=rx_level.name, format=log_format_rx, enqueue=True, filter=rx_filter)
+    # logger.add(log_path_serial, level=tx_level.name, format=log_format_tx, enqueue=True, filter=tx_filter)
+    # logger.add(log_path_emulator, level=emulator_level.name, format=log_format_emulator, enqueue=True, filter=emulator_filter)
     # логирование в файл
     # logger.add(log_path_debug, level=log_level, format=log_format, colorize=False, backtrace=True, diagnose=True)
+    _initialized = True
+    return logger
+
+def get_logger(name: str | None = None):
+    """Получить общий логгер"""
+    if not _initialized:
+        log_init()
+    # В loguru имя логгера не используется так же, как в logging,
+    # возвращаем глобальный экземпляр
     return logger
 
 def emulator_filter(record):
@@ -86,6 +114,10 @@ def info_filter(record):
     return record["level"].name == "INFO"
 
 async def log_s(message: list):
+    # Respect global switch for serial TX/RX logging
+    if not SERIAL_LOG_ENABLED:
+        message.clear()
+        return 0
     mess: list[str]= [r'']
     for item in message:
         try:
@@ -111,3 +143,13 @@ async def log_s(message: list):
         elif mode == "TX":
             logger.log("TX", new_mess.upper())
     message.clear()
+
+def set_log_enabled(flag: bool) -> None:
+    """Enable/disable general logging (loguru handlers still exist, but callers may check this)."""
+    global LOG_ENABLED
+    LOG_ENABLED = bool(flag)
+
+def set_serial_log_enabled(flag: bool) -> None:
+    """Enable/disable serial TX/RX logging performed by log_s()."""
+    global SERIAL_LOG_ENABLED
+    SERIAL_LOG_ENABLED = bool(flag)

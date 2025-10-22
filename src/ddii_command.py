@@ -6,16 +6,19 @@ from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.pdu import ModbusResponse
 
 from src.env_var import EnvironmentVar
-from src.log_config import log_s
+from src.log_config import log_s, set_serial_log_enabled
 from src.modbus_worker import ModbusWorker
 
 
 class ModbusCMCommand(EnvironmentVar):
-    def __init__(self, client, logger, **kwargs):
+    def __init__(self, client, logger, *, log_enabled: bool = True, serial_log_enabled: bool = True, **kwargs):
         super().__init__()
         self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
-        self.logger = logger
+        # Swap to no-op logger if disabled
+        self.logger = logger if log_enabled else _NoopLogger()
+        # Apply global serial log flag for TX/RX dumps
+        set_serial_log_enabled(serial_log_enabled)
 
     
     async def get_cfg_voltage(self) -> bytes:
@@ -194,7 +197,11 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
 
-
+class _NoopLogger:
+    def error(self, *args, **kwargs):
+        return None
+    def debug(self, *args, **kwargs):
+        return None
 
 class ModbusMPPCommand(EnvironmentVar):
     """Регистр 0x00 ..... 0x00 0x01
@@ -204,11 +211,12 @@ class ModbusMPPCommand(EnvironmentVar):
     Args:
         EnvironmentVar (_type_): внутренние постоянные окружения
     """
-    def __init__(self, client, logger, *args):
+    def __init__(self, client, logger, *args, log_enabled: bool = True, serial_log_enabled: bool = False):
         super().__init__()
         self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
-        self.logger = logger
+        self.logger = logger if log_enabled else _NoopLogger()
+        set_serial_log_enabled(serial_log_enabled)
         self.MPP_ID = args[0] if args else self.MPP_ID_DEFAULT
 
     async def read_oscill(self, ch: int = 0) -> bytes:

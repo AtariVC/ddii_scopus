@@ -6,6 +6,7 @@ import h5py
 import re
 import locale
 import numpy as np
+from .log_config import get_logger
 
 locale.setlocale(locale.LC_NUMERIC,"ru_RU")
 
@@ -31,42 +32,57 @@ def write_to_hdf5_file(data: list,
         name_grpup (str): В hdf5 данные обеденены под одним лейблом
         path_hdf5 (Path): Куда сохранять hdf5
         name_file_hdf5 (str): Под каким именем сохранять hdf5
-        loc (bool, optional): Если True, то data будет сохранена как строка в виде 1,22
-        Нужно для интеграции с Veusz и xcel.
+
     """
+    logger = get_logger(__name__)
+    # loc (bool, optional): Если True, то data будет сохранена как строка в виде 1,22
+    # Нужно для интеграции с Veusz и xcel.
     # if loc:
     #     data = [list(map(locale.str, data_col)) for data_col in data]
     # Преобразование строк в массив байтов для совместимости с HDF5
-    if not Path(path_hdf5).exists():
+    if name_group == None:
+        raise ValueError("name_group == None")
+    elif path_hdf5 == None:
+        raise ValueError("path_hdf5 ==  None")
+    elif name_file_hdf5 == None:
+        raise ValueError("name_file_hdf5 == None")
+    elif name_data == None:
+        raise ValueError("name_data == None")
+    try:
+        if not Path(path_hdf5).exists():
             os.makedirs(str(path_hdf5), exist_ok=True)
 
-    with h5py.File(path_hdf5/Path(f"{name_file_hdf5}.hdf5"), "a") as hdf5_file: # w-перезаписывает, a-добавляет
-        # Создаем группу для хранения всех наборов данныхtmp/code/hdf5.py
-        if name_group not in hdf5_file:
-            data_group = hdf5_file.create_group(name_group)  # Создаем группу
-        else:
-            data_group = hdf5_file[name_group]  # Используем существующую группу
+        with h5py.File(path_hdf5/Path(f"{name_file_hdf5}.hdf5"), "a") as hdf5_file: # w-перезаписывает, a-добавляет
+            # Создаем группу для хранения всех наборов данных tmp/code/hdf5.py
+            if name_group not in hdf5_file:
+                data_group = hdf5_file.create_group(name_group)  # Создаем группу
+            else:
+                data_group = hdf5_file[name_group]  # Используем существующую группу
 
-        # current_datetime = datetime.datetime.now()
-        # time = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+            # current_datetime = datetime.datetime.now()
+            # time = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
 
-        dataset_name = f"{name_data} -- {name_group}"
-        data_np = np.array(data).T
-        data_np.squeeze()
-        data_group.create_dataset(dataset_name, data=data_np) # type: ignore
+            dataset_name = f"{name_data} -- {name_group}"
+            data_np = np.array(data).T
+            # data_np.squeeze()
+            data_group.create_dataset(dataset_name, data=data_np)
+    except Exception as e:
+        logger.error(e)
 
 
 def read_hdf5_file(file_path_hdf5 : Path, name_group: str):
     with h5py.File(file_path_hdf5, "r") as hdf5_file:
         if not isinstance(name_group, str):
             raise TypeError(f"Имя группы должно быть строкой, получено: {type(name_group)}")
-        if name_group not in hdf5_file:
-            raise ValueError(f"Группа '{name_group}' не найдена в файле {file_path_hdf5}")
-        name_group = hdf5_file[name_group] # type: ignore
         all_data = {}
-        for dataset_name in name_group:
-            # Читаем данные из каждого набора
-            all_data[dataset_name] = name_group[dataset_name][:] # type: ignore
+        if name_group not in hdf5_file:
+            ...
+            # raise ValueError(f"Группа '{name_group}' не найдена в файле {file_path_hdf5}")
+        else:
+            name_group = hdf5_file[name_group] # type: ignore
+            for dataset_name in name_group:
+                # Читаем данные из каждого набора
+                all_data[dataset_name] = name_group[dataset_name][:] # type: ignore
     return all_data
 
 def hdf5_to_csv(path_hdf5_file: Path) -> None:

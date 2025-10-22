@@ -3,6 +3,7 @@ import os
 import struct
 import sys
 import time
+import platform
 
 # from save_config import ConfigSaver
 from pathlib import Path
@@ -15,7 +16,8 @@ import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtCore import QAbstractItemModel, QDir, QModelIndex, Qt
-from PyQt6.QtGui import QFileSystemModel
+from PyQt6.QtGui import QFileSystemModel, QIcon
+from PyQt6.QtWidgets import QFileIconProvider
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -56,27 +58,27 @@ from src.event.event import Event  # noqa: E402
 
 class ExplorerHDF5Widget(QtWidgets.QDialog):
     lineEdit_path_edit: QtWidgets.QLineEdit
-    pushButton_back: QtWidgets.QPushButton
+    pushButton_down: QtWidgets.QPushButton
     pushButton_browser: QtWidgets.QPushButton
     pushButton_close_hdf5: QtWidgets.QPushButton
-    pushButton_next: QtWidgets.QPushButton
+    pushButton_up: QtWidgets.QPushButton
     columnView_explorer: QtWidgets.QColumnView
     treeView_file_tree: QtWidgets.QTreeView
 
-    def __init__(self, *args) -> None:
+    def __init__(self) -> None:
         super().__init__()
         loadUi(Path(__file__).parent.joinpath("explorer_hdf5_widget.ui"), self)
         self.history = []
         self.history_index = -1
         self.double_clicked_event = Event(str)
-        if __name__ != "__main__":
-            self.parent = args[0]
         # self.hdf5_model = HDF5TreeModel()
         self.fs_model = QFileSystemModel()
+        # Set custom icons for specific file types (e.g., HDF5)
+        self.fs_model.setIconProvider(_CustomIconProvider(base_path=Path(__file__).resolve().parents[4]))
         self.fs_model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
         self.current_model = None
         self.current_folder = str(
-            Path(__file__).parents[4].joinpath("log/output_graph_data")
+            Path(__file__).parents[4].joinpath("log/scope")
         )  # Начинаем с домашней директории
         self.load_folder(self.current_folder)
         self.init_widget()
@@ -89,7 +91,10 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         self.treeView_file_tree.doubleClicked.connect(self.on_item_double_clicked)
         self.lineEdit_path_edit.setPlaceholderText("Current folder path...")
         self.lineEdit_path_edit.returnPressed.connect(self.navigate_to_path)
-        self.pushButton_back.clicked.connect(self.navigate_back)
+        self.pushButton_down.clicked.connect(self.navigate_down)
+        self.pushButton_up.clicked.connect(self.navigate_up)
+        self.pushButton_browser.clicked.connect(self.explorer)
+        # Rename buttons to reflect history navigation
 
     def navigate_to_path(self):
         path = self.lineEdit_path_edit.text()
@@ -98,10 +103,31 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         else:
             QMessageBox.warning(self, "Path Error", "The specified path does not exist")
 
-    def navigate_back(self):
+    def navigate_down(self):
+        # Back in history
         if self.history_index > 0:
             self.history_index -= 1
             self.load_folder(self.history[self.history_index], add_to_history=False)
+    
+    def navigate_up(self):
+        # Forward in history
+        if self.history_index < len(self.history) - 1:
+            self.history_index += 1
+            self.load_folder(self.history[self.history_index], add_to_history=False)
+
+    def explorer(self):
+        # directory_path = Path(__file__).parents[4].joinpath("./log")
+        # win
+        if platform.system() == "Windows": 
+            os.system('explorer "{}"'.format(self.current_folder))
+        if platform.system() == "Linux": 
+            os.system('explorer "{}"'.format(self.current_folder))
+        if platform.system() == "Darwin": 
+            os.system('explorer "{}"'.format(self.current_folder))
+        # # linux
+        # os.system('xdg-open "{}"'.format(directory_path))
+        # # macOS
+        # os.system('open "{}"'.format(directory_path))
 
     def on_item_double_clicked(self, index):
         if not index.isValid():
@@ -110,7 +136,7 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         #     item = index.internalPointer()
         #     h5_item = item["item"]
 
-        elif self.current_model == "fs":
+        if self.current_model == "fs":
             path = self.fs_model.filePath(index)
 
             if os.path.isdir(path):
@@ -138,6 +164,12 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         self.treeView_file_tree.setModel(self.fs_model)
         self.treeView_file_tree.setRootIndex(self.fs_model.index(folder_path))
         self.current_model = "fs"
+        # Update nav buttons availability
+        try:
+            self.pushButton_down.setEnabled(self.history_index > 0)
+            self.pushButton_up.setEnabled(self.history_index < len(self.history) - 1)
+        except Exception:
+            ...
 
     # def load_hdf5_file(self, file_path):
     # if self.hdf5_model.load_hdf5(file_path):
@@ -269,6 +301,29 @@ class HDF5TreeModel(QAbstractItemModel):
             self.beginResetModel()
             self.root_item = {"name": "Root", "path": "", "item": None, "parent": None, "children": []}
             self.endResetModel()
+
+
+class _CustomIconProvider(QFileIconProvider):
+    def __init__(self, base_path: Path) -> None:
+        super().__init__()
+        icon_dir = base_path / "icon"
+        self._icons: Dict[str, QIcon] = {
+            "h5": QIcon(str(icon_dir / "HDF_logo_(2017).svg")),
+            "hdf5": QIcon(str(icon_dir / "HDF_logo_(2017).svg")),
+        }
+
+    # Overload for PyQt6: receives QFileInfo
+    def icon(self, file_info):  # type: ignore[override]
+        try:
+            if file_info.isFile():
+                ext = file_info.suffix().lower()
+                if ext in self._icons:
+                    ico = self._icons[ext]
+                    if not ico.isNull():
+                        return ico
+        except Exception:
+            ...
+        return super().icon(file_info)
 
 
 if __name__ == "__main__":

@@ -5,12 +5,12 @@ from dataclasses import dataclass
 
 # from save_config import ConfigSaver
 from pathlib import Path
-
 import qasync
 import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
-
+from src.log_config import get_logger
+from modules.Main.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget
 ####### импорты из других директорий ######
 # /src
 
@@ -48,7 +48,8 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.pen_init()
         if __name__ != "__main__":
             self.parent = args[0]
-            self.parent.explorer_hdf5_widget.double_clicked_event.subscribe(self.open_graphs)
+            self.explorer: ExplorerHDF5Widget = self.parent.explorer_hdf5_widget # type: ignore
+            self.explorer.double_clicked_event.subscribe(self.open_graphs)
             self.horizontalSlider_time_scale.actionTriggered.connect(lambda: self.slider_graphs_updater())
 
     def pen_init(self) -> None:
@@ -79,6 +80,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.dataset_sipm = read_hdf5_file(Path(path), self.name_pen_sipm)
         self.dataset_h_pips = read_hdf5_file(Path(path), self.name_pen_h_pips)
         self.dataset_h_sipm = read_hdf5_file(Path(path), self.name_pen_h_sipm)
+        self.dataset_h_counter = read_hdf5_file(Path(path), self.name_pen_counter)
         self.amount_measurements = len(self.dataset_pips)
         self.measure_time_list = list(self.dataset_pips.keys())
         time_str = self.time_formater(self.measure_time_list[0])
@@ -105,25 +107,43 @@ class GraphViewerWidget(QtWidgets.QWidget):
     @qasync.asyncSlot()
     async def slider_graphs_updater(self) -> None:
         """Обновляет графики при изменении слайдера"""
-
+        logger = get_logger()
         if self.amount_measurements == 0:
             return
-        current_val = self.horizontalSlider_time_scale.value() - 1
-        self.label_counter_data.setText(f"{current_val}/{self.amount_measurements}")
-        time_str = self.time_formater(self.measure_time_list[current_val - 1])
-        self.label_time_data.setText(f"{time_str}")
-
-        data_pips = list(self.dataset_pips.values())[current_val].T
-        data_sipm = list(self.dataset_sipm.values())[current_val].T
-        data_h_pips = list(self.dataset_h_pips.values())[current_val].T
-        data_h_sipm = list(self.dataset_h_sipm.values())[current_val].T
-
-        await self.gp_pips.draw_graph(data_pips[1], clear=True)
-        await self.gp_sipm.draw_graph(data_sipm[1], clear=True)
-        # await self.hp_pips.draw_hist(data_pips[1], clear=True)
-        # await self.hp_sipm.draw_hist(data_sipm[1], clear=True)
-        await self.hp_pips._draw_graph(data_h_pips[1].tolist(), clear=True)
-        await self.hp_sipm._draw_graph(data_h_sipm[1].tolist(), clear=True)
+        try:
+            current_val = self.horizontalSlider_time_scale.value()
+            self.label_counter_data.setText(f"{current_val-1}/{self.amount_measurements-1}")
+            time_str = self.time_formater(self.measure_time_list[current_val - 1])
+            self.label_time_data.setText(f"{time_str}")
+            if self.dataset_pips:
+                data_pips = list(self.dataset_pips.values())[current_val-1].T
+                await self.gp_pips.draw_graph(data_pips[1], clear=True)
+            else:
+                self.gp_pips.plt_widget.clear()
+            if self.dataset_sipm:
+                data_sipm = list(self.dataset_sipm.values())[current_val-1].T
+                await self.gp_sipm.draw_graph(data_sipm[1], clear=True)
+            else:
+                self.gp_sipm.plt_widget.clear()
+            if self.dataset_h_pips:
+                data_h_pips = list(self.dataset_h_pips.values())[current_val-1].T
+                await self.hp_pips.draw_hist(data_h_pips[1].tolist(), clear=True, data_is_hist=True)
+            else:
+                self.hp_pips.hist_clear()
+            if self.dataset_h_sipm:
+                data_h_sipm = list(self.dataset_h_sipm.values())[current_val-1].T
+                await self.hp_sipm.draw_hist(data_h_sipm[1].tolist(), clear=True, data_is_hist=True)
+            else:
+                self.hp_sipm.hist_clear()
+            if self.dataset_h_counter:
+                data_h_counter = list(self.dataset_h_counter.values())[current_val // len(self.dataset_h_counter.values())].T
+                await self.counter_h.draw_hist(data_h_counter[1].tolist(), clear=True, data_is_hist=True)
+            else:
+                self.counter_h.hist_clear()
+            # await self.hp_pips.draw_hist(data_pips[1], clear=True)
+            # await self.hp_sipm.draw_hist(data_sipm[1], clear=True)
+        except Exception as ex:
+            logger.error(ex)
 
         # if value < self.amount_measurements:
 

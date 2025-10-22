@@ -30,12 +30,12 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from Engine.widgets.oscilloscope.flux_widget import FluxWidget  # noqa: E402
-from Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
-from Engine.widgets.oscilloscope.run_flux_widget import RunFluxWidget  # noqa: E402
-from Engine.widgets.oscilloscope.run_meas_widget import RunMeasWidget  # noqa: E402
-from Engine.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
-from Engine.widgets.viewer.graph_viewer_widget import GraphViewerWidget  # noqa: E402
+from Main.widgets.oscilloscope.flux_widget import FluxWidget  # noqa: E402
+from Main.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
+from Main.widgets.oscilloscope.run_flux_widget import RunFluxWidget  # noqa: E402
+from Main.widgets.oscilloscope.run_meas_widget import RunMeasWidget  # noqa: E402
+from Main.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
+from Main.widgets.viewer.graph_viewer_widget import GraphViewerWidget  # noqa: E402
 from Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 
 from src.craft_custom_widget import add_serial_widget
@@ -54,7 +54,7 @@ class Engine(QtWidgets.QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path(__file__).parent.joinpath("engine.ui"), self)
+        loadUi(Path(__file__).parent.joinpath("ui_renderer.ui"), self)
         self.resize(1300, 800)
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
@@ -101,7 +101,7 @@ class Engine(QtWidgets.QMainWindow):
         self.flux_widget: FluxWidget = FluxWidget(self)
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
         self.client = self.w_ser_dialog.client
-        self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget(self)
+        self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget()
         self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self)
         model = self.widget_model()
         self.tab_widget = create_tab_widget_items(model, self.on_tab_widget_handler)

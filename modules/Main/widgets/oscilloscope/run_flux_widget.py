@@ -22,7 +22,7 @@ modules_path = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
+from modules.Main.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
@@ -128,7 +128,7 @@ class RunFluxWidget(QtWidgets.QDialog):
 
             try:
                 data = result_hist32_int + result_hist16_int
-                # await self.graph_widget.hp_counter._draw_graph(data, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
+                # await self.graph_widget.hp_counter.draw_graph(data, name_file_save_data=self.name_file_save, name_data=name_data, save_log=save, filter=self.hist_filters)
             except asyncio.exceptions.CancelledError:
                 return None
 

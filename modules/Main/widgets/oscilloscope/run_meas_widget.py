@@ -26,7 +26,7 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
 
-from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
+from modules.Main.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
@@ -103,6 +103,16 @@ class RunMeasWidget(QtWidgets.QDialog):
 
         self.init_flags()
         self.init_combobox_filter()
+
+        # Track previous and accumulated histogram values to handle external counter resets
+        self._prev_electron = None
+        self._prev_proton = None
+        self._prev_hcp = None
+        self._acc_electron = None
+        self._acc_proton = None
+        self._acc_hcp = None
+        # 12-bit external counters (0..4095)
+        self._counter_modulus = 4096
 
         if __name__ != "__main__":
             self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore
@@ -220,7 +230,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         asyncio_ACQ_loop_request - непрерывный опрос МПП для получения данных АЦП
         """
         #### Path to save ####
-        self.parent_path: Path = Path("./log/output_graph_data").resolve()
+        self.parent_path: Path = Path("./log/scope").resolve()
         current_datetime = datetime.datetime.now()
         time: str = current_datetime.strftime("%d-%m-%Y")[:23]
         self.path_to_save: Path = self.parent_path / time
@@ -307,6 +317,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         result_ch0_int,
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
+                        path_to_save=self.path_to_save,
                         save_log=save,
                         clear=True,
                     )  # x, y
@@ -314,6 +325,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         result_ch1_int,
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
+                        path_to_save=self.path_to_save,
                         save_log=save,
                         clear=True,
                     )  # x, y
@@ -321,6 +333,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         data_pips[1],
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
+                        path_to_save=self.path_to_save,
                         save_log=save,
                         filter=self.hist_filters,
                     )
@@ -328,6 +341,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         data_sipm[1],
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
+                        path_to_save=self.path_to_save,
                         save_log=save,
                         filter=self.hist_filters,
                     )
@@ -338,6 +352,37 @@ class RunMeasWidget(QtWidgets.QDialog):
         except Exception as e:
             await self._stop_measuring(f"Ошибка (ACQ): {e}")
             return
+
+    def _accumulate_with_reset(self, prev, acc, curr):
+        """Accumulate per-bin counts with reset or wrap detection.
+
+        Logic per bin:
+        - If curr >= prev: delta = curr - prev
+        - If curr < prev and prev is near max (wrap on 12-bit): delta = (MOD - prev) + curr
+        - Else (hard reset): delta = curr
+
+        Returns updated (prev, acc) as numpy arrays.
+        """
+        import numpy as np
+        curr_arr = np.array(curr, dtype=np.int64)
+        if prev is None or acc is None:
+            return curr_arr, curr_arr.copy()
+        try:
+            prev_arr = np.array(prev, dtype=np.int64)
+            acc_arr = np.array(acc, dtype=np.int64)
+            if len(prev_arr) != len(curr_arr) or len(acc_arr) != len(curr_arr):
+                return curr_arr, curr_arr.copy()
+            raw_delta = curr_arr - prev_arr
+            MOD = getattr(self, "_counter_modulus", 4096)
+            wrap_threshold = MOD - 64
+            is_wrap = (raw_delta < 0) & (prev_arr >= wrap_threshold)
+            wrap_delta = (MOD - prev_arr) + curr_arr
+            reset_delta = curr_arr
+            delta = np.where(raw_delta >= 0, raw_delta, np.where(is_wrap, wrap_delta, reset_delta))
+            acc_arr = acc_arr + delta
+            return curr_arr, acc_arr
+        except Exception:
+            return curr_arr, curr_arr.copy()
 
     async def asyncio_HH_loop_request(self) -> None:
         """Опрос счетчика частиц"""
@@ -352,14 +397,15 @@ class RunMeasWidget(QtWidgets.QDialog):
             await self._stop_measuring(f"Ошибка подготовки гистограмм: {e}")
             return
         save: bool = False
+        # reset accumulators at HH start
+        self._prev_electron = None; self._acc_electron = None
+        self._prev_proton = None; self._acc_proton = None
+        self._prev_hcp = None; self._acc_hcp = None
         self.graph_widget.show()
         # counter_clear = 0
         data: list[int] = []
-        accumulate_data = np.array([0] * 12)
-        bins = np.linspace(
-            1, 13, 12
-        )  # [0.1, 0.5, 0.8, 1.6, 3, 5, 10, 30, 60, 100, 200, 500, 1000]  # np.linspace(1, 13, 12)
         while 1:
+            await asyncio.sleep(2)
             if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение")
                 return
@@ -378,9 +424,18 @@ class RunMeasWidget(QtWidgets.QDialog):
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
             result_hcp_hist_int: list[int] = await self.parser.mpp_pars_16b(result_hcp_hist)
-            self.get_electron_hist_event.emit(result_hist32_int)
-            self.get_proton_hist_event.emit(result_hist16_int)
-            self.get_hcp_hist_event.emit(result_hcp_hist_int)
+            # accumulate with reset detection
+            self._prev_electron, self._acc_electron = self._accumulate_with_reset(self._prev_electron, self._acc_electron, result_hist32_int)
+            self._prev_proton, self._acc_proton = self._accumulate_with_reset(self._prev_proton, self._acc_proton, result_hist16_int)
+            self._prev_hcp, self._acc_hcp = self._accumulate_with_reset(self._prev_hcp, self._acc_hcp, result_hcp_hist_int)
+            try:
+                self.get_electron_hist_event.emit(self._acc_electron.tolist())
+                self.get_proton_hist_event.emit(self._acc_proton.tolist())
+                self.get_hcp_hist_event.emit(self._acc_hcp.tolist())
+            except Exception:
+                self.get_electron_hist_event.emit(result_hist32_int)
+                self.get_proton_hist_event.emit(result_hist16_int)
+                self.get_hcp_hist_event.emit(result_hcp_hist_int)
 
             # Обработчик флага сохранения
             if self.flags[self.wr_log_flag]:
@@ -389,16 +444,20 @@ class RunMeasWidget(QtWidgets.QDialog):
                 save = False
 
             try:
-                data = result_hist32_int + result_hist16_int
-                # сохраняем все counter
-                if save:
-                    hdf5_path = self.graph_widget
-                    data_save = [[x, y] for x, y in enumerate(data + result_hcp_hist_int)]
-                    write_to_hdf5_file(data_save, "h_counter", Path(self.name_file_save), self.name_data)  # type: ignore
-                # accumulate_data += np.array(data)
-                await self.graph_widget.hp_counter._draw_graph(data, bins=bins, calculate_hist=False, autoscale=False)  # type: ignore
+                if self._acc_electron is not None and self._acc_proton is not None and self._acc_hcp is not None:
+                    data = self._acc_electron.tolist() + self._acc_proton.tolist() + self._acc_hcp.tolist()
+                else:
+                    data = result_hist32_int + result_hist16_int + result_hcp_hist_int
+                await self.graph_widget.hp_counter.draw_hist(data, bin_count=len(data),
+                    name_file_save_data=self.name_file_save,
+                    name_data=self.name_data,
+                    path_to_save=self.path_to_save,
+                    save_log=save,
+                    filter=self.hist_filters,
+                    data_is_hist=True
+                    )
             except asyncio.exceptions.CancelledError as e:
-                print(e)
+                self.logger.error(str(e))
                 return None
 
     def enable_trig_meas_handler(self, state) -> None:

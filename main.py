@@ -1,6 +1,6 @@
 from PyQt6 import QtWidgets, QtCore
 import sys
-from modules.Engine.engine import Engine
+from modules.Main.ui_renderer import Engine
 import qtmodern.styles
 from qtmodern.windows import ModernWindow
 import qasync

@@ -20,7 +20,7 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 sys.path.append(str(widgets_path))
 
-from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
+from modules.Main.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.log_config import log_init  # noqa: E402
