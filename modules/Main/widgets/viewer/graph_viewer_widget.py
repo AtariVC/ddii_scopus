@@ -8,7 +8,6 @@ from pathlib import Path
 import qasync
 import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
-from PyQt6.QtGui import QIntValidator
 from qtpy.uic import loadUi
 from src.log_config import get_logger
 from modules.Main.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget
@@ -53,8 +52,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
             self.explorer: ExplorerHDF5Widget = self.parent.explorer_hdf5_widget # type: ignore
             self.explorer.double_clicked_event.subscribe(self.open_graphs)
             self.horizontalSlider_time_scale.actionTriggered.connect(lambda: self.slider_graphs_updater())
-        # UI for frame filtering/navigation
-        self._init_filter_ui()
+        # External filter widget will control filtering/navigation
 
     def pen_init(self) -> None:
         self.task = None  # type: ignore
@@ -76,10 +74,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.counter_h = HistPen(
             layout=self.vLayout_hist_counter, name=self.name_pen_counter, color=(123, 195, 121, 150)
         )
-        # Storage for filtered frames
-        self._matched_indices: list[int] = []  # 1-based indices to match slider API
-        self._matched_times: list[str] = []
-        self._match_pos: int = -1
+        # Filtering state managed by external widget
 
     def open_graphs(self, path: str) -> None:
         """Открывает графики из файла"""
@@ -95,8 +90,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.label_time_data.setText(f"{time_str}")
         self.horizontalSlider_time_scale.setMaximum(self.amount_measurements)
         self.label_counter_data.setText(f"{self.horizontalSlider_time_scale.value()}/{self.amount_measurements}")
-        # Reset filter UI on new file
-        self._clear_filter_results()
+        # Filter state is external; nothing to reset here
 
     def time_formater(self, input_time_str: str) -> str:
         """Преобразует строку вида "2024-10-08_17-52-54-261" в формат "Время: 08.10.24 17:52:54:2610"
@@ -164,149 +158,52 @@ class GraphViewerWidget(QtWidgets.QWidget):
         # self.hp_pips.draw_histogram(data_pips, "h_pips", clear=True)
         # self.hp_sipm.draw_histogram(data_sipm, "h_sipm", clear=True)
 
-    def _init_filter_ui(self) -> None:
-        """Create filter controls and insert into main layout above the slider."""
-        try:
-            # Controls
-            self.groupBox_filter = QtWidgets.QGroupBox("Фильтр кадров")
-            h = QtWidgets.QHBoxLayout(self.groupBox_filter)
-            self.checkBox_filter_pips = QtWidgets.QCheckBox("PIPS")
-            self.checkBox_filter_pips.setChecked(True)
-            self.checkBox_filter_sipm = QtWidgets.QCheckBox("SiPM")
-            self.checkBox_filter_sipm.setChecked(True)
-            self.lineEdit_filter_level = QtWidgets.QLineEdit()
-            self.lineEdit_filter_level.setPlaceholderText("Порог…")
-            self.lineEdit_filter_level.setFixedWidth(80)
-            self.lineEdit_filter_level.setValidator(QIntValidator(0, 10_000, self))
-            self.pushButton_apply_filter = QtWidgets.QPushButton("Фильтровать")
-            self.pushButton_prev_match = QtWidgets.QPushButton("<")
-            self.pushButton_next_match = QtWidgets.QPushButton(">")
-            self.lineEdit_matched_frames = QtWidgets.QLineEdit()
-            self.lineEdit_matched_frames.setPlaceholderText("Номера кадров…")
-            self.lineEdit_matched_frames.setReadOnly(True)
-            self.listWidget_matched_times = QtWidgets.QListWidget()
-            self.listWidget_matched_times.setMaximumHeight(80)
-            self.listWidget_matched_times.itemClicked.connect(self._on_time_item_clicked)
-
-            for w in (
-                QtWidgets.QLabel("Порог:"),
-                self.lineEdit_filter_level,
-                self.checkBox_filter_pips,
-                self.checkBox_filter_sipm,
-                self.pushButton_apply_filter,
-                self.pushButton_prev_match,
-                self.pushButton_next_match,
-                self.lineEdit_matched_frames,
-            ):
-                h.addWidget(w)
-
-            # Wire actions
-            self.pushButton_apply_filter.clicked.connect(self._apply_filter)
-            self.pushButton_prev_match.clicked.connect(lambda: self._step_match(-1))
-            self.pushButton_next_match.clicked.connect(lambda: self._step_match(+1))
-
-            # Insert into layout above slider
-            try:
-                # insert before slider (second item from the end is slider)
-                idx = max(0, self.verticalLayout_graph.count() - 2)
-                self.verticalLayout_graph.insertWidget(idx, self.groupBox_filter)
-                self.verticalLayout_graph.insertWidget(idx + 1, self.listWidget_matched_times)
-            except Exception:
-                # Fallback: append at end
-                self.verticalLayout_graph.addWidget(self.groupBox_filter)
-                self.verticalLayout_graph.addWidget(self.listWidget_matched_times)
-        except Exception:
-            ...
-
-    def _clear_filter_results(self):
-        self._matched_indices = []
-        self._matched_times = []
-        self._match_pos = -1
-        try:
-            self.lineEdit_matched_frames.setText("")
-            self.listWidget_matched_times.clear()
-        except Exception:
-            ...
-
-    def _apply_filter(self):
-        if self.amount_measurements == 0 or not self.dataset_pips:
-            self._clear_filter_results()
-            return
-        try:
-            lvl = int(self.lineEdit_filter_level.text()) if self.lineEdit_filter_level.text() else 0
-        except Exception:
-            lvl = 0
-        use_pips = self.checkBox_filter_pips.isChecked()
-        use_sipm = self.checkBox_filter_sipm.isChecked()
+    # Public methods for external filter widget
+    def apply_filter(self, level_pips: int | None, level_sipm: int | None, use_pips: bool, use_sipm: bool) -> list[int]:
+        if self.amount_measurements == 0:
+            return []
         if not (use_pips or use_sipm):
-            self._clear_filter_results()
-            return
-
+            return []
+        pips_thr = 0 if level_pips is None else int(level_pips)
+        sipm_thr = 0 if level_sipm is None else int(level_sipm)
         matched_idx: list[int] = []
-        matched_times: list[str] = []
-        # Iterate 1..N to match slider indexing
         for i in range(1, self.amount_measurements + 1):
             ok = False
             if use_pips and self.dataset_pips:
                 try:
                     arr = list(self.dataset_pips.values())[i - 1].T[1]
-                    if len(arr) and max(arr) > lvl:
+                    if len(arr) and max(arr) > pips_thr:
                         ok = True
                 except Exception:
                     ...
-            if not ok and use_sipm and self.dataset_sipm:
+            if (not ok) and use_sipm and self.dataset_sipm:
                 try:
                     arr = list(self.dataset_sipm.values())[i - 1].T[1]
-                    if len(arr) and max(arr) > lvl:
+                    if len(arr) and max(arr) > sipm_thr:
                         ok = True
                 except Exception:
                     ...
             if ok:
                 matched_idx.append(i)
-                matched_times.append(self.time_formater(self.measure_time_list[i - 1]))
+        return matched_idx
 
-        self._matched_indices = matched_idx
-        self._matched_times = matched_times
-        self._match_pos = 0 if matched_idx else -1
-        # Update UI
+    def get_time_for_index(self, idx: int) -> str:
         try:
-            self.lineEdit_matched_frames.setText(", ".join(map(str, matched_idx)))
-            self.listWidget_matched_times.clear()
-            for i, t in zip(matched_idx, matched_times):
-                self.listWidget_matched_times.addItem(f"{i}: {t}")
+            if 1 <= idx <= len(self.measure_time_list):
+                return self.time_formater(self.measure_time_list[idx - 1])
         except Exception:
             ...
-        # Jump to first match
-        if self._match_pos != -1:
-            self._goto_match(self._match_pos)
+        return ""
 
-    def _step_match(self, step: int):
-        if not self._matched_indices:
-            return
-        self._match_pos = max(0, min(len(self._matched_indices) - 1, self._match_pos + step))
-        self._goto_match(self._match_pos)
-
-    def _goto_match(self, pos: int):
+    def go_to_index(self, idx: int) -> None:
         try:
-            idx = self._matched_indices[pos]
-            # Update slider and graphs
-            self.horizontalSlider_time_scale.setValue(idx)
-            # Trigger update explicitly
-            self.slider_graphs_updater()
-            # Highlight item
-            try:
-                self.listWidget_matched_times.setCurrentRow(pos)
-            except Exception:
-                ...
-        except Exception:
-            ...
-
-    def _on_time_item_clicked(self, item: QtWidgets.QListWidgetItem):
-        try:
-            row = self.listWidget_matched_times.currentRow()
-            if 0 <= row < len(self._matched_indices):
-                self._match_pos = row
-                self._goto_match(row)
+            if 1 <= idx <= self.amount_measurements:
+                self.horizontalSlider_time_scale.setValue(idx)
+                try:
+                    # schedule async update
+                    asyncio.create_task(self.slider_graphs_updater())
+                except Exception:
+                    ...
         except Exception:
             ...
 

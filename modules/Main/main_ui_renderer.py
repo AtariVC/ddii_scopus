@@ -36,6 +36,7 @@ from Main.widgets.oscilloscope.run_flux_widget import RunFluxWidget  # noqa: E40
 from Main.widgets.oscilloscope.run_meas_widget import RunMeasWidget  # noqa: E402
 from Main.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
 from Main.widgets.viewer.graph_viewer_widget import GraphViewerWidget  # noqa: E402
+from Main.widgets.viewer.filter_viewer_widget import FilterViewerWidget  # noqa: E402
 from Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 
 from src.craft_custom_widget import add_serial_widget
@@ -76,6 +77,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
             },
             "Вьюер": {
                 "Файл менеджер": self.explorer_hdf5_widget,
+                "Фильтр кадров": self.graph_filter_widget,
             },
             "Парсер": {},
         }
@@ -104,6 +106,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.client = self.w_ser_dialog.client
         self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget()
         self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self)
+        self.graph_filter_widget: FilterViewerWidget = FilterViewerWidget(self)
         model = self.widget_model()
         self.tab_widget = create_tab_widget_items(model, self.on_tab_widget_handler)
         #### отдельно добавляем SerialConnectWidget
