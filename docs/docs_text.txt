@@ -5,7 +5,7 @@ ddii_scopus
 .style
 
 ddii_scopus
-.engine
+.MainUIRenderer
 View Source
 1
 # import configparser
@@ -118,7 +118,7 @@ View Source
 58
 59
 60
-# class Engine(QtWidgets.QMainWindow, QThread):
+# class MainUIRenderer(QtWidgets.QMainWindow, QThread):
 61
 #     my_button: QtWidgets.QPushButton
 62
@@ -2375,7 +2375,7 @@ View Source
 1250
 #         Parameters:
 1251
-#         self (экземпляр Engine): текущий экземпляр класса Engine.
+#         self (экземпляр MainUIRenderer): текущий экземпляр класса MainUIRenderer.
 1252
 #         id (int): идентификатор подключаемого MPP.
 1253
@@ -2592,7 +2592,7 @@ View Source
 1364
 #         initial_reg = 0xA000
 1365
-#         waveform_list = self.readWaveform_engine(initial_reg)
+#         waveform_list = self.readWaveform_MainUIRenderer(initial_reg)
 1366
 #         # self.tmp_bufer = waveform_list
 1367
@@ -2619,7 +2619,7 @@ View Source
 1378
 #         initial_reg = 0xA200
 1379
-#         waveform_list = self.readWaveform_engine(initial_reg)
+#         waveform_list = self.readWaveform_MainUIRenderer(initial_reg)
 1380
 #         # self.tmp_bufer = waveform_list
 1381
@@ -2639,7 +2639,7 @@ View Source
 #         log_s(self.send_handler.mess)
 1389
 1390
-#     def readWaveform_engine(self, initial_reg: int):
+#     def readWaveform_MainUIRenderer(self, initial_reg: int):
 1391
 #         """
 1392
@@ -3109,9 +3109,9 @@ import
 sys
 3
 from
-modules.Engine.engine
+modules.MainUIRenderer.MainUIRenderer
 import
-Engine
+MainUIRenderer
 4
 import
 qtmodern.styles
@@ -3158,9 +3158,9 @@ app
 13
 w
 :
-Engine
+MainUIRenderer
 =
-Engine
+MainUIRenderer
 ()
 14
 # w.show()
@@ -3516,7 +3516,7 @@ modules
 ddii_scopus
 .
 modules
-.engine
+.MainUIRenderer
 View Source
 1
 # """Функционал движка:
@@ -3540,7 +3540,7 @@ View Source
 # 9. Вывод значениий колличества частиц по энергиям согласной ТЗ на ДДИИ
 11
 12
-# Модуль Emulator является опциональным, поэтму подключается отдельно к Engine
+# Модуль Emulator является опциональным, поэтму подключается отдельно к MainUIRenderer
 13
 14
 # # Пример использования логгера
@@ -3670,7 +3670,7 @@ View Source
 80
 81
 82
-# class Engine(QtWidgets.QMainWindow, QThread):
+# class MainUIRenderer(QtWidgets.QMainWindow, QThread):
 83
 #     my_button: QtWidgets.QPushButton
 84
@@ -5906,7 +5906,7 @@ View Source
 1260
 #         Parameters:
 1261
-#         self (экземпляр Engine): текущий экземпляр класса Engine.
+#         self (экземпляр MainUIRenderer): текущий экземпляр класса MainUIRenderer.
 1262
 #         id (int): идентификатор подключаемого MPP.
 1263
@@ -6123,7 +6123,7 @@ View Source
 1374
 #         initial_reg = 0xA000
 1375
-#         waveform_list = self.readWaveform_engine(initial_reg)
+#         waveform_list = self.readWaveform_MainUIRenderer(initial_reg)
 1376
 #         # self.tmp_bufer = waveform_list
 1377
@@ -6150,7 +6150,7 @@ View Source
 1388
 #         initial_reg = 0xA200
 1389
-#         waveform_list = self.readWaveform_engine(initial_reg)
+#         waveform_list = self.readWaveform_MainUIRenderer(initial_reg)
 1390
 #         # self.tmp_bufer = waveform_list
 1391
@@ -6170,7 +6170,7 @@ View Source
 #         log_s(self.send_handler.mess)
 1399
 1400
-#     def readWaveform_engine(self, initial_reg: int):
+#     def readWaveform_MainUIRenderer(self, initial_reg: int):
 1401
 #         """
 1402
@@ -7171,7 +7171,7 @@ right_widget
 27
 28
 def
-clear_left_widget
+replace_left_widget
 (
 old_left_widget
 :
@@ -8059,7 +8059,7 @@ gridLayout_main_split (QGridLayout): Основной layout, в который 
 left_widget (QTabWidget): Виджет, который будет размещен слева в QSplitter.
 right_widget (QTabWidget): Виджет, который будет размещен справа в QSplitter.
 def
-clear_left_widget
+replace_left_widget
 (
 old_left_widget
 :
@@ -8080,7 +8080,7 @@ QWidget
 View Source
 30
 def
-clear_left_widget
+replace_left_widget
 (
 old_left_widget
 :
@@ -56022,7 +56022,7 @@ parent
 .
 joinpath
 (
-"Engine/widgets"
+"MainUIRenderer/widgets"
 )
 18
 # Добавляем папку src в sys.path
@@ -56062,7 +56062,7 @@ widgets_path
 22
 23
 from
-modules.Engine.widgets.oscilloscope.graph_widget
+modules.MainUIRenderer.widgets.oscilloscope.graph_widget
 import
 GraphWidget
 # noqa: E402
@@ -56609,7 +56609,7 @@ modules_path
 PosixPath('/Users/vladk/git/ddii/ddii_scopus/modules')
 widgets_path
 =
-PosixPath('/Users/vladk/git/ddii/ddii_scopus/modules/Main_Graph_Widget/Engine/widgets')
+PosixPath('/Users/vladk/git/ddii/ddii_scopus/modules/Main_Graph_Widget/MainUIRenderer/widgets')
 class
 MainGraphWidget
 (
@@ -66971,7 +66971,7 @@ qtpy.uic
 import
 loadUi
 3
-# from engine_trapezoid_dialog import EngineTrapezoidFilter
+# from MainUIRenderer_trapezoid_dialog import MainUIRendererTrapezoidFilter
 4
 import
 os
@@ -69991,7 +69991,7 @@ None
 75
 Parameters:
 76
-self (экземпляр Engine): текущий экземпляр класса Engine.
+self (экземпляр MainUIRenderer): текущий экземпляр класса MainUIRenderer.
 77
 id (int): ID MPP.
 78
@@ -71128,7 +71128,7 @@ None
 76
 Parameters:
 77
-self (экземпляр Engine): текущий экземпляр класса Engine.
+self (экземпляр MainUIRenderer): текущий экземпляр класса MainUIRenderer.
 78
 id (int): ID MPP.
 79
@@ -72121,7 +72121,7 @@ None
 76
 Parameters:
 77
-self (экземпляр Engine): текущий экземпляр класса Engine.
+self (экземпляр MainUIRenderer): текущий экземпляр класса MainUIRenderer.
 78
 id (int): ID MPP.
 79
@@ -72483,7 +72483,7 @@ close
 Для подключение к МПП нужно задать ID.
 При успешном подключении ЦМ выдаст структуру ddii_mpp_data.
 Parameters:
-self (экземпляр Engine): текущий экземпляр класса Engine.
+self (экземпляр MainUIRenderer): текущий экземпляр класса MainUIRenderer.
 id (int): ID MPP.
 baudrate (int): Скорость передачи данных для последовательной связи.
 f_comand (int): команда для записи в Modbus.
@@ -79374,15 +79374,15 @@ ddii_scopus
 .
 modules
 .
-Engine
+MainUIRenderer
 .scopus
 
 ddii_scopus
 .
 modules
 .
-Engine
-.engine
+MainUIRenderer
+.MainUIRenderer
 View Source
 1
 from
@@ -79566,37 +79566,37 @@ LineEditPack
 # noqa: E402
 30
 from
-Engine.widgets.oscilloscope.graph_widget
+MainUIRenderer.widgets.oscilloscope.graph_widget
 import
 GraphWidget
 # noqa: E402
 31
 from
-Engine.widgets.oscilloscope.run_meas_widget
+MainUIRenderer.widgets.oscilloscope.run_meas_widget
 import
 RunMeasWidget
 # noqa: E402
 32
 from
-Engine.widgets.oscilloscope.flux_widget
+MainUIRenderer.widgets.oscilloscope.flux_widget
 import
 FluxWidget
 # noqa: E402
 33
 from
-Engine.widgets.oscilloscope.run_flux_widget
+MainUIRenderer.widgets.oscilloscope.run_flux_widget
 import
 RunFluxWidget
 # noqa: E402
 34
 from
-Engine.widgets.viewer.graph_viewer_widget
+MainUIRenderer.widgets.viewer.graph_viewer_widget
 import
 GraphViewerWidget
 # noqa: E402
 35
 from
-Engine.widgets.viewer.explorer_hdf5_widget
+MainUIRenderer.widgets.viewer.explorer_hdf5_widget
 import
 ExplorerHDF5Widget
 # noqa: E402
@@ -79611,13 +79611,13 @@ src.main_window_maker
 import
 create_split_widget
 ,
-clear_left_widget
+replace_left_widget
 ,
 create_tab_widget_items
 38
 39
 class
-Engine
+MainUIRenderer
 (
 QtWidgets
 .
@@ -79667,7 +79667,7 @@ parent
 .
 joinpath
 (
-'engine.ui'
+'MainUIRenderer.ui'
 ),
 self
 )
@@ -79836,7 +79836,7 @@ tab_text
 "Вьюер"
 :
 79
-clear_left_widget
+replace_left_widget
 (
 self
 .
@@ -79854,7 +79854,7 @@ tab_text
 "Осциллограф"
 :
 82
-clear_left_widget
+replace_left_widget
 (
 self
 .
@@ -80093,9 +80093,9 @@ app
 114
 w
 :
-Engine
+MainUIRenderer
 =
-Engine
+MainUIRenderer
 ()
 115
 mw
@@ -80195,14 +80195,14 @@ modules_path
 =
 PosixPath('/Users/vladk/git/ddii/ddii_scopus/modules')
 class
-Engine
+MainUIRenderer
 (
 PyQt6.QtWidgets.QMainWindow
 ):
 View Source
 40
 class
-Engine
+MainUIRenderer
 (
 QtWidgets
 .
@@ -80252,7 +80252,7 @@ parent
 .
 joinpath
 (
-'engine.ui'
+'MainUIRenderer.ui'
 ),
 self
 )
@@ -80421,7 +80421,7 @@ tab_text
 "Вьюер"
 :
 80
-clear_left_widget
+replace_left_widget
 (
 self
 .
@@ -80439,7 +80439,7 @@ tab_text
 "Осциллограф"
 :
 83
-clear_left_widget
+replace_left_widget
 (
 self
 .
@@ -80804,7 +80804,7 @@ tab_text
 "Вьюер"
 :
 80
-clear_left_widget
+replace_left_widget
 (
 self
 .
@@ -80822,7 +80822,7 @@ tab_text
 "Осциллограф"
 :
 83
-clear_left_widget
+replace_left_widget
 (
 self
 .
@@ -81146,7 +81146,7 @@ View Source
 52
 # class Emulator(QtWidgets.QMainWindow, QThread):
 53
-#     # Иницилизация всех используемых виджетов происходит в engine.py
+#     # Иницилизация всех используемых виджетов происходит в MainUIRenderer.py
 54
 #     # lineEdit_emulation_proton: QtWidgets.QLineEdit
 55

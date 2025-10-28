@@ -1,16 +1,25 @@
+from typing import Callable, Dict, Optional, Sequence, Union
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QSpacerItem, QSizePolicy, QSplitter, QTabWidget, QScrollArea, QGridLayout
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QFont
-from typing import Optional, Sequence, Callable, Union, Dict
+from PyQt6.QtWidgets import (
+    QGridLayout,
+    QGroupBox,
+    QScrollArea,
+    QSizePolicy,
+    QSpacerItem,
+    QSplitter,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
-def create_split_widget(gridLayout_main_split: QGridLayout, 
-                        left_widget: QWidget,
-                        right_widget: QTabWidget) -> None:
+
+def create_split_widget(gridLayout_main_split: QGridLayout, left_widget: QWidget, right_widget: QTabWidget) -> None:
     """Создает и добавляет в layout разделитель (QSplitter) с двумя виджетами.
-    
-    Функция принимает основной QGridLayout и два виджета (обычно QTabWidget), 
-    создает горизонтальный QSplitter, размещает в нем оба виджета 
+
+    Функция принимает основной QGridLayout и два виджета (обычно QTabWidget),
+    создает горизонтальный QSplitter, размещает в нем оба виджета
     и добавляет разделитель в указанный layout.
 
     Args:
@@ -26,49 +35,48 @@ def create_split_widget(gridLayout_main_split: QGridLayout,
     splitter.addWidget(left_widget)
     splitter.addWidget(right_widget)
 
-def clear_left_widget(old_left_widget: QWidget, new_left_widget: QWidget):
+
+def replace_left_widget(old_left_widget: QWidget, new_left_widget: QWidget):
     # left_widget.deleteLater()
     # Удаляем все дочерние виджеты, но не сам контейнер
     # for child in left_widget.children():
     #     if isinstance(child, QWidget):
     #         left_widget.hide()
     #         child.deleteLater()
-        """Заменяет левый виджет в сплиттере"""
+    """Заменяет левый виджет в сплиттере"""
     # 1. Находим сплиттер (родительский виджет)
-        splitter = old_left_widget.parentWidget()
-        if not isinstance(splitter, QSplitter):
-            return
+    splitter = old_left_widget.parentWidget()
+    if not isinstance(splitter, QSplitter):
+        return
 
-        # 2. Находим индекс нашего виджета в сплитере
-        index = splitter.indexOf(old_left_widget)
-        if index == -1:
-            return
+    # 2. Находим индекс нашего виджета в сплитере
+    index = splitter.indexOf(old_left_widget)
+    if index == -1:
+        return
 
-        # 3. Заменяем виджет
-        splitter.replaceWidget(index, new_left_widget)
-        new_left_widget.show()
-        old_left_widget.hide()
-
-    
+    # 3. Заменяем виджет
+    splitter.replaceWidget(index, new_left_widget)
+    new_left_widget.show()
+    old_left_widget.hide()
 
 
-
-def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
-                            tab_widget_handler: Optional[Callable] = None) -> QTabWidget:
+def create_tab_widget_items(
+    widget_model: Dict[str, Dict[str, QWidget]], tab_widget_handler: Optional[Callable] = None
+) -> QTabWidget:
     """Создает и возвращает QTabWidget с организованными вкладками виджетов.
     Функция создает многоуровневый интерфейс с:
     - Вкладками (QTabWidget)
-    - Прокручиваемыми областями (QScrollArea) 
+    - Прокручиваемыми областями (QScrollArea)
     - Групповыми блоками (QGroupBox) для каждого виджета
 
     :Args:
-        widget_model (Dict[str, Dict[str, QWidget]]): 
+        widget_model (Dict[str, Dict[str, QWidget]]):
             Иерархическая структура виджетов:
                 - Ключ 1 уровня: Название вкладки (str)
                 - Значение: Словарь {
                     "название виджета": QWidget-объект
                 }
-        tab_widget_handler (Optional[Callable] = None): 
+        tab_widget_handler (Optional[Callable] = None):
         Обработчик событий изменения вкладок tabwidget.
 
     :Return:
@@ -90,9 +98,9 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
                 "Параметры": SettingsWidget()}
         }
         tab_widget = create_tab_widget_items(widget_structure)
-        
+
     """
-    
+
     ######################### Фабрика функций ##################################
     def _grBox_wrapper(widget: QWidget, name: str) -> QGroupBox:
         """Создает GroupBox с заданным виджетом внутри."""
@@ -106,19 +114,19 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
         font.setPointSize(12)
         grBox_widget.setFont(font)
         return grBox_widget
-    
+
     def _tab_factories(widget_model: Dict[str, Dict[str, QWidget]]):
         """Создает словарь фабричных функций для генерации содержимого вкладок.
 
         Args:
-            widget_model (Dict[str, Dict[str, QWidget]]): 
+            widget_model (Dict[str, Dict[str, QWidget]]):
                 Словарь конфигурации вкладок, где:
                     - Ключ (str): название вкладки
                     - Значение (Dict[str, QWidget]): словарь виджетов в формате:
                         {"название виджета": QWidget-объект}
 
         Returns:
-            Dict[str, Callable]: 
+            Dict[str, Callable]:
                 Словарь фабричных функций в формате:
                     {"название вкладки": функция-widget_maker}
                 Где widget_maker принимает (widgets: Dict[str, QWidget], tab_widget: QTabWidget)
@@ -126,10 +134,10 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
         """
         dict_tab_factry = {}
         for tab_name in widget_model.keys():
-            dict_tab_factry[tab_name]= _widget_maker
+            dict_tab_factry[tab_name] = _widget_maker
         return dict_tab_factry
 
-    def _widget_maker(widgets: Dict[str, Optional[QWidget| QSpacerItem]]):
+    def _widget_maker(widgets: Dict[str, Optional[QWidget | QSpacerItem]]):
         """Фабрика для создания содержимого вкладки."""
         ######################
         spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -144,18 +152,17 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
         # Создание виджетов в grBox. Добавляем виджеты в scroll_content_layout
         for name, widget in widgets.items():
             if isinstance(widget, QSpacerItem):
-                spacer: QSpacerItem = widget # type: ignore
+                spacer: QSpacerItem = widget  # type: ignore
                 scroll_content_layout.addItem(spacer)
                 edge_spacer_flag = False
             elif widget is not None:
-                scroll_content_layout.addWidget(_grBox_wrapper(widget, name=name)) # type: ignore
-                
+                scroll_content_layout.addWidget(_grBox_wrapper(widget, name=name))  # type: ignore
+
         if edge_spacer_flag:
             scroll_content_layout.addItem(spacer_v_scroll)
         return scroll_content_widget
-    
+
     #################################################################################
-        
 
     tab_widget: QTabWidget = QTabWidget()
     tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -174,9 +181,9 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
                 tab_widget.currentChanged.connect(tab_widget_handler)
     return tab_widget
 
-
-
     # # Функция для создания вкладки "Осциллограф"
+
+
 # def __init__(self, *args) -> None:
 #         super().__init__()
 #         loadUi(Path(__file__).parent.joinpath('DialogGraphWidget2.ui'), self)
@@ -195,55 +202,55 @@ def create_tab_widget_items(widget_model: Dict[str, Dict[str, QWidget]],
 #         init_graph_window(self.mainGridLayout, graph_widget, widget_model)
 
 
-    # def init_tab_widget_item_meas(widgets) -> QWidget:
-    #     """_summary_
-    #     Args:
-    #         widgets (dict): передаем сдоварь виджетов. {"Название": виджет Object}
-    #     Returns:
-    #         QWidget: Возвращает готовый табвиджет
-    #     """
-    #     ######################
-    #     grBox_with_widgets: list[QGroupBox] = []
-    #     spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-    #     spacer_v_scroll = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-    #     # Создание виджетов в grBox
-    #     for key, item in widgets:
-    #         grBox_with_widgets.append(build_grBox(item, name=key))
-    #     ######################
-    #     # Создаем QScrollArea для прокручиваемого содержимого
-    #     scroll_area_menu = QScrollArea()
-    #     scroll_area_menu.setWidgetResizable(True)
-    #     scroll_content_widget = QWidget()
-    #     scroll_content_layout = QVBoxLayout(scroll_content_widget)
-    #     # Добавляем виджеты в scroll_content_layout
-    #     scroll_content_layout.addWidget(grBox_run_meas_widget)
-    #     ######################
-    #     scroll_content_layout.addItem(spacer_v_scroll)
-    #     scroll_area_menu.setWidget(scroll_content_widget)
-    #     menu_widget = QWidget()
-    #     menu_layout = QVBoxLayout(menu_widget)
-    #     menu_layout.addWidget(scroll_area_menu)
-    #     # Создаем макет для подключения
-    #     vLayout_ser_connect = QVBoxLayout()
-    #     add_serial_widget(vLayout_ser_connect, self.w_ser_dialog)
-    #     menu_layout.addItem(spacer_v)
-    #     menu_layout.addLayout(vLayout_ser_connect)
-    #     return menu_widget
-    # # Функция для создания вкладки "Парсер"
-    # def init_tab_widget_item_parser() -> QWidget:
-    #     parser_widget = QWidget()
-    #     # vLayout_parser = QVBoxLayout(parser_widget)
-    #     return parser_widget
-    
-    # tab_widget = QTabWidget()
-    # tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-    # # Настройка шрифта для вкладок
-    # tab_font = QFont()
-    # tab_font.setFamily("Arial")
-    # tab_font.setPointSize(12)
-    # tab_widget.setFont(tab_font)
-    # # Используем фабрику для добавления вкладок
-    # factories = build_tab_factories(widgets)
-    # for tab_name, factory in factories.items():
-    #     tab_widget.addTab(factory(), tab_name)
-    # return tab_widget
+# def init_tab_widget_item_meas(widgets) -> QWidget:
+#     """_summary_
+#     Args:
+#         widgets (dict): передаем сдоварь виджетов. {"Название": виджет Object}
+#     Returns:
+#         QWidget: Возвращает готовый табвиджет
+#     """
+#     ######################
+#     grBox_with_widgets: list[QGroupBox] = []
+#     spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+#     spacer_v_scroll = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+#     # Создание виджетов в grBox
+#     for key, item in widgets:
+#         grBox_with_widgets.append(build_grBox(item, name=key))
+#     ######################
+#     # Создаем QScrollArea для прокручиваемого содержимого
+#     scroll_area_menu = QScrollArea()
+#     scroll_area_menu.setWidgetResizable(True)
+#     scroll_content_widget = QWidget()
+#     scroll_content_layout = QVBoxLayout(scroll_content_widget)
+#     # Добавляем виджеты в scroll_content_layout
+#     scroll_content_layout.addWidget(grBox_run_meas_widget)
+#     ######################
+#     scroll_content_layout.addItem(spacer_v_scroll)
+#     scroll_area_menu.setWidget(scroll_content_widget)
+#     menu_widget = QWidget()
+#     menu_layout = QVBoxLayout(menu_widget)
+#     menu_layout.addWidget(scroll_area_menu)
+#     # Создаем макет для подключения
+#     vLayout_ser_connect = QVBoxLayout()
+#     add_serial_widget(vLayout_ser_connect, self.w_ser_dialog)
+#     menu_layout.addItem(spacer_v)
+#     menu_layout.addLayout(vLayout_ser_connect)
+#     return menu_widget
+# # Функция для создания вкладки "Парсер"
+# def init_tab_widget_item_parser() -> QWidget:
+#     parser_widget = QWidget()
+#     # vLayout_parser = QVBoxLayout(parser_widget)
+#     return parser_widget
+
+# tab_widget = QTabWidget()
+# tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+# # Настройка шрифта для вкладок
+# tab_font = QFont()
+# tab_font.setFamily("Arial")
+# tab_font.setPointSize(12)
+# tab_widget.setFont(tab_font)
+# # Используем фабрику для добавления вкладок
+# factories = build_tab_factories(widgets)
+# for tab_name, factory in factories.items():
+#     tab_widget.addTab(factory(), tab_name)
+# return tab_widget

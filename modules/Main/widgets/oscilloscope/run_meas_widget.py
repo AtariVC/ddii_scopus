@@ -71,6 +71,8 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.graph_widget: GraphWidget = self.parent.w_graph_widget  # type: ignore
+        # Event to broadcast save-threshold changes to plotters
+        self.save_threshold_event = Event(int)
         self.ACQ_task_sync_time_event = Event(str)
         self.get_electron_hist_event = Event(list)
         self.get_proton_hist_event = Event(list)
@@ -103,6 +105,20 @@ class RunMeasWidget(QtWidgets.QDialog):
 
         self.init_flags()
         self.init_combobox_filter()
+        # Wire threshold broadcasting from UI to pens/hists
+        try:
+            self.save_threshold_event.subscribe(self.graph_widget.gp_pips.set_save_threshold)
+            self.save_threshold_event.subscribe(self.graph_widget.gp_sipm.set_save_threshold)
+            self.save_threshold_event.subscribe(self.graph_widget.hp_pips.set_save_threshold)
+            self.save_threshold_event.subscribe(self.graph_widget.hp_sipm.set_save_threshold)
+        except Exception:
+            ...
+        # Emit current threshold once UI is ready
+        try:
+            self.lineEdit_trigger.editingFinished.connect(self._on_trigger_changed)
+            self._on_trigger_changed()
+        except Exception:
+            ...
 
         # Track previous and accumulated histogram values to handle external counter resets
         self._prev_electron = None
@@ -274,7 +290,10 @@ class RunMeasWidget(QtWidgets.QDialog):
         try:
             self.graph_widget.hp_sipm.hist_clear()
             self.graph_widget.hp_pips.hist_clear()
-            lvl = int(self.lineEdit_trigger.text())
+            try:
+                lvl = int(self.lineEdit_trigger.text())
+            except Exception:
+                lvl = 0
             save: bool = False
             if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение")
@@ -301,15 +320,11 @@ class RunMeasWidget(QtWidgets.QDialog):
                 # result_ch1_int = np.random.randint(np.random.randint(50, 200)+1, size=100).tolist()
                 result_ch0_int: list[int] = await self.parser.mpp_pars_16b(result_ch0)
                 result_ch1_int: list[int] = await self.parser.mpp_pars_16b(result_ch1)
-                # Сохранять только те данные которые выше порога
+                # Сохранять только те данные, которые выше порога (ui trigger)
                 if self.flags[self.wr_log_flag]:
-                    if (
-                        max(result_ch0_int) > np.mean(result_ch0_int) * 3
-                        or max(result_ch1_int) > np.mean(result_ch1_int) * 3
-                    ):
-                        save = True
-                    else:
-                        save = False
+                    peak0 = max(result_ch0_int) if result_ch0_int else 0
+                    peak1 = max(result_ch1_int) if result_ch1_int else 0
+                    save = (peak0 > lvl) or (peak1 > lvl)
                 else:
                     save = False
                 try:
@@ -459,6 +474,17 @@ class RunMeasWidget(QtWidgets.QDialog):
             except asyncio.exceptions.CancelledError as e:
                 self.logger.error(str(e))
                 return None
+
+    def _on_trigger_changed(self):
+        """Emit threshold value from UI to plotters for save filtering."""
+        try:
+            val = int(self.lineEdit_trigger.text())
+        except Exception:
+            val = 0
+        try:
+            self.save_threshold_event.emit(val)
+        except Exception:
+            ...
 
     def enable_trig_meas_handler(self, state) -> None:
         if state:

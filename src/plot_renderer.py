@@ -41,6 +41,8 @@ class GraphPen():
         self.name_frame: str = name
         self.plot_item: pg.PlotDataItem # для PlotDataItem
         self.logger = get_logger(__name__)
+        # Threshold for selective saving (None disables filtering)
+        self._save_threshold: int | None = None
 
         # if __name__ != "__main__":
         #     self.logger = args[0]
@@ -63,9 +65,24 @@ class GraphPen():
                 self.plot_item.setData(self.plot_item)
             if save_log:
                 if path_to_save and name_file_save_data and name_data:
-                    write_to_hdf5_file([x, y], self.name_frame, path_to_save, 
-                                name_file_hdf5=name_file_save_data, 
-                                name_data=name_data)
+                    # Apply threshold filter for saving if configured
+                    if self._save_threshold is not None:
+                        xf = []
+                        yf = []
+                        for xi, yi in zip(x, y):
+                            if yi is not None and yi > self._save_threshold:
+                                xf.append(xi)
+                                yf.append(yi)
+                        # Skip saving if nothing passes the threshold
+                        if len(yf) == 0:
+                            return x, y
+                        write_to_hdf5_file([xf, yf], self.name_frame, path_to_save,
+                                           name_file_hdf5=name_file_save_data,
+                                           name_data=name_data)
+                    else:
+                        write_to_hdf5_file([x, y], self.name_frame, path_to_save, 
+                                    name_file_hdf5=name_file_save_data, 
+                                    name_data=name_data)
                 elif path_to_save == None:
                     raise ValueError("Не передана переменная в draw_graph: path_to_save == None")
                 elif name_file_save_data == None:
@@ -86,6 +103,15 @@ class GraphPen():
             # self.delete_big_bytes(value)
             # y.append(value)
         return x, y
+
+    def set_save_threshold(self, value: int | None):
+        """Set amplitude threshold for selective saving.
+        None disables threshold filtering.
+        """
+        try:
+            self._save_threshold = None if value is None else int(value)
+        except Exception:
+            self._save_threshold = None
 
 class HistPen():
     def __init__(self, *args,
@@ -118,6 +144,8 @@ class HistPen():
         # current_datetime = datetime.datetime.now()
         # time: str = current_datetime.strftime("%d-%m-%Y_%H")[:23]
         # self.path_to_save: Path = self.parent_path / time
+        # Threshold for selective saving (applies to raw values before binning when possible)
+        self._save_threshold: int | None = None
 
     def hist_clear(self):
         if isinstance(self.accum_data, list):
@@ -200,10 +228,11 @@ class HistPen():
                     raise ValueError("data_tohist == [], нет данных для отрисовки гистограммы")
             else:
                 data_tohist = [max(data)]
-                if isinstance(self.accum_data, list):
-                    self.accum_data.extend(data_tohist)
-                bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
-                y, x = np.histogram(self.accum_data, bins)
+            if isinstance(self.accum_data, list):
+                self.accum_data.extend(data_tohist)
+            bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
+            # Build histogram for display using all accumulated values
+            y, x = np.histogram(self.accum_data, bins)
         else:
             bin_count = len(data)
             bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
@@ -231,9 +260,31 @@ class HistPen():
         if save_log:
             if path_to_save and name_file_save_data and name_data:
                 self.path_to_save: Path = path_to_save
-                write_to_hdf5_file([x[:-1], y], self.name_frame, self.path_to_save, 
-                            name_file_hdf5=name_file_save_data, 
-                            name_data=name_data)
+                # Apply threshold filtering for saving
+                if not data_is_hist and self._save_threshold is not None:
+                    # Filter accumulated raw values by threshold and compute histogram for saving
+                    acc = np.asarray(self.accum_data)
+                    acc = acc[acc > self._save_threshold]
+                    if acc.size == 0:
+                        return
+                    y_save, x_save = np.histogram(acc, bins)
+                    write_to_hdf5_file([x_save[:-1], y_save], self.name_frame, self.path_to_save,
+                                       name_file_hdf5=name_file_save_data,
+                                       name_data=name_data)
+                elif data_is_hist and self._save_threshold is not None:
+                    # Threshold applies to bin counts in this mode; skip bins <= threshold
+                    xi = np.asarray(x[:-1])
+                    yi = np.asarray(y)
+                    mask = yi > self._save_threshold
+                    if not mask.any():
+                        return
+                    write_to_hdf5_file([xi[mask], yi[mask]], self.name_frame, self.path_to_save,
+                                       name_file_hdf5=name_file_save_data,
+                                       name_data=name_data)
+                else:
+                    write_to_hdf5_file([x[:-1], y], self.name_frame, self.path_to_save, 
+                                name_file_hdf5=name_file_save_data, 
+                                name_data=name_data)
             elif path_to_save == None:
                 raise ValueError("Не передана переменная в draw_hist: path_to_save == None")
             elif name_file_save_data == None:
@@ -241,5 +292,13 @@ class HistPen():
             elif name_data == None:
                 raise ValueError("Не передана переменная в draw_hist: name_data == None")
 
+    def set_save_threshold(self, value: int | None):
+        """Set amplitude threshold for selective saving.
+        None disables threshold filtering.
+        """
+        try:
+            self._save_threshold = None if value is None else int(value)
+        except Exception:
+            self._save_threshold = None
 
 

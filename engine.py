@@ -57,7 +57,7 @@
 # # from firstblood.all import *
 
 
-# class Engine(QtWidgets.QMainWindow, QThread):
+# class MainUIRenderer(QtWidgets.QMainWindow, QThread):
 #     my_button: QtWidgets.QPushButton
 #     vLayout_gist_EdE: QtWidgets.QVBoxLayout
 #     vLayout_gist_pips: QtWidgets.QVBoxLayout
@@ -1248,7 +1248,7 @@
 #         При успешном подключении ЦМ выдаст структуру ddii_mpp_data.
 
 #         Parameters:
-#         self (экземпляр Engine): текущий экземпляр класса Engine.
+#         self (экземпляр MainUIRenderer): текущий экземпляр класса MainUIRenderer.
 #         id (int): идентификатор подключаемого MPP.
 #         baudrate (int): Скорость передачи данных для последовательной связи.
 #         f_comand (int): команда для записи в Modbus.
@@ -1362,7 +1362,7 @@
 #             A list containing the waveform data.
 #         """
 #         initial_reg = 0xA000
-#         waveform_list = self.readWaveform_engine(initial_reg)
+#         waveform_list = self.readWaveform_MainUIRenderer(initial_reg)
 #         # self.tmp_bufer = waveform_list
 #         return waveform_list
 
@@ -1376,7 +1376,7 @@
 #             A list containing the waveform data.
 #         """
 #         initial_reg = 0xA200
-#         waveform_list = self.readWaveform_engine(initial_reg)
+#         waveform_list = self.readWaveform_MainUIRenderer(initial_reg)
 #         # self.tmp_bufer = waveform_list
 #         return waveform_list
 
@@ -1387,7 +1387,7 @@
 #         self.client.write_register(self.REG_COMAND, 0x0051, self.mpp_id)
 #         log_s(self.send_handler.mess)
 
-#     def readWaveform_engine(self, initial_reg: int):
+#     def readWaveform_MainUIRenderer(self, initial_reg: int):
 #         """
 #         Начать змерение.
 #         Считывание waveform порциями по N байт из памяти МПП. Сначала формируется запрос к МПП на считывание:

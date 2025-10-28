@@ -1,6 +1,6 @@
 from PyQt6 import QtWidgets, QtCore
 import sys
-from modules.Main.ui_renderer import Engine
+from modules.Main.main_ui_renderer import MainUIRenderer
 import qtmodern.styles
 from qtmodern.windows import ModernWindow
 import qasync
@@ -10,7 +10,7 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
     # light(app)
-    w: Engine = Engine()
+    w: MainUIRenderer = MainUIRenderer()
     # w.show()
     mw: ModernWindow = ModernWindow(w)
     mw.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)  # fix flickering on resize window
@@ -26,9 +26,3 @@ if __name__ == "__main__":
             event_loop.run_until_complete(app_close_event.wait())
         except asyncio.CancelledError:
             ...
-
-
-
-
-
-

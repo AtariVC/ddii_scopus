@@ -14,7 +14,7 @@ from qtpy.uic import loadUi
 # /src
 src_path = Path(__file__).resolve().parent.parent.parent
 modules_path = Path(__file__).resolve().parent.parent
-widgets_path = Path(__file__).resolve().parent.joinpath("Engine/widgets")
+widgets_path = Path(__file__).resolve().parent.joinpath("MainUIRenderer/widgets")
 # Добавляем папку src в sys.path
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))

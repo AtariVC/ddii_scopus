@@ -73,7 +73,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         При успешном подключении ЦМ выдаст структуру ddii_mpp_data.
 
         Parameters:
-        self (экземпляр Engine): текущий экземпляр класса Engine.
+        self (экземпляр MainUIRenderer): текущий экземпляр класса MainUIRenderer.
         id (int): ID MPP.
         baudrate (int): Скорость передачи данных для последовательной связи.
         f_comand (int): команда для записи в Modbus.

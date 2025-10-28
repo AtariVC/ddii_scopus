@@ -41,20 +41,20 @@ from Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.craft_custom_widget import add_serial_widget
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.log_config import log_init, log_s  # noqa: E402
-from src.main_window_maker import clear_left_widget, create_split_widget, create_tab_widget_items
+from src.main_window_maker import create_split_widget, create_tab_widget_items, replace_left_widget
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
 
 
-class Engine(QtWidgets.QMainWindow):
+class MainUIRenderer(QtWidgets.QMainWindow):
     gridLayout_main_split: QtWidgets.QGridLayout
 
     coroutine_get_client_finished = QtCore.pyqtSignal()
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path(__file__).parent.joinpath("ui_renderer.ui"), self)
+        loadUi(Path(__file__).parent.joinpath("main_ui_renderer.ui"), self)
         self.resize(1300, 800)
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
@@ -83,10 +83,11 @@ class Engine(QtWidgets.QMainWindow):
     def on_tab_widget_handler(self, index: int):
         tab_text: str = self.tab_widget.tabText(index)
         if tab_text == "Вьюер":
-            clear_left_widget(self.w_graph_widget, self.graph_viewer_widget)
-
-        if tab_text == "Осциллограф":
-            clear_left_widget(self.graph_viewer_widget, self.w_graph_widget)
+            replace_left_widget(self.w_graph_widget, self.graph_viewer_widget)
+        elif tab_text == "Осциллограф":
+            replace_left_widget(self.graph_viewer_widget, self.w_graph_widget)
+        elif tab_text == "Парсер":
+            replace_left_widget(self.graph_viewer_widget, self.w_graph_widget)
 
         if tab_text == "Вьюер":
             self.current_left_widget = self.graph_viewer_widget
@@ -117,7 +118,7 @@ class Engine(QtWidgets.QMainWindow):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
-    w: Engine = Engine()
+    w: MainUIRenderer = MainUIRenderer()
     mw: ModernWindow = ModernWindow(w)
     mw.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)  # fix flickering on resize window
     event_loop = qasync.QEventLoop(app)

@@ -50,7 +50,7 @@
 # # logger = log_config.log_init()
 
 # class Emulator(QtWidgets.QMainWindow, QThread):
-#     # Иницилизация всех используемых виджетов происходит в engine.py
+#     # Иницилизация всех используемых виджетов происходит в MainUIRenderer.py
 #     # lineEdit_emulation_proton: QtWidgets.QLineEdit
 #     # lineEdit_emulation_electron: QtWidgets.QLineEdit
 #     # pushButton_open_electron_dataframe: QtWidgets.QPushButton
@@ -97,9 +97,9 @@
 #         self.initThreshold()
 #         # инициализация обработчиков
 #         parent.pushButton_start_emulation.clicked.connect(self.pushButton_start_emulation_clicked)
-#         parent.pushButton_open_proton_dataframe.clicked.connect(lambda: 
+#         parent.pushButton_open_proton_dataframe.clicked.connect(lambda:
 #                                                                 self.pushButton_open_proton_dataframe_clicked(parent))
-#         parent.pushButton_open_electron_dataframe.clicked.connect(lambda: 
+#         parent.pushButton_open_electron_dataframe.clicked.connect(lambda:
 #                                                                 self.pushButton_open_electron_dataframe_clicked(parent))
 #         parent.pushButton_unit_save.clicked.connect(self.saveThresholdToConfigFile)
 #         parent.checkBox_ampl_pips1.stateChanged.connect(self.checkBox_ampl_pips1_conect)
@@ -124,7 +124,7 @@
 #         if self.parent.radioButton_lsb.isChecked():
 #             k_pips, k_sipm = self.get_unit_label_for_transfer(self.LSB)
 #             self.transfer_threhold(k_pips, k_sipm, ndigits = 3)
-    
+
 #     def lineEdit_pips1_amplif_textChanged(self):
 #         if self.parent.checkBox_ampl_pips1.isChecked():
 #             amp_pips1 = float(self.parent.lineEdit_pips1_amplif.text())
@@ -148,7 +148,7 @@
 #         if self.parent.radioButton_lsb.isChecked():
 #             k_pips, k_sipm = self.get_unit_label_for_transfer(self.LSB)
 #             self.transfer_threhold(k_pips, k_sipm, ndigits = 3, amp = [1, amp_sipm, 1, 1, 1])
-    
+
 #     def lineEdit_pips2_amplif_textChanged(self):
 #         if self.parent.checkBox_ampl_pips1.isChecked():
 #             amp_pips2 = float(self.parent.lineEdit_pips2_amplif.text())
@@ -172,7 +172,7 @@
 #         if self.parent.radioButton_lsb.isChecked():
 #             k_pips, k_sipm = self.get_unit_label_for_transfer(self.LSB)
 #             self.transfer_threhold(k_pips, k_sipm, ndigits = 3, amp = [1, 1, 1, amp_pips3, 1])
-    
+
 #     def lineEdit_pips4_amplif_textChanged(self):
 #         if self.parent.checkBox_ampl_pips1.isChecked():
 #             amp_pips3 = float(self.parent.lineEdit_pips4_amplif.text())
@@ -184,7 +184,7 @@
 #         if self.parent.radioButton_lsb.isChecked():
 #             k_pips, k_sipm = self.get_unit_label_for_transfer(self.LSB)
 #             self.transfer_threhold(k_pips, k_sipm, ndigits = 3, amp = [1, 1, 1, 1, amp_pips3])
-    
+
 #     ############ handler button ##############
 #     def pushButton_reload_clicked(self):
 #         self.initThreshold()
@@ -197,7 +197,7 @@
 #         if state == 0:
 #             self.flag_pushButton_em_ok_clicked = 1
 #             self.checkBox_ampl_pips1_conect(state)
-        
+
 
 #     def radioButton_toggled(self, unit) -> None:
 #         if self.parent.checkBox_ampl_pips1.isChecked():
@@ -227,7 +227,7 @@
 #         Обработчик кнопки запуска эмуляции
 #         """
 #         self.start_emulation(write_gist = 0)
-    
+
 #     def pushButton_open_proton_dataframe_clicked(self, parent):
 #         """
 #         Обработчик кнопки открытия файла с данными энерговыделения протонов в детекторах
@@ -243,8 +243,8 @@
 #             self.parent.pushButton_start_emulation.setEnabled(True)
 #         except FileNotFoundError:
 #             parent.logger.error("Файл не найден")
-            
-    
+
+
 #     def pushButton_open_electron_dataframe_clicked(self, parent):
 #         """
 #         Обработчик кнопки открытия файла с данными энерговыделения электронов в детекторах
@@ -276,7 +276,7 @@
 #         """
 #         Открывает файл с потоками протонов, берет рандомное значение поглощения в детекторах
 #         pips и sipm и суммирует, затем все эти значения добавляются на график гистограммы.
-        
+
 #         Затем вызывается функция обработки событий (алгоритм мпп).
 
 #         Все значения записываются в dataframe:
@@ -310,7 +310,7 @@
 #         if write_gist == 1:
 #             # TODO: отрисовываем гистограммы
 #             pass
-    
+
 #     def thread_emulation_mpp(self) -> None:
 #         try:
 #             n_particle = int(self.parent.lineEdit_amout_particle.text())
@@ -321,7 +321,7 @@
 #         self.parent.logger.debug("Расчет начался")
 #         for i in range(int(n_particle)):
 #             self.queue.put(i)
-#             if len(self.path_electron_data) and len(self.path_proton_data): 
+#             if len(self.path_electron_data) and len(self.path_proton_data):
 #                 if i % 2 == 0:
 #                     dict_electron_real: dict = self.get_value_particle(self.ELECTRON)
 #                     mpp_type_particle: dict = self.mpp_define_type_particle(dict_electron_real)
@@ -339,7 +339,7 @@
 #                     dict_proton_real: dict = self.get_value_particle(self.PROTON)
 #                     mpp_type_particle: dict = self.mpp_define_type_particle(dict_proton_real)
 #                     self.put_data_to_dataframes(dict_proton_real, mpp_type_particle)
-        
+
 #         self.parent.logger.log("EMULATOR", "\n" + tabulate(self.dataframe_particles.to_dict('series'), headers='keys', tablefmt="grid"))
 #         self.statistics_data()
 #         self.parent.logger.log("EMULATOR", "\n" + tabulate(self.dataframe_particles_error.to_dict('series'), headers='keys', tablefmt="grid"))
@@ -385,12 +385,11 @@
 #         df.to_csv(file_path_csv, index=False)
 
 
-
 #     def put_data_to_dataframes(self, real_particle: dict, mpp_type_particle: dict):
 #         """
 #         Заполняем все dataframe
 #         Args:
-#             real_particle (dict): Частица из csv 
+#             real_particle (dict): Частица из csv
 #             mpp_type_particle (list): Тип частицы по определенное мпп
 #         """
 #         E_th: float = float(self.parent.lineEdit_th_pips1_0_1.text())
@@ -418,7 +417,7 @@
 #             self.parent.logger.debug("KeyError")
 #         row_dataframe_particles = [v for k, v in dict_row.items()]
 #         self.dataframe_particles.loc[len(self.dataframe_particles)] = row_dataframe_particles
-        
+
 
 #     def statistics_data(self):
 #         E_e = [0.1, 0.5, 0.8, 1.6, 3, 5]
@@ -440,7 +439,7 @@
 #                 filtered_df = self.dataframe_particles[(self.dataframe_particles['E_prim'] >= E) & \
 #                                                     (self.dataframe_particles['Type'] == "electron")]
 #                 N_e_real.append(len(filtered_df))
-                
+
 #             if i < len(E_e)-1:
 #                 filtered_df = self.dataframe_particles[(self.dataframe_particles['Status'] == "None") & \
 #                                                         (E <= self.dataframe_particles["E_prim"]) & \
@@ -452,7 +451,7 @@
 #                                                         (self.dataframe_particles['E_prim'] >= E) & \
 #                                                         (self.dataframe_particles['Type'] == "electron")]
 #                 N_e_none.append(len(filtered_df))
-                
+
 #             if i < len(E_e)-1:
 #                 filtered_df = self.dataframe_particles[(E <= self.dataframe_particles["Sum E(pips + sipm)"]) & \
 #                                                         (self.dataframe_particles["Sum E(pips + sipm)"] <= E_e[i+1]) & \
@@ -489,7 +488,7 @@
 #         except ValueError:
 #             self.parent.logger.debug("Нет электронов")
 
-        
+
 #         E_p = [10, 30, 60, 100, 200, 500]
 #         N_p_real = []
 #         N_p_mpp = []
@@ -499,7 +498,7 @@
 #             filtered_df = self.dataframe_particles[(self.dataframe_particles['E_mpp_algorithm, E > x'] == E) & \
 #                                                         (self.dataframe_particles['Type_mpp_algorithm'] == "proton")]
 #             N_p_mpp.append(len(filtered_df))
-            
+
 #             if i < len(E_p)-1:
 #                 filtered_df = self.dataframe_particles[(E <= self.dataframe_particles['E_prim']) & \
 #                                                         (self.dataframe_particles['E_prim'] <=  E_p[i+1]) & \
@@ -509,7 +508,7 @@
 #                 filtered_df = self.dataframe_particles[(self.dataframe_particles['E_prim'] >= E) & \
 #                                                         (self.dataframe_particles['Type'] == "proton")]
 #                 N_p_real.append(len(filtered_df))
-                
+
 #             if i < len(E_p)-1:
 #                 filtered_df = self.dataframe_particles[(self.dataframe_particles['Status'] == "None") & \
 #                                                         (E <= self.dataframe_particles['E_prim']) & \
@@ -521,7 +520,7 @@
 #                                                         (self.dataframe_particles['E_prim'] >= E) & \
 #                                                         (self.dataframe_particles['Type'] == "proton")]
 #                 N_p_none.append(len(filtered_df))
-                
+
 #             if i < len(E_p)-1:
 #                 filtered_df = self.dataframe_particles[(E <= self.dataframe_particles['E_prim']) & \
 #                                                         (self.dataframe_particles['E_prim'] < E_p[i+1]) & \
@@ -533,7 +532,7 @@
 #                                                         (self.dataframe_particles['Status'] == "ERROR") & \
 #                                                         (self.dataframe_particles['Type'] == "proton")]
 #                 N_p_error.append(len(filtered_df))
-        
+
 #         filtered_df = self.dataframe_particles[(self.dataframe_particles['E_mpp_algorithm, E > x'] == -1) & \
 #                                                     (self.dataframe_particles['Status'] == "ERROR") & \
 #                                                     (self.dataframe_particles['Type'] == "proton")]
@@ -556,9 +555,6 @@
 #             self.parent.logger.debug("Нет протонов")
 
 #         self.dataframe_particles_error = self.dataframe_particles[self.dataframe_particles['Status'] == "ERROR"]
-
-
-
 
 
 #     def get_status_emulator(self, real_particle: dict, mpp_type_particle: dict) -> str:
@@ -617,32 +613,32 @@
 #                 if E_500 <= real_particle["E_prim"]:
 #                     if mpp_type_particle["E"] == E_500:
 #                         return "OK"
-#                     else: 
+#                     else:
 #                         return "ERROR"
 #                 if E_200 <=  mpp_type_particle["E"] < E_500:
 #                     if mpp_type_particle["E"] == E_200:
 #                         return "OK"
-#                     else: 
+#                     else:
 #                         return "ERROR"
 #                 if E_100 <=  mpp_type_particle["E"] < E_200:
 #                     if mpp_type_particle["E"] == E_100:
 #                         return "OK"
-#                     else: 
+#                     else:
 #                         return "ERROR"
 #                 if E_60 <=  mpp_type_particle["E"] < E_100:
 #                     if mpp_type_particle["E"] == E_60:
 #                         return "OK"
-#                     else: 
+#                     else:
 #                         return "ERROR"
 #                 if E_30 <=  mpp_type_particle["E"] < E_60:
 #                     if mpp_type_particle["E"] == E_30:
 #                         return "OK"
-#                     else: 
+#                     else:
 #                         return "ERROR"
 #                 if E_10 <=  mpp_type_particle["E"] < E_30:
 #                     if mpp_type_particle["E"] == E_10:
 #                         return "OK"
-#                     else: 
+#                     else:
 #                         return "ERROR"
 #                 else:
 #                     return "ERROR"
@@ -654,7 +650,7 @@
 
 #     def mpp_define_type_particle(self, particle: dict) -> dict:
 #         """
-#         Алгоритм определения типа частицы. Алгоритм предоставил Поросев Вячеслав: 
+#         Алгоритм определения типа частицы. Алгоритм предоставил Поросев Вячеслав:
 #         v.porosev@nsu.ru
 #         Если алгоритм не сработал возвращает {"Type": None, "E": None}
 #         Args:
@@ -738,7 +734,7 @@
 #         except:
 #             # Если пришел пустой particle
 #             self.parent.logger.debug("Error")
-#             return {} 
+#             return {}
 #         # elif E_th >= particle["E_pips"]:
 #         #     return {"Type": None, "E": 0.1}
 #         # return {"Type": None, "E": None}
@@ -747,14 +743,14 @@
 #     def get_value_particle(self, type_particle) -> dict:
 #         """
 #         Получает значение энергии частицы и поглощений
-        
+
 #         Returns: dict{E_prim, E_pips, E_sipm, E_pips2, E_pips3, E_pips4, Cherenkov}
 #         """
 #         dict_particle = {}
 #         match type_particle:
 #             case self.ELECTRON:
-#                 try: 
-#                     with open(self.path_electron_data) as f: 
+#                 try:
+#                     with open(self.path_electron_data) as f:
 #                         line = f.readlines()[random.randint(0, self.amount_electrons_in_file)]
 #                         # self.parent.logger.debug(random.randint(0, self.amount_electrons_in_file))
 #                         list_value_electrons_tmp: list[float] = list(map(float, re.findall(r'(?:\d+\.\d+|\d+)',line)))
@@ -776,8 +772,8 @@
 #                     self.parent.logger.error("Файл не найден или не тот файл")
 
 #             case self.PROTON:
-#                 try: 
-#                     with open(self.path_proton_data) as f: 
+#                 try:
+#                     with open(self.path_proton_data) as f:
 #                         line = f.readlines()[random.randint(0, self.amount_protons_in_file)]
 #                         # self.parent.logger.debug(random.randint(0, self.amount_protons_in_file))
 #                         list_value_protons_tmp: list[float] = list(map(float, re.findall(r'(?:\d+\.\d+|\d+)',line)))
@@ -797,7 +793,7 @@
 #                     return dict_particle
 #                 except:
 #                     self.parent.logger.error("Файл не найден или не тот файл")
-        
+
 #         return {}
 
 #     def det_error_mpp_algoritm(self):
@@ -812,12 +808,12 @@
 #         # label = self.parent.label_unit_1.text()
 #         try:
 #             k_mv_lsb = float(self.parent.lineEdit_mV_to_lsb.text())
-            
+
 #         except ValueError:
 #             self.parent.logger.debug("k_mv_lsb: Ошибка ввода данных, не число")
 #         try:
 #             k_pips = float(self.parent.lineEdit_pips1_MeV_to_mV.text()) # mV/MeV
-            
+
 #         except ValueError:
 #             self.parent.logger.debug("k_pips: Ошибка ввода данных, не число")
 #         try:
@@ -856,7 +852,7 @@
 #                 self.ampl_pips4 = float(self.parent.lineEdit_pips4_amplif.text())
 #             except ValueError:
 #                 self.parent.logger.debug("ampl_pips4: Ошибка ввода данных, не число")
-            
+
 #             amplif = [self.ampl_pips1, self.ampl_sipm, self.ampl_pips2, self.ampl_pips3, self.ampl_pips4]
 #             if self.parent.radioButton_mV.isChecked():
 #                 k_pips, k_sipm = self.get_unit_label_for_transfer(self.MV)
@@ -889,7 +885,7 @@
 #         # self.parent.radioButton_mV.setChecked(int(self.config.get("Emulator", "radiobutton_mv")))
 
 #         self.parent.lineEdit_th_pips1_0_1.setText(self.config.get("Emulator", "lineedit_th_pips1_0_1"))
-        
+
 #         self.parent.lineEdit_th_e_0_5.setText(self.config.get("Emulator", "lineedit_th_e_0_5"))
 #         self.parent.lineEdit_th_e_0_8.setText(self.config.get("Emulator", "lineedit_th_e_0_8"))
 #         self.parent.lineEdit_th_e_1_6.setText(self.config.get("Emulator", "lineedit_th_e_1_6"))
@@ -973,7 +969,7 @@
 #         with open(path, "w") as config_file:
 #             self.config.write(config_file)
 #         config_file.close()
-    
+
 #     def saveThresholdToConfigFile(self):
 #         """
 #         Save a config file
@@ -986,7 +982,7 @@
 #         # self.config.set("Emulator", "radiobutton_mev", str(int(self.parent.radioButton_MeV.isChecked())))
 #         # self.config.set("Emulator", "radiobutton_lsb", str(int(self.parent.radioButton_lsb.isChecked())))
 #         # self.config.set("Emulator", "radiobutton_mv", str(int(self.parent.radioButton_mV.isChecked())))
-        
+
 #         self.config.set("Emulator", "lineedit_mv_to_lsb", self.parent.lineEdit_mV_to_lsb.text())
 
 #         self.config.set("Emulator", "lineedit_pips1_mev_to_mv", self.parent.lineEdit_pips1_MeV_to_mV.text())
@@ -1023,7 +1019,7 @@
 
 
 #     def dataframe_particles_init(self):
-#         columns_particle = ["Type", "E_prim", "E_pips", 
+#         columns_particle = ["Type", "E_prim", "E_pips",
 #                 "E_sipm", "Sum E(pips + sipm)", "E_pips2", "E_pips3", "E_pips4", "N_ch",
 #                 "Type_mpp_algorithm", "E_mpp_algorithm, E > x", "Status"]
 #         self.dataframe_particles = pd.DataFrame([], columns = columns_particle)
@@ -1040,12 +1036,11 @@
 #         self.dataframe_electron = pd.DataFrame([], columns = columns_electron, index=None)
 #         self.dataframe_electron["Электроны"] = type_electron
 #         # self.parent.logger.debug("\n" + tabulate(self.dataframe_electron.to_dict('series'), headers='keys', tablefmt="grid"))
-        
-#         # columns_particle_error = ["Type", "E_prim", "E_pips", 
+
+#         # columns_particle_error = ["Type", "E_prim", "E_pips",
 #         #         "E_sipm1", "E_pips2", "E_pips3", "E_pips4", "Sum E(pips + sipm)", "Type_mpp_algorithm", "Status"]
 #         # self.dataframe_particles_error = pd.DataFrame([], columns = columns_particle_error, index=None)
 #         # self.parent.logger.debug("\n" + tabulate(self.dataframe_particles_error.to_dict('series'), headers='keys', tablefmt="grid"))
-
 
 
 #     def transfer_threhold(self, k_pips, k_sipm, ndigits, amp = [1, 1, 1, 1, 1]):
@@ -1058,7 +1053,7 @@
 #         """
 #         form = "{:." + str(ndigits) + "f}"
 #         # if self.parent.checkBox_ampl_pips1.isChecked():
-        
+
 #         self.parent.lineEdit_th_pips1_0_1.setText(form.format(self.th_e_0_1  * k_pips * amp[0]).rstrip('0').rstrip('.'))
 #         self.parent.lineEdit_th_e_0_5.setText    (form.format(self.th_e_0_5  * k_pips * amp[0]).rstrip('0').rstrip('.'))
 #         self.parent.lineEdit_th_e_0_8.setText    (form.format(self.th_e_0_8  * k_pips * amp[0]).rstrip('0').rstrip('.'))
@@ -1102,7 +1097,7 @@
 #             self.parent.label_unit_10.setText(unit)
 #             self.parent.label_unit_11.setText(unit)
 #             self.parent.label_unit_12.setText(unit)
-        
+
 #     def browse_file(self):
 #         """
 #         Открывает диалоговое окно для выбора файла
@@ -1117,4 +1112,3 @@
 #         while not self.queue.empty():
 #             n = self.queue.get() + 1
 #             self.parent.label_state_2.setText(f"State: {n}")
-            

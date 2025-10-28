@@ -46,7 +46,7 @@ else:
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-# from modules.Engine.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
+# from modules.MainUIRenderer.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
 # from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 # from src.async_task_manager import AsyncTaskManager  # noqa: E402
 # from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
@@ -77,9 +77,7 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         self.fs_model.setIconProvider(_CustomIconProvider(base_path=Path(__file__).resolve().parents[4]))
         self.fs_model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
         self.current_model = None
-        self.current_folder = str(
-            Path(__file__).parents[4].joinpath("log/scope")
-        )  # Начинаем с домашней директории
+        self.current_folder = str(Path(__file__).parents[4].joinpath("log/scope"))  # Начинаем с домашней директории
         self.load_folder(self.current_folder)
         self.init_widget()
 
@@ -97,9 +95,22 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         # Rename buttons to reflect history navigation
 
     def navigate_to_path(self):
-        path = self.lineEdit_path_edit.text()
-        if os.path.exists(path):
+        path = self.lineEdit_path_edit.text().strip()
+        if not path:
+            QMessageBox.warning(self, "Path Error", "Path is empty")
+            return
+
+        if os.path.isdir(path):
             self.load_folder(path)
+            return
+
+        if os.path.isfile(path) and (path.lower().endswith(".hdf5") or path.lower().endswith(".h5")):
+            # Emit event to handle HDF5 file open externally
+            self.double_clicked_event.emit(path)
+            return
+
+        if os.path.exists(path):
+            QMessageBox.information(self, "Unsupported Path", "Please select a folder or an HDF5 file (*.h5, *.hdf5)")
         else:
             QMessageBox.warning(self, "Path Error", "The specified path does not exist")
 
@@ -108,7 +119,7 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         if self.history_index > 0:
             self.history_index -= 1
             self.load_folder(self.history[self.history_index], add_to_history=False)
-    
+
     def navigate_up(self):
         # Forward in history
         if self.history_index < len(self.history) - 1:
@@ -116,18 +127,18 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
             self.load_folder(self.history[self.history_index], add_to_history=False)
 
     def explorer(self):
-        # directory_path = Path(__file__).parents[4].joinpath("./log")
-        # win
-        if platform.system() == "Windows": 
-            os.system('explorer "{}"'.format(self.current_folder))
-        if platform.system() == "Linux": 
-            os.system('explorer "{}"'.format(self.current_folder))
-        if platform.system() == "Darwin": 
-            os.system('explorer "{}"'.format(self.current_folder))
-        # # linux
-        # os.system('xdg-open "{}"'.format(directory_path))
-        # # macOS
-        # os.system('open "{}"'.format(directory_path))
+        # Use native file dialog on all OS to choose HDF5 file
+        start_dir = self.current_folder if os.path.isdir(self.current_folder) else str(Path(self.current_folder).parent)
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select HDF5 file",
+            start_dir,
+            "HDF5 Files (*.h5 *.hdf5);;All Files (*)",
+        )
+        if file_path:
+            self.lineEdit_path_edit.setText(file_path)
+            # Navigate to open the selected file
+            self.navigate_to_path()
 
     def on_item_double_clicked(self, index):
         if not index.isValid():
