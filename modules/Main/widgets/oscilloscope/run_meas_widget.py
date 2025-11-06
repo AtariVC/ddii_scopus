@@ -324,7 +324,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 if self.flags[self.wr_log_flag]:
                     peak0 = max(result_ch0_int) if result_ch0_int else 0
                     peak1 = max(result_ch1_int) if result_ch1_int else 0
-                    save = (peak0 > lvl) or (peak1 > lvl)
+                    save = (peak0&0xFFF > lvl) or (peak1&0xFFF > 7)
                 else:
                     save = False
                 try:

@@ -66,23 +66,23 @@ class GraphPen():
             if save_log:
                 if path_to_save and name_file_save_data and name_data:
                     # Apply threshold filter for saving if configured
-                    if self._save_threshold is not None:
-                        xf = []
-                        yf = []
-                        for xi, yi in zip(x, y):
-                            if yi is not None and yi > self._save_threshold:
-                                xf.append(xi)
-                                yf.append(yi)
-                        # Skip saving if nothing passes the threshold
-                        if len(yf) == 0:
-                            return x, y
-                        write_to_hdf5_file([xf, yf], self.name_frame, path_to_save,
-                                           name_file_hdf5=name_file_save_data,
-                                           name_data=name_data)
-                    else:
-                        write_to_hdf5_file([x, y], self.name_frame, path_to_save, 
-                                    name_file_hdf5=name_file_save_data, 
-                                    name_data=name_data)
+                    # if self._save_threshold is not None:
+                    #     xf = []
+                    #     yf = []
+                    #     for xi, yi in zip(x, y):
+                    #         if yi is not None and yi > self._save_threshold:
+                    #             xf.append(xi)
+                    #             yf.append(yi)
+                    #     # Skip saving if nothing passes the threshold
+                    #     if len(yf) == 0:
+                    #         return x, y
+                        # write_to_hdf5_file([xf, yf], self.name_frame, path_to_save,
+                        #                    name_file_hdf5=name_file_save_data,
+                        #                    name_data=name_data)
+                    # else:
+                    write_to_hdf5_file([x, y], self.name_frame, path_to_save, 
+                                name_file_hdf5=name_file_save_data, 
+                                name_data=name_data)
                 elif path_to_save == None:
                     raise ValueError("Не передана переменная в draw_graph: path_to_save == None")
                 elif name_file_save_data == None:
@@ -99,7 +99,7 @@ class GraphPen():
         x, y = [], []
         for index, value in enumerate(data):
             x.append(index)
-            y.append(0 if value&0xFFF > 4000 else value&0xFFF)
+            y.append(0 if ((value&0xFFF > 3800) or (250 <= value&0xFFF <= 255)) else value&0xFFF)
             # self.delete_big_bytes(value)
             # y.append(value)
         return x, y
@@ -261,12 +261,12 @@ class HistPen():
             if path_to_save and name_file_save_data and name_data:
                 self.path_to_save: Path = path_to_save
                 # Apply threshold filtering for saving
-                if not data_is_hist and self._save_threshold is not None:
+                if not data_is_hist:
                     # Filter accumulated raw values by threshold and compute histogram for saving
                     acc = np.asarray(self.accum_data)
-                    acc = acc[acc > self._save_threshold]
-                    if acc.size == 0:
-                        return
+                    # acc = acc[acc > self._save_threshold]
+                    # if acc.size == 0:
+                    #     return
                     y_save, x_save = np.histogram(acc, bins)
                     write_to_hdf5_file([x_save[:-1], y_save], self.name_frame, self.path_to_save,
                                        name_file_hdf5=name_file_save_data,

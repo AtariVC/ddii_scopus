@@ -85,11 +85,14 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.dataset_h_sipm = read_hdf5_file(Path(path), self.name_pen_h_sipm)
         self.dataset_h_counter = read_hdf5_file(Path(path), self.name_pen_counter)
         self.amount_measurements = len(self.dataset_pips)
-        self.measure_time_list = list(self.dataset_pips.keys())
-        time_str = self.time_formater(self.measure_time_list[0])
-        self.label_time_data.setText(f"{time_str}")
-        self.horizontalSlider_time_scale.setMaximum(self.amount_measurements)
-        self.label_counter_data.setText(f"{self.horizontalSlider_time_scale.value()}/{self.amount_measurements}")
+        if self.amount_measurements:
+            self.measure_time_list = list(self.dataset_pips.keys())
+            time_str = self.time_formater(self.measure_time_list[0])
+            self.label_time_data.setText(f"{time_str}")
+            self.horizontalSlider_time_scale.setMaximum(self.amount_measurements)
+            self.label_counter_data.setText(f"{self.horizontalSlider_time_scale.value()}/{self.amount_measurements}")
+        else:
+            self.label_time_data.setText(f"Нет данных")
         # Filter state is external; nothing to reset here
 
     def time_formater(self, input_time_str: str) -> str:
