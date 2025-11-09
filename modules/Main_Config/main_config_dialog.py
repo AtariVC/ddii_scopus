@@ -85,7 +85,7 @@ class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
             self.logger = args[0]
             self.w_ser_dialog: SerialConnect = args[1]
             self.task_manager = AsyncTaskManager(self.logger)
-            w_ser_dialog.checkBox_mpp_only.setHidden(True)
+            w_ser_dialog.checkBox_mpp_only.setHidden(False)
         else:
             self.logger = self.parent.logger  # type: ignore
             self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore

@@ -31,7 +31,7 @@ class EnvironmentVar():
 
     REG_MPP_COMMAND                 = 0x0000
     REG_MPP_ISSUE_WAVEFORM          = 0x0009
-    REG_MPP_HH                      = 0x000A
+    REG_MPP_HH                      = 0x000B
     REG_GET_MPP_STRUCT              = 0x0006
     REG_MPP_HIST_32                 = 0x0014
     REG_MPP_HIST_16                 = 0x0020
