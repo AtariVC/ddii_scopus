@@ -38,6 +38,9 @@ from Main.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa:
 from Main.widgets.viewer.graph_viewer_widget import GraphViewerWidget  # noqa: E402
 from Main.widgets.viewer.filter_viewer_widget import FilterViewerWidget  # noqa: E402
 from Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
+from Main.widgets.debug.debug_graph import DebugGraphWidget # noqa: E402
+from Main.widgets.debug.debug_table import DebugTableWidget # noqa: E402
+#############################################
 
 from src.craft_custom_widget import add_serial_widget
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
@@ -60,9 +63,6 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
         self.logger = log_init()
-
-        # self.init_QObjects()
-        # self.config = ConfigSaver()
         self.init_widgets()
 
     def widget_model(self):
@@ -80,21 +80,28 @@ class MainUIRenderer(QtWidgets.QMainWindow):
                 "Фильтр кадров": self.graph_filter_widget,
             },
             "Парсер": {},
+            "Отладка": {
+                "": DebugTableWidget(),
+            },
         }
 
     def on_tab_widget_handler(self, index: int):
         tab_text: str = self.tab_widget.tabText(index)
         if tab_text == "Вьюер":
-            replace_left_widget(self.w_graph_widget, self.graph_viewer_widget)
+            replace_left_widget(self.graph_viewer_widget)
         elif tab_text == "Осциллограф":
-            replace_left_widget(self.graph_viewer_widget, self.w_graph_widget)
+            replace_left_widget(self.w_graph_widget)
         elif tab_text == "Парсер":
-            replace_left_widget(self.graph_viewer_widget, self.w_graph_widget)
+            replace_left_widget(self.w_graph_widget)
+        elif tab_text == "Отладка":
+            replace_left_widget(self.graph_debug_widget)
 
-        if tab_text == "Вьюер":
-            self.current_left_widget = self.graph_viewer_widget
-        elif tab_text == "Осциллограф":
-            self.current_left_widget = self.w_graph_widget
+        # if tab_text == "Вьюер":
+        #     self.current_left_widget = self.graph_viewer_widget
+        # elif tab_text == "Осциллограф":
+        #     self.current_left_widget = self.w_graph_widget
+        # elif tab_text == "Отладка":
+        #     self.current_left_widget = self.graph_debug_widget
 
     def init_widgets(self) -> None:
         # Виджеты
@@ -107,6 +114,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget()
         self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self)
         self.graph_filter_widget: FilterViewerWidget = FilterViewerWidget(self)
+        self.graph_debug_widget: DebugGraphWidget = DebugGraphWidget()
         model = self.widget_model()
         self.tab_widget = create_tab_widget_items(model, self.on_tab_widget_handler)
         #### отдельно добавляем SerialConnectWidget

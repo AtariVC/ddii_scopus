@@ -15,6 +15,9 @@ from PyQt6.QtWidgets import (
 )
 
 
+# Храним главный splitter для последующей замены левого виджета
+_MAIN_SPLITTER: Optional[QSplitter] = None
+
 def create_split_widget(gridLayout_main_split: QGridLayout, left_widget: QWidget, right_widget: QTabWidget) -> None:
     """Создает и добавляет в layout разделитель (QSplitter) с двумя виджетами.
 
@@ -31,33 +34,51 @@ def create_split_widget(gridLayout_main_split: QGridLayout, left_widget: QWidget
     # w_graph_widget: GraphWidget = GraphWidget()
     # tab_widget: QTabWidget = create_tab_widget_items(widget_model)
     splitter = QSplitter()
+    splitter.setObjectName("main_splitter")
     gridLayout_main_split.addWidget(splitter)
     splitter.addWidget(left_widget)
     splitter.addWidget(right_widget)
+    # Настройки, чтобы левая панель схлопывалась
+    splitter.setChildrenCollapsible(True)
+    splitter.setStretchFactor(0, 1)
+    splitter.setStretchFactor(1, 0)
+    splitter.setSizes([800, 483])
+    # Сохраняем ссылку на главный сплиттер
+    global _MAIN_SPLITTER
+    _MAIN_SPLITTER = splitter
 
 
-def replace_left_widget(old_left_widget: QWidget, new_left_widget: QWidget):
+def replace_left_widget(new_left_widget: QWidget) -> None:
     # left_widget.deleteLater()
     # Удаляем все дочерние виджеты, но не сам контейнер
     # for child in left_widget.children():
     #     if isinstance(child, QWidget):
     #         left_widget.hide()
     #         child.deleteLater()
-    """Заменяет левый виджет в сплиттере"""
-    # 1. Находим сплиттер (родительский виджет)
-    splitter = old_left_widget.parentWidget()
-    if not isinstance(splitter, QSplitter):
+    """Заменяет левый виджет в главном сплиттере без передачи старого."""
+    global _MAIN_SPLITTER
+    splitter = _MAIN_SPLITTER
+    if splitter is None:
         return
-
-    # 2. Находим индекс нашего виджета в сплитере
-    index = splitter.indexOf(old_left_widget)
-    if index == -1:
+    # Заменяем левый виджет (индекс 0)
+    if splitter.count() == 0:
         return
-
-    # 3. Заменяем виджет
-    splitter.replaceWidget(index, new_left_widget)
+    current_left = splitter.widget(0)
+    # Если новый виджет уже стоит слева — не заменяем самим на себя
+    if current_left is new_left_widget or splitter.indexOf(new_left_widget) == 0:
+        new_left_widget.show()
+        splitter.show()
+        return
+    old_left = current_left
+    sp = new_left_widget.sizePolicy()
+    sp.setHorizontalStretch(1)
+    new_left_widget.setSizePolicy(sp)
+    new_left_widget.setMinimumWidth(max(200, new_left_widget.minimumWidth()))
+    splitter.replaceWidget(0, new_left_widget)
     new_left_widget.show()
-    old_left_widget.hide()
+    if isinstance(old_left, QWidget) and (old_left is not new_left_widget):
+        old_left.hide()
+    splitter.show()
 
 
 def create_tab_widget_items(
