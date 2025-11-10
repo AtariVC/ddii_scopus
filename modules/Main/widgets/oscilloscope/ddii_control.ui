@@ -103,8 +103,17 @@
          </item>
          <item row="0" column="1">
           <widget class="QLabel" name="label">
+           <property name="font">
+            <font>
+             <family>MS Shell Dlg 2</family>
+             <pointsize>12</pointsize>
+             <weight>50</weight>
+             <italic>false</italic>
+             <bold>false</bold>
+            </font>
+           </property>
            <property name="styleSheet">
-            <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
+            <string notr="true">font: 12pt &quot;MS Shell Dlg 2&quot;;</string>
            </property>
            <property name="text">
             <string>Изм. интервал, с:</string>
@@ -180,6 +189,9 @@
              <height>25</height>
             </size>
            </property>
+           <property name="styleSheet">
+            <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
+           </property>
            <property name="text">
             <string>Обновить</string>
            </property>
@@ -192,6 +204,9 @@
              <width>120</width>
              <height>25</height>
             </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
            </property>
            <property name="text">
             <string>Применить</string>
@@ -703,6 +718,11 @@
               </property>
               <item row="2" column="0">
                <widget class="QLabel" name="label_17">
+                <property name="font">
+                 <font>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
                 <property name="text">
                  <string>pwm, %</string>
                 </property>
@@ -710,6 +730,11 @@
               </item>
               <item row="0" column="0">
                <widget class="QLabel" name="label_12">
+                <property name="font">
+                 <font>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
                 <property name="text">
                  <string>Uизм, В</string>
                 </property>
@@ -717,6 +742,11 @@
               </item>
               <item row="1" column="0">
                <widget class="QLabel" name="label_16">
+                <property name="font">
+                 <font>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
                 <property name="text">
                  <string>U, В</string>
                 </property>
@@ -729,6 +759,9 @@
                   <width>60</width>
                   <height>25</height>
                  </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                 </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
@@ -743,6 +776,9 @@
                   <height>25</height>
                  </size>
                 </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
+                </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
                 </property>
@@ -755,6 +791,9 @@
                   <width>60</width>
                   <height>25</height>
                  </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                 </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
@@ -836,6 +875,9 @@
                   <height>25</height>
                  </size>
                 </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
+                </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
                 </property>
@@ -848,6 +890,9 @@
                   <width>60</width>
                   <height>25</height>
                  </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                 </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
@@ -864,8 +909,15 @@
                 </property>
                 <property name="font">
                  <font>
-                  <pointsize>12</pointsize>
+                  <family>MS Shell Dlg 2</family>
+                  <pointsize>11</pointsize>
+                  <weight>50</weight>
+                  <italic>false</italic>
+                  <bold>false</bold>
                  </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                 </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
@@ -905,6 +957,11 @@
               </property>
               <item row="2" column="0">
                <widget class="QLabel" name="label_19">
+                <property name="font">
+                 <font>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
                 <property name="text">
                  <string>pwm, %</string>
                 </property>
@@ -912,6 +969,11 @@
               </item>
               <item row="1" column="0">
                <widget class="QLabel" name="label_18">
+                <property name="font">
+                 <font>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
                 <property name="text">
                  <string>U, В</string>
                 </property>
@@ -925,6 +987,9 @@
                   <height>25</height>
                  </size>
                 </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
+                </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
                 </property>
@@ -932,6 +997,11 @@
               </item>
               <item row="0" column="0">
                <widget class="QLabel" name="label_13">
+                <property name="font">
+                 <font>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
                 <property name="text">
                  <string>Uизм, В</string>
                 </property>
@@ -945,6 +1015,9 @@
                   <height>25</height>
                  </size>
                 </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
+                </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
                 </property>
@@ -957,6 +1030,9 @@
                   <width>60</width>
                   <height>25</height>
                  </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">font: 11pt &quot;MS Shell Dlg 2&quot;;</string>
                 </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
@@ -990,6 +1066,11 @@
         <layout class="QGridLayout" name="gridLayout_8">
          <item row="0" column="1">
           <widget class="QPushButton" name="pushButton_hvip_update">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Обновить</string>
            </property>
@@ -997,6 +1078,11 @@
          </item>
          <item row="0" column="2">
           <widget class="QPushButton" name="pushButton_hvip_apply">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Применить</string>
            </property>
