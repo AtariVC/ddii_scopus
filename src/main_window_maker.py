@@ -17,6 +17,8 @@ from PyQt6.QtWidgets import (
 
 # Храним главный splitter для последующей замены левого виджета
 _MAIN_SPLITTER: Optional[QSplitter] = None
+# Ограничение минимальной ширины правой панели со скроллом
+_RIGHT_PANEL_MIN_WIDTH: int = 640
 
 def create_split_widget(gridLayout_main_split: QGridLayout, left_widget: QWidget, right_widget: QTabWidget) -> None:
     """Создает и добавляет в layout разделитель (QSplitter) с двумя виджетами.
@@ -124,11 +126,17 @@ def create_tab_widget_items(
 
     ######################### Фабрика функций ##################################
     def _grBox_wrapper(widget: QWidget, name: str) -> QGroupBox:
-        """Создает GroupBox с заданным виджетом внутри."""
+        """Создает GroupBox с заданным виджетом внутри.
+
+        Без жёстких ограничений по ширине/высоте, чтобы корректно встраиваться
+        в вертикальный scroll без горизонтальной прокрутки.
+        """
         grBox_widget: QGroupBox = QGroupBox(name)
         vLayout_grBox_widget: QVBoxLayout = QVBoxLayout(grBox_widget)
-        grBox_widget.setMaximumHeight(widget.minimumHeight() + 40)
-        grBox_widget.setMinimumWidth(widget.minimumWidth() + 20)
+        # Разрешаем горизонтальное расширение вместе с viewport
+        sp = grBox_widget.sizePolicy()
+        sp.setHorizontalPolicy(QSizePolicy.Policy.Expanding)
+        grBox_widget.setSizePolicy(sp)
         vLayout_grBox_widget.addWidget(widget)
         font = QFont()
         font.setFamily("Arial")
@@ -159,29 +167,55 @@ def create_tab_widget_items(
         return dict_tab_factry
 
     def _widget_maker(widgets: Dict[str, Optional[QWidget | QSpacerItem]]):
-        """Фабрика для создания содержимого вкладки."""
-        ######################
-        spacer_v = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        """Фабрика для создания содержимого вкладки с прокруткой.
+
+        - Все виджеты (кроме "Подключение") попадают внутрь вертикального scroll.
+        - Виджет "Подключение" добавляется ПОД scroll (вне области прокрутки).
+        """
         spacer_v_scroll = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        # Создаем QScrollArea для прокручиваемого содержимого
-        scroll_area_menu = QScrollArea()
-        scroll_area_menu.setWidgetResizable(True)
-        scroll_content_widget = QWidget()
-        scroll_content_layout = QVBoxLayout(scroll_content_widget)
+        # Создаем QScrollArea и наполняемый контейнер
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        # Прокрутка только по вертикали
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(7, 7, 7, 7)
         edge_spacer_flag = True
-        # Создание виджетов в grBox. Добавляем виджеты в scroll_content_layout
+
+        # Список виджетов, которые должны быть под скроллом
+        bottom_widgets: list[QWidget] = []
+
+        # Добавляем виджеты: почти все в scroll, "Подключение" — отдельно
         for name, widget in widgets.items():
             if isinstance(widget, QSpacerItem):
-                spacer: QSpacerItem = widget  # type: ignore
-                scroll_content_layout.addItem(spacer)
+                content_layout.addItem(widget)
                 edge_spacer_flag = False
             elif widget is not None:
-                scroll_content_layout.addWidget(_grBox_wrapper(widget, name=name))  # type: ignore
+                if name.strip().lower() == "подключение":
+                    bottom_widgets.append(widget)
+                else:
+                    content_layout.addWidget(_grBox_wrapper(widget, name=name))  # type: ignore[arg-type]
 
         if edge_spacer_flag:
-            scroll_content_layout.addItem(spacer_v_scroll)
-        return scroll_content_widget
+            content_layout.addItem(spacer_v_scroll)
+
+        scroll_area.setWidget(content)
+
+        # Возвращаем контейнер с прокруткой и нижним блоком "Подключение"
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.addWidget(scroll_area)
+        # Добавляем виджеты подключения под скроллом без обёртки
+        for bw in bottom_widgets:
+            container_layout.addWidget(bw)
+        # Приоритет по высоте — у области прокрутки
+        container_layout.setStretch(0, 1)
+        return container
 
     #################################################################################
 
@@ -192,6 +226,8 @@ def create_tab_widget_items(
     tab_font.setFamily("Arial")
     tab_font.setPointSize(12)
     tab_widget.setFont(tab_font)
+    # Ограничиваем минимальную ширину правой панели с вкладками (scroll)
+    tab_widget.setMinimumWidth(_RIGHT_PANEL_MIN_WIDTH)
     # Используем фабрику для добавления вкладок
     factories = _tab_factories(widget_model)
     for tab_name, factory in factories.items():

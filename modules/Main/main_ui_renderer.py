@@ -34,6 +34,7 @@ from Main.widgets.oscilloscope.flux_widget import FluxWidget  # noqa: E402
 from Main.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
 from Main.widgets.oscilloscope.run_flux_widget import RunFluxWidget  # noqa: E402
 from Main.widgets.oscilloscope.run_meas_widget import RunMeasWidget  # noqa: E402
+from Main.widgets.oscilloscope.ddii_control import DDIIControlWidget  # noqa: E402
 from Main.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget  # noqa: E402
 from Main.widgets.viewer.graph_viewer_widget import GraphViewerWidget  # noqa: E402
 from Main.widgets.viewer.filter_viewer_widget import FilterViewerWidget  # noqa: E402
@@ -72,6 +73,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
                 "Меню запуска": self.run_meas_widget,
                 "Опрос счетчика частиц": self.run_flux_widget,
                 "Счетчик частиц": self.flux_widget,
+                "Настройка": self.ddii_control_widget,
                 "spacer": spacer_v,
                 "Подключение": self.w_ser_dialog,
             },
@@ -110,6 +112,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.run_flux_widget: RunFluxWidget = RunFluxWidget(self)
         self.flux_widget: FluxWidget = FluxWidget(self)
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
+        self.ddii_control_widget: DDIIControlWidget = DDIIControlWidget(self)
         self.client = self.w_ser_dialog.client
         self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget()
         self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self)
