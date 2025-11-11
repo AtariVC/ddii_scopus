@@ -32,7 +32,7 @@ class DDIIControlWidget(QtWidgets.QWidget):
     lineEdit_hvip_pips: QtWidgets.QLineEdit
     lineEdit_hvip_sipm: QtWidgets.QLineEdit
     lineEdit_hvip_ch: QtWidgets.QLineEdit
-    
+
     comboBox_filter: QtWidgets.QComboBox
 
     lineEdit_pwm_sipm: QtWidgets.QLineEdit
@@ -64,7 +64,7 @@ class DDIIControlWidget(QtWidgets.QWidget):
     # Time tab widgets
     lineEdit_interval_request: QtWidgets.QLineEdit
     pushButton_apply: QtWidgets.QPushButton  # Обновить (time tab)
-    pushButton_apply_2: QtWidgets.QPushButton  # Применить (time tab)
+    pushButton_update: QtWidgets.QPushButton  # Применить (time tab)
 
     def __init__(self, *args) -> None:
         super().__init__()
@@ -115,13 +115,16 @@ class DDIIControlWidget(QtWidgets.QWidget):
 
         # Button handlers (Time tab: only update requested)
         try:
-            self.pushButton_apply.clicked.connect(self.pushButton_time_update_handler)
+            self.pushButton_update.clicked.connect(self.pushButton_common_update_handler)
+            self.pushButton_apply.clicked.connect(self.pushButton_common_apply_handler)
         except Exception:
             ...
 
         # Command handles (late-initialized)
-        self.cm_cmd: ModbusCMCommand | None = None
-        self.mpp_cmd: ModbusMPPCommand | None = None
+        self.cm_cmd: ModbusCMCommand
+        self.mpp_cmd: ModbusMPPCommand
+
+        self.filter_combobox_init()
 
     def _init_validators(self) -> None:
         i_validator = QIntValidator()
@@ -150,9 +153,9 @@ class DDIIControlWidget(QtWidgets.QWidget):
         except Exception:
             ...
 
-    @qasync.asyncSlot()
-    async def filter_combobox_init(self) -> None:
-        filters: dict = {"нет": self.mpp_cmd.reset_filter}
+    def filter_combobox_init(self) -> None:
+        filters: list = ["нет", "медианный", "ФНЧ", "ФВЧ"]
+        self.comboBox_filter.addItems(filters)
 
     @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:
@@ -176,7 +179,7 @@ class DDIIControlWidget(QtWidgets.QWidget):
         try:
             if await self.w_ser_dialog.check_connection(only_cm=True, only_mpp=False):
                 await self.pushButton_power_update_handler()
-                await self.pushButton_time_update_handler()
+                await self.pushButton_common_update_handler()
         except Exception:
             ...
 
@@ -189,14 +192,6 @@ class DDIIControlWidget(QtWidgets.QWidget):
     @qasync.asyncSlot()
     async def pushButton_levels_update_handler(self) -> None:
         """Обновить уровни с МПП и отобразить в UI."""
-        if self.w_ser_dialog is None:
-            self.logger.error("SerialConnect не инициализирован")
-            return
-        if not await self.w_ser_dialog.check_connection():
-            self.logger.error("Нет подключения к ДДИИ")
-            return
-        # Ensure commands are bound
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         try:
             if self.mpp_cmd is None:
                 self.logger.error("Интерфейс команд МПП не инициализирован")
@@ -233,14 +228,6 @@ class DDIIControlWidget(QtWidgets.QWidget):
     @qasync.asyncSlot()
     async def pushButton_levels_apply_handler(self) -> None:
         """Отправить уровни из UI в МПП."""
-        if self.w_ser_dialog is None:
-            self.logger.error("SerialConnect не инициализирован")
-            return
-        if not await self.w_ser_dialog.check_connection():
-            self.logger.error("Нет подключения к ДДИИ")
-            return
-        # Ensure commands are bound
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         try:
             if self.mpp_cmd is None:
                 self.logger.error("Интерфейс команд МПП не инициализирован")
@@ -268,13 +255,6 @@ class DDIIControlWidget(QtWidgets.QWidget):
         - Uизм (measured) из get_voltage()
         - U, pwm (config) из get_cfg_voltage()/get_cfg_pwm()
         """
-        if self.w_ser_dialog is None:
-            self.logger.error("SerialConnect не инициализирован")
-            return
-        if not await self.w_ser_dialog.check_connection(only_cm=True, only_mpp=False):
-            self.logger.error("Нет подключения к ЦМ")
-            return
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         try:
             # Measured voltages
             answer_meas: bytes = await self.cm_cmd.get_voltage()  # type: ignore[union-attr]
@@ -309,13 +289,6 @@ class DDIIControlWidget(QtWidgets.QWidget):
     @qasync.asyncSlot()
     async def pushButton_power_apply_handler(self) -> None:
         """Отправить значения U и PWM с вкладки Питание в ЦМ."""
-        if self.w_ser_dialog is None:
-            self.logger.error("SerialConnect не инициализирован")
-            return
-        if not await self.w_ser_dialog.check_connection(only_cm=True, only_mpp=False):
-            self.logger.error("Нет подключения к ЦМ")
-            return
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         try:
             # Build float payloads in little-endian using LineEditPack
             pack_vlt = [
@@ -336,15 +309,8 @@ class DDIIControlWidget(QtWidgets.QWidget):
             self.logger.error(f"Ошибка отправки питания: {e}")
 
     @qasync.asyncSlot()
-    async def pushButton_time_update_handler(self) -> None:
+    async def pushButton_common_update_handler(self) -> None:
         """Обновить поле интервала из конфигурации ЦМ."""
-        if self.w_ser_dialog is None:
-            self.logger.error("SerialConnect не инициализирован")
-            return
-        if not await self.w_ser_dialog.check_connection(only_cm=True, only_mpp=False):
-            self.logger.error("Нет подключения к ЦМ")
-            return
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         try:
             cfg: bytes = await self.cm_cmd.get_cfg_ddii()  # type: ignore[union-attr]
             d_cfg: dict[str, str] = await self.parser.pars_cfg_ddii(cfg)
@@ -355,6 +321,23 @@ class DDIIControlWidget(QtWidgets.QWidget):
         except Exception as e:
             self.logger.error(f"Ошибка обновления интервала: {e}")
 
+    @qasync.asyncSlot()
+    async def pushButton_common_apply_handler(self) -> None:
+        """Отправить интервал из UI в конфигурацию ЦМ."""
+        try:
+            interval: int = self._get_int(self.lineEdit_interval_request)
+            filter_name: str = self.comboBox_filter.currentText()
+            await self.cm_cmd.set_cfg_ddii_interval(interval)  # type: ignore[union-attr]
+            if filter_name == "нет":
+                await self.cm_cmd.set_bypass_lp_filter()  # type: ignore[union-attr]
+            elif filter_name == "медианный":
+                await self.cm_cmd.set_median_filter()  # type: ignore[union-attr]
+            elif filter_name == "ФНЧ": 
+                await self.cm_cmd.set_low_pass_filter()  # type: ignore[union-attr]
+            elif filter_name == "ФВЧ":
+                await self.cm_cmd.set_high_pass_filter() # type: ignore[union-attr]
+        except Exception as e:
+            self.logger.error(f"Ошибка отправки интервала: {e}")
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

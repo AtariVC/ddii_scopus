@@ -295,7 +295,7 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
         
-    async def set_filter_median(self) -> bytes:
+    async def set_median_filter(self) -> bytes:
         """_summary_
 
         Args:
@@ -316,7 +316,7 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
         
-    async def set_filter_bypass_lp(self) -> bytes:
+    async def set_bypass_lp_filter(self) -> bytes:
         """_summary_
 
         Args:
@@ -337,7 +337,7 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
         
-    async def set_filter_bypass_hp(self) -> bytes:
+    async def set_bypass_hp_filter(self) -> bytes:
         """_summary_
 
         Args:
