@@ -32,6 +32,8 @@ class DDIIControlWidget(QtWidgets.QWidget):
     lineEdit_hvip_pips: QtWidgets.QLineEdit
     lineEdit_hvip_sipm: QtWidgets.QLineEdit
     lineEdit_hvip_ch: QtWidgets.QLineEdit
+    
+    comboBox_filter: QtWidgets.QComboBox
 
     lineEdit_pwm_sipm: QtWidgets.QLineEdit
     lineEdit_pwm_pips: QtWidgets.QLineEdit
@@ -147,6 +149,10 @@ class DDIIControlWidget(QtWidgets.QWidget):
             self.lineEdit_pwm_sipm.setValidator(d_validator)
         except Exception:
             ...
+
+    @qasync.asyncSlot()
+    async def filter_combobox_init(self) -> None:
+        filters: dict = {"нет": self.mpp_cmd.reset_filter}
 
     @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:

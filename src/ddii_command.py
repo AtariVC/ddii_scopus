@@ -273,10 +273,94 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
             return b'-1'
+        
+    async def reset_filter(self) -> bytes:
+        """_summary_
+
+        Args:
+            enable (int): 1 - включить, 0 - выключить
+
+        Returns:
+            result (bytes)
+        """
+        cmd = 0x00
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_CTRL, 
+                                                                            cmd,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+        
+    async def set_filter_median(self) -> bytes:
+        """_summary_
+
+        Args:
+            enable (int): 1 - включить, 0 - выключить
+
+        Returns:
+            result (bytes)
+        """
+        cmd = (1 << 2) & 0x04
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_CTRL, 
+                                                                            cmd,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+        
+    async def set_filter_bypass_lp(self) -> bytes:
+        """_summary_
+
+        Args:
+            enable (int): 1 - включить, 0 - выключить
+
+        Returns:
+            result (bytes)
+        """
+        cmd = (1 << 1) & 0x02
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_CTRL, 
+                                                                            cmd,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+        
+    async def set_filter_bypass_hp(self) -> bytes:
+        """_summary_
+
+        Args:
+            enable (int): 1 - включить, 0 - выключить
+
+        Returns:
+            result (bytes)
+        """
+        cmd = (1 << 0) & 0x01
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_CTRL, 
+                                                                            cmd,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
 
     async def calibrate_ACQ(self) -> bytes:
         try:
-            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             self.REG_CALIBR_ALL_CH,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
@@ -292,7 +376,7 @@ class ModbusMPPCommand(EnvironmentVar):
             bytes
         """
         try:
-            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             self.REG_MPP_ISSUE_WAVEFORM,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
@@ -311,33 +395,33 @@ class ModbusMPPCommand(EnvironmentVar):
                 else:
                     STATE_MEASURE = self.MPP_STOP_MEASURE.copy()
                     STATE_MEASURE[0] = ch & 0xFF << 8 | STATE_MEASURE[0] & 0xFFFF
-                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             STATE_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
-                await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
+                await self.client.read_holding_registers(self.REG_MPP_CTRL, 1, self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
                 if on:
                     await self.issue_waveform()
                     await log_s(self.mw.send_handler.mess)
-                    await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
+                    await self.client.read_holding_registers(self.REG_MPP_CTRL, 1, self.MPP_ID)
             else:
                 if on:
                     STATE_MEASURE = self.MPP_START_MEASURE
                 else:
                     STATE_MEASURE = self.MPP_STOP_MEASURE
-                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             STATE_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
-                await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
+                await self.client.read_holding_registers(self.REG_MPP_CTRL, 1, self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
                 if on:
-                    await self.client.write_registers(self.REG_MPP_COMMAND, 
+                    await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             0x0009,
                                                                             slave=self.MPP_ID) # выдать waveform
                     await log_s(self.mw.send_handler.mess)
-                    await self.client.read_holding_registers(self.REG_MPP_COMMAND, 1, self.MPP_ID)
+                    await self.client.read_holding_registers(self.REG_MPP_CTRL, 1, self.MPP_ID)
                     await log_s(self.mw.send_handler.mess)
 
             return result.encode()
@@ -408,12 +492,12 @@ class ModbusMPPCommand(EnvironmentVar):
         try:
             if ch:
                 MPP_START_MEASURE_FORCED = ch<<8 & 0xFFFF | self.MPP_START_MEASURE_FORCED
-                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             MPP_START_MEASURE_FORCED,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
             else:
-                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             self.MPP_START_MEASURE_FORCED,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
@@ -428,12 +512,12 @@ class ModbusMPPCommand(EnvironmentVar):
             if ch:
                 MPP_STOP_MEASURE = self.MPP_STOP_MEASURE.copy()
                 MPP_STOP_MEASURE[0] = ch<<8 & 0xFFFF | MPP_STOP_MEASURE[0]
-                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             MPP_STOP_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
             else:
-                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             self.MPP_STOP_MEASURE,
                                                                             slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
@@ -465,12 +549,12 @@ class ModbusMPPCommand(EnvironmentVar):
             if ch:
                 cmd_ch = cmd.copy()
                 cmd_ch[0] = ch & 0xFFFF << 8 | cmd_ch[0] & 0xFFFF
-                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                                 cmd_ch,
                                                                                 slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)
             else:
-                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_COMMAND, 
+                result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                                 cmd,
                                                                                 slave=self.MPP_ID)
                 await log_s(self.mw.send_handler.mess)

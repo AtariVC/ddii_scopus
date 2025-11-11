@@ -4415,9 +4415,9 @@ window.pdocSearch = (function () {
 			default_value: '17',
 		},
 		{
-			fullname: 'ddii_scopus.src.env_var.EnvironmentVar.REG_MPP_COMMAND',
+			fullname: 'ddii_scopus.src.env_var.EnvironmentVar.REG_MPP_CTRL',
 			modulename: 'ddii_scopus.src.env_var',
-			qualname: 'EnvironmentVar.REG_MPP_COMMAND',
+			qualname: 'EnvironmentVar.REG_MPP_CTRL',
 			kind: 'variable',
 			doc: '<p></p>\n',
 			default_value: '0',

@@ -22044,7 +22044,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 272
 self
@@ -22140,7 +22140,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 288
 self
@@ -22311,7 +22311,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 307
 STATE_MEASURE
@@ -22345,7 +22345,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -22397,7 +22397,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -22441,7 +22441,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 322
 STATE_MEASURE
@@ -22475,7 +22475,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -22509,7 +22509,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 329
 0x0009
@@ -22544,7 +22544,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -23077,7 +23077,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 404
 MPP_START_MEASURE_FORCED
@@ -23118,7 +23118,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 409
 self
@@ -23241,7 +23241,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 424
 MPP_STOP_MEASURE
@@ -23282,7 +23282,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 429
 self
@@ -23553,7 +23553,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 461
 cmd_ch
@@ -23594,7 +23594,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 466
 cmd
@@ -27023,7 +27023,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 273
 self
@@ -27119,7 +27119,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 289
 self
@@ -27290,7 +27290,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 308
 STATE_MEASURE
@@ -27324,7 +27324,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -27376,7 +27376,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -27420,7 +27420,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 323
 STATE_MEASURE
@@ -27454,7 +27454,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -27488,7 +27488,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 330
 0x0009
@@ -27523,7 +27523,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -28056,7 +28056,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 405
 MPP_START_MEASURE_FORCED
@@ -28097,7 +28097,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 410
 self
@@ -28220,7 +28220,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 425
 MPP_STOP_MEASURE
@@ -28261,7 +28261,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 430
 self
@@ -28532,7 +28532,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 462
 cmd_ch
@@ -28573,7 +28573,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 467
 cmd
@@ -29348,7 +29348,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 273
 self
@@ -29451,7 +29451,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 289
 self
@@ -29650,7 +29650,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 308
 STATE_MEASURE
@@ -29684,7 +29684,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -29736,7 +29736,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -29780,7 +29780,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 323
 STATE_MEASURE
@@ -29814,7 +29814,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -29848,7 +29848,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 330
 0x0009
@@ -29883,7 +29883,7 @@ read_holding_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 1
 ,
@@ -30457,7 +30457,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 405
 MPP_START_MEASURE_FORCED
@@ -30498,7 +30498,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 410
 self
@@ -30634,7 +30634,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 425
 MPP_STOP_MEASURE
@@ -30675,7 +30675,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 430
 self
@@ -30980,7 +30980,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 462
 cmd_ch
@@ -31021,7 +31021,7 @@ write_registers
 (
 self
 .
-REG_MPP_COMMAND
+REG_MPP_CTRL
 ,
 467
 cmd
@@ -32834,7 +32834,7 @@ CM_DBG_GET_DESIRED_HVIP
 30
 31
 32
-REG_MPP_COMMAND
+REG_MPP_CTRL
 =
 0x0000
 33
@@ -33084,7 +33084,7 @@ CM_DBG_GET_DESIRED_HVIP
 31
 32
 33
-REG_MPP_COMMAND
+REG_MPP_CTRL
 =
 0x0000
 34
@@ -33297,7 +33297,7 @@ CM_GET_TERM
 CM_DBG_GET_DESIRED_HVIP
 =
 17
-REG_MPP_COMMAND
+REG_MPP_CTRL
 =
 0
 REG_MPP_ISSUE_WAVEFORM

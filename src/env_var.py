@@ -29,7 +29,7 @@ class EnvironmentVar():
     CM_DBG_GET_DESIRED_HVIP         = 0x0011
     
 
-    REG_MPP_COMMAND                 = 0x0000
+    REG_MPP_CTRL                    = 0x0000
     REG_MPP_ISSUE_WAVEFORM          = 0x0009
     REG_MPP_HH                      = 0x000B
     REG_GET_MPP_STRUCT              = 0x0006
