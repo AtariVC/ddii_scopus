@@ -63,7 +63,8 @@ class GraphPen():
                 self.plot_item = pg.PlotDataItem(x, y, pen = self.pen)
                 self.plt_widget.addItem(self.plot_item)
             else:
-                self.plot_item.setData(self.plot_item)
+                # обновляем существующие данные
+                self.plot_item.setData(x, y)
             if save_log:
                 if path_to_save and name_file_save_data and name_data:
                     # Apply threshold filter for saving if configured
@@ -96,15 +97,69 @@ class GraphPen():
             return [],[]
 
     async def _prepare_graph_data(self, data):
-        """Подготовка данных для графика"""
+        """Подготовка данных для графика
+        Входные элементы содержат дополнительный код в старших битах; выделяем 12‑битную амплитуду.
+        """
         x, y = [], []
         for index, value in enumerate(data):
             x.append(index)
-            # y.append(0 if ((value&0xFFF > 3800) or (250 <= value&0xFFF <= 255)) else value&0xFFF)
-            y.append(value&0x0FFF)
-            # self.delete_big_bytes(value)
-            # y.append(value)
+            try:
+                amp = int(value) & 0x0FFF
+            except Exception:
+                amp = 0
+            y.append(amp)
+        # Дополнительная обработка: сглаживание случайных выбросов
+        try:
+            y = self._fix_spikes(y)
+        except Exception:
+            ...
         return x, y
+
+    def _fix_spikes(self, y: list[int]) -> list[int]:
+        """Ищет и исправляет случайные выбросы, интерполируя по соседям.
+        Принцип:
+        - Для каждой точки i берется локальный разброс соседей d = |y[i-1] - y[i+1]|.
+        - Точка считается выбросом, если она значительно отклоняется от среднего соседей:
+            |y[i] - (y[i-1]+y[i+1])/2| > max(20, 3*d + 10)
+        - Последовательности подряд идущих выбросов интерполируются линейно между опорными точками
+          (значения до и после последовательности).
+
+        Пример: [2, 3, 250, 254, 6, 6] -> [2, 3, 4, 5, 6, 6]
+        """
+        n = len(y)
+        if n < 3:
+            return y
+        y_out = y.copy()
+        spike = [False] * n
+        for i in range(1, n - 1):
+            left = y[i - 1]
+            right = y[i + 1]
+            mid = y[i]
+            d = abs(left - right)
+            center = (left + right) / 2.0
+            # адаптивный порог: чем ближе соседи, тем жёстче критерий
+            thresh = max(20, 3 * d + 10)
+            if abs(mid - center) > thresh:
+                spike[i] = True
+        i = 1
+        while i < n - 1:
+            if spike[i]:
+                s = i
+                e = i
+                while e + 1 < n - 1 and spike[e + 1]:
+                    e += 1
+                # Интерполируем только если есть обе опорные точки
+                if s - 1 >= 0 and e + 1 < n:
+                    L = e - s + 1
+                    A = y_out[s - 1]
+                    B = y_out[e + 1]
+                    step = (B - A) / float(L + 1)
+                    for k in range(L):
+                        y_out[s + k] = int(round(A + (k + 1) * step))
+                i = e + 1
+            else:
+                i += 1
+        return y_out
     
 
     def _filter_implement(self, data: list[int], filter: Optional[Callable] = None) -> list[int]:
@@ -304,5 +359,3 @@ class HistPen():
             self._save_threshold = None if value is None else int(value)
         except Exception:
             self._save_threshold = None
-
-
