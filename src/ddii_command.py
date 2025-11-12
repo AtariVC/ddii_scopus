@@ -491,6 +491,16 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.error(e)
             self.logger.debug('МПП не отвечает')
             return b'-1'
+        
+    async def waveform_release(self):
+        try:
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 0x09, slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
 
     async def start_measure_forced(self, ch: Optional[int] = None) -> bytes:
         try:
