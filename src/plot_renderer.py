@@ -51,12 +51,13 @@ class GraphPen():
         
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data: list, name_file_save_data: Optional[str] = None, name_data: Optional[str] = None, path_to_save: Optional[Path] = None, save_log=False, clear=False):
+    async def draw_graph(self, data: list, name_file_save_data: Optional[str] = None, name_data: Optional[str] = None, path_to_save: Optional[Path] = None, save_log=False, clear=False, filter: Optional[Callable] = None):
         try:
             if any(isinstance(item, float) for item in data):
                 data = list(map(int, data))
                 # print(f"Данные преобразованы в int")
             x, y = await self._prepare_graph_data(data)
+            y = self._filter_implement(y, filter)
             if clear: # очищать ли график. Если нет, то новые точки просто добавляются на график
                 self.plt_widget.clear()
                 self.plot_item = pg.PlotDataItem(x, y, pen = self.pen)
@@ -99,10 +100,22 @@ class GraphPen():
         x, y = [], []
         for index, value in enumerate(data):
             x.append(index)
-            y.append(0 if ((value&0xFFF > 3800) or (250 <= value&0xFFF <= 255)) else value&0xFFF)
+            # y.append(0 if ((value&0xFFF > 3800) or (250 <= value&0xFFF <= 255)) else value&0xFFF)
+            y.append(value&0x0FFF)
             # self.delete_big_bytes(value)
             # y.append(value)
         return x, y
+    
+
+    def _filter_implement(self, data: list[int], filter: Optional[Callable] = None) -> list[int]:
+        if filter is not None:
+            try:
+                data_out = filter(data)
+            except Exception as e:
+                self.logger.error(f"Ошибка применении фильтра в _filter_implement: {e}")
+        else:
+            data_out = data
+        return data_out
 
     def set_save_threshold(self, value: int | None):
         """Set amplitude threshold for selective saving.
@@ -192,7 +205,6 @@ class HistPen():
                     name_file_save_data: Optional[str] = None,
                     name_data: Optional[str] = None,
                     path_to_save: Optional[Path] = None,
-                    filter: Optional[Callable] = None,
                     clear: Optional[bool] = False,
                     data_is_hist: Optional[bool] = False,
                     bin_count: int = 4096) -> None:
@@ -219,15 +231,7 @@ class HistPen():
         # Если данные не являются уже готовой гистограммой
 
         if not data_is_hist:
-            if filter is not None:
-                filtered_value = filter(data)
-                data_tohist = [filtered_value] if filtered_value is not None else []
-                if data_tohist == []:
-                    filter_name = getattr(filter, "__name__", str(filter))
-                    self.logger.error(f"Не получилось применить фильтр: {filter_name}")
-                    raise ValueError("data_tohist == [], нет данных для отрисовки гистограммы")
-            else:
-                data_tohist = [max(data)]
+            data_tohist = [max(data)]
             if isinstance(self.accum_data, list):
                 self.accum_data.extend(data_tohist)
             bins = np.linspace(0, float(bin_count), int(bin_count) + 1)

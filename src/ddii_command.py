@@ -283,9 +283,9 @@ class ModbusMPPCommand(EnvironmentVar):
         Returns:
             result (bytes)
         """
-        cmd = 0x00
+        cmd = [10, 0x00]
         try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_CTRL, 
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             cmd,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
@@ -304,9 +304,10 @@ class ModbusMPPCommand(EnvironmentVar):
         Returns:
             result (bytes)
         """
-        cmd = (1 << 2) & 0x04
+        val = (1 << 2) & 0x04
+        cmd = [10, val]
         try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_CTRL, 
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             cmd,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
@@ -325,9 +326,10 @@ class ModbusMPPCommand(EnvironmentVar):
         Returns:
             result (bytes)
         """
-        cmd = (1 << 1) & 0x02
+        val = (1 << 1) & 0x02
+        cmd = [10, 0x07]
         try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_CTRL, 
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             cmd,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
@@ -346,9 +348,10 @@ class ModbusMPPCommand(EnvironmentVar):
         Returns:
             result (bytes)
         """
-        cmd = (1 << 0) & 0x01
+        val = (1 << 0) & 0x01
+        cmd = [10, val]
         try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_CTRL, 
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
                                                                             cmd,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)

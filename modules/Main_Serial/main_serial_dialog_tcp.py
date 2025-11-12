@@ -367,7 +367,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         else:
             cm = ModbusCMCommand(cli, logger)
         try:
-            mpp = ModbusMPPCommand(cli, logger, self.mpp_id)
+            mpp = ModbusMPPCommand(cli, logger, self.mpp_id, logger, log_enabled=True)
         except Exception:
             mpp = ModbusMPPCommand(cli, logger)
         return cm, mpp

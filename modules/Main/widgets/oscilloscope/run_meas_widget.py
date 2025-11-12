@@ -81,7 +81,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.get_proton_hist_event.subscribe(self.parent.flux_widget.update_gui_data_proton)  # type: ignore
         self.get_hcp_hist_event.subscribe(self.parent.flux_widget.update_gui_data_hcp)  # type: ignore
         self.filters_data: FiltersData = FiltersData()
-        self.hist_filters = None
+        self.graph_filters = None
         self.enable_test_csa_flag: str = "enable_test_csa_flag"
         self.enable_trig_meas_flag: str = "enable_trig_meas_flag"
         self.start_measure_flag: str = "start_measure_flag"
@@ -160,7 +160,7 @@ class RunMeasWidget(QtWidgets.QDialog):
             self.comboBox_filter.addItem(key)
 
     def comboBox_filter_handler(self):
-        self.hist_filters = self.filters_data.filters[self.comboBox_filter.currentText()]
+        self.graph_filters = self.filters_data.filters[self.comboBox_filter.currentText()]
 
     async def _stop_measuring(self, reason: str | None = None):
         """Останавливает измерения, гасит задачи и приводит UI в исходное состояние."""
@@ -333,6 +333,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
+                        filter=self.graph_filters,
                         save_log=save,
                         clear=True,
                     )  # x, y
@@ -341,6 +342,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
+                        filter=self.graph_filters,
                         save_log=save,
                         clear=True,
                     )  # x, y
@@ -350,7 +352,6 @@ class RunMeasWidget(QtWidgets.QDialog):
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
                         save_log=save,
-                        filter=self.hist_filters,
                     )
                     await self.graph_widget.hp_sipm.draw_hist(
                         data_sipm[1],
@@ -358,7 +359,6 @@ class RunMeasWidget(QtWidgets.QDialog):
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
                         save_log=save,
-                        filter=self.hist_filters,
                     )
                 except asyncio.exceptions.CancelledError:
                     return None
@@ -468,7 +468,6 @@ class RunMeasWidget(QtWidgets.QDialog):
                     name_data=self.name_data,
                     path_to_save=self.path_to_save,
                     save_log=save,
-                    filter=self.hist_filters,
                     data_is_hist=True
                     )
             except asyncio.exceptions.CancelledError as e:

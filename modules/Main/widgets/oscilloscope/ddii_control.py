@@ -325,19 +325,19 @@ class DDIIControlWidget(QtWidgets.QWidget):
     async def pushButton_common_apply_handler(self) -> None:
         """Отправить интервал из UI в конфигурацию ЦМ."""
         try:
-            interval: int = self._get_int(self.lineEdit_interval_request)
+            # interval: int = self._get_int(self.lineEdit_interval_request)
             filter_name: str = self.comboBox_filter.currentText()
-            await self.cm_cmd.set_cfg_ddii_interval(interval)  # type: ignore[union-attr]
+            # await self.cm_cmd.set_cfg_ddii_interval(interval)  # type: ignore[union-attr]
             if filter_name == "нет":
-                await self.cm_cmd.set_bypass_lp_filter()  # type: ignore[union-attr]
+                await self.mpp_cmd.reset_filter()  # type: ignore[union-attr]
             elif filter_name == "медианный":
-                await self.cm_cmd.set_median_filter()  # type: ignore[union-attr]
+                await self.mpp_cmd.set_median_filter()  # type: ignore[union-attr]
             elif filter_name == "ФНЧ": 
-                await self.cm_cmd.set_low_pass_filter()  # type: ignore[union-attr]
+                await self.mpp_cmd.set_bypass_lp_filter()  # type: ignore[union-attr]
             elif filter_name == "ФВЧ":
-                await self.cm_cmd.set_high_pass_filter() # type: ignore[union-attr]
+                await self.mpp_cmd.set_bypass_hp_filter() # type: ignore[union-attr]
         except Exception as e:
-            self.logger.error(f"Ошибка отправки интервала: {e}")
+            self.logger.error(f"Ошибка: {e}")
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

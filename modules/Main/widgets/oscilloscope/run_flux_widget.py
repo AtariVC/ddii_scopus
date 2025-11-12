@@ -172,6 +172,9 @@ class RunFluxWidget(QtWidgets.QDialog):
     async def asyncio_HH_loop_request(self) -> None:
         """Опрос счетчика частиц"""
         self.graph_widget.hp_counter.hist_clear()
+        self._prev_electron, self._acc_electron = [], []
+        self._prev_proton, self._acc_proton = [], []
+        self._prev_hcp, self._acc_hcp = [], []
         save: bool = False
         self.graph_widget.show()
         current_datetime = datetime.datetime.now()
