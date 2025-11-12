@@ -288,7 +288,8 @@ class HistPen():
                     path_to_save: Optional[Path] = None,
                     clear: Optional[bool] = False,
                     data_is_hist: Optional[bool] = False,
-                    bin_count: int = 4096) -> None:
+                    bin_count: int = 4096,
+                    threshold: int = 0) -> None:
         """
         Отрисовывает гистограмму данных с возможностью фильтрации и сохранения
         Args:
@@ -313,7 +314,7 @@ class HistPen():
 
         if not data_is_hist:
             data_tohist = [max(data)]
-            if isinstance(self.accum_data, list):
+            if isinstance(self.accum_data, list) and data_tohist[0] > threshold:
                 self.accum_data.extend(data_tohist)
             bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
             # Build histogram for display using all accumulated values
@@ -322,7 +323,6 @@ class HistPen():
             bin_count = len(data)
             bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
             y, x = data, bins           
-                # Фильтрация выбросов и установка разумного диапазона X
         # Recompute histogram with correct bins based on bin_count
         if bin_count is None or bin_count < 1:
             self.logger.error(f"bin_count is None or bin_count < 1")

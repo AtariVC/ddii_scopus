@@ -349,6 +349,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
                         save_log=save,
+                        threshold=lvl
                     )
                     await self.graph_widget.hp_sipm.draw_hist(
                         data_sipm[1],
@@ -356,6 +357,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
                         save_log=save,
+                        threshold=3,
                     )
                 except asyncio.exceptions.CancelledError:
                     return None
