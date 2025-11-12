@@ -137,7 +137,6 @@ class RunMeasWidget(QtWidgets.QDialog):
             # Остановка измерений при отключении Serial
             self.w_ser_dialog.disconnected.connect(self.on_serial_disconnected)
             self.task_manager = AsyncTaskManager(self.logger)
-            self.comboBox_filter.currentIndexChanged.connect(self.comboBox_filter_handler)
             self.pushButton_run_measure.clicked.connect(self.pushButton_run_measure_handler)
             self.pushButton_calibr_acq.clicked.connect(self.pushButton_calibr_acq_handler)
             self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
@@ -158,9 +157,6 @@ class RunMeasWidget(QtWidgets.QDialog):
     def init_combobox_filter(self) -> None:
         for key in self.filters_data.filters.keys():
             self.comboBox_filter.addItem(key)
-
-    def comboBox_filter_handler(self):
-        self.graph_filters = self.filters_data.filters[self.comboBox_filter.currentText()]
 
     async def _stop_measuring(self, reason: str | None = None):
         """Останавливает измерения, гасит задачи и приводит UI в исходное состояние."""
@@ -250,6 +246,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         current_datetime = datetime.datetime.now()
         time: str = current_datetime.strftime("%d-%m-%Y")[:23]
         self.path_to_save: Path = self.parent_path / time
+        self.graph_filters = self.filters_data.filters[self.comboBox_filter.currentText()]
 
         ACQ_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request

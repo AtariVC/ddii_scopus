@@ -2,6 +2,7 @@ class FiltersData:
 
     def __init__(self):
         self.filters = {
+            'нет': None,
             'median()': self.median_filter,
             'moving_average()': self.moving_average_filter,
             'exp_smoothing()': self.exp_smoothing_filter,
