@@ -43,6 +43,8 @@ class GraphPen():
         self.logger = get_logger(__name__)
         # Threshold for selective saving (None disables filtering)
         self._save_threshold: int | None = None
+        # Window size for spike detection (neighbors on each side)
+        self._spike_window: int = 1
 
         # if __name__ != "__main__":
         #     self.logger = args[0]
@@ -110,17 +112,18 @@ class GraphPen():
             y.append(amp)
         # Дополнительная обработка: сглаживание случайных выбросов
         try:
-            y = self._fix_spikes(y)
+            y = self._fix_spikes(y, window=self._spike_window)
         except Exception:
             ...
         return x, y
 
-    def _fix_spikes(self, y: list[int]) -> list[int]:
+    def _fix_spikes(self, y: list[int], window: int = 5) -> list[int]:
         """Ищет и исправляет случайные выбросы, интерполируя по соседям.
         Принцип:
-        - Для каждой точки i берется локальный разброс соседей d = |y[i-1] - y[i+1]|.
+        - Для каждой точки i берется локальный разброс соседей в окне window:
+          d = |median(left_window) - median(right_window)|.
         - Точка считается выбросом, если она значительно отклоняется от среднего соседей:
-            |y[i] - (y[i-1]+y[i+1])/2| > max(20, 3*d + 10)
+            |y[i] - (median(left_window)+median(right_window))/2| > max(20, 3*d + 10)
         - Последовательности подряд идущих выбросов интерполируются линейно между опорными точками
           (значения до и после последовательности).
 
@@ -129,14 +132,29 @@ class GraphPen():
         n = len(y)
         if n < 3:
             return y
+        window = max(1, int(window))
         y_out = y.copy()
         spike = [False] * n
         for i in range(1, n - 1):
-            left = y[i - 1]
-            right = y[i + 1]
+            # Немедленно помечаем как выброс всё, что выше 3000
             mid = y[i]
-            d = abs(left - right)
-            center = (left + right) / 2.0
+            if mid > 3000:
+                spike[i] = True
+                continue
+            # Окна слева и справа от точки (исключая саму точку)
+            l0 = max(0, i - window)
+            r0 = min(n, i + 1 + window)
+            left_win = y[l0:i]
+            right_win = y[i + 1 : r0]
+            if not left_win or not right_win:
+                # fallback к соседям, если окно пустое (на границах)
+                left_stat = y[i - 1]
+                right_stat = y[i + 1]
+            else:
+                left_stat = float(np.median(left_win))
+                right_stat = float(np.median(right_win))
+            d = abs(left_stat - right_stat)
+            center = (left_stat + right_stat) / 2.0
             # адаптивный порог: чем ближе соседи, тем жёстче критерий
             thresh = max(20, 3 * d + 10)
             if abs(mid - center) > thresh:
@@ -160,6 +178,14 @@ class GraphPen():
             else:
                 i += 1
         return y_out
+
+    def set_spike_window(self, window: int) -> None:
+        """Установить окно обнаружения выбросов (число соседей с каждой стороны)."""
+        try:
+            w = int(window)
+            self._spike_window = max(1, w)
+        except Exception:
+            self._spike_window = 1
     
 
     def _filter_implement(self, data: list[int], filter: Optional[Callable] = None) -> list[int]:
