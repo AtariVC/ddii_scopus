@@ -357,7 +357,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
                         save_log=save,
-                        threshold=3,
+                        threshold=5,
                     )
                 except asyncio.exceptions.CancelledError:
                     return None

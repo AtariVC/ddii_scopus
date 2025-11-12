@@ -1,3 +1,4 @@
+import asyncio
 from copy import copy
 from typing import Any, Awaitable, Callable, Coroutine, Optional
 
@@ -538,6 +539,11 @@ class ModbusMPPCommand(EnvironmentVar):
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_HH, 
                                                                             hh,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            await asyncio.sleep(0.1)
+            result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
+                                                                            0x08,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()
