@@ -28,6 +28,7 @@ sys.path.append(str(modules_path))
 
 from modules.Main.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
+from modules.Main.widgets.oscilloscope.run_flux_widget import RunFluxWidget
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.event.event import Event  # noqa: E402
@@ -35,6 +36,8 @@ from src.filters_data import FiltersData  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.print_logger import PrintLogger  # noqa: E402
+from src.util.sync_data_manager import SyncDataManeger
+
 
 
 class RunMeasWidget(QtWidgets.QDialog):
@@ -71,15 +74,12 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.graph_widget: GraphWidget = self.parent.w_graph_widget  # type: ignore
+        self.run_flux_widget: RunFluxWidget = self.parent.run_flux_widget  # type: ignore
         # Event to broadcast save-threshold changes to plotters
+        self.sync_name_mngr: SyncDataManeger = SyncDataManeger()
         self.save_threshold_event = Event(int)
         self.ACQ_task_sync_time_event = Event(str)
-        self.get_electron_hist_event = Event(list)
-        self.get_proton_hist_event = Event(list)
-        self.get_hcp_hist_event = Event(list)
-        self.get_electron_hist_event.subscribe(self.parent.flux_widget.update_gui_data_electron)  # type: ignore
-        self.get_proton_hist_event.subscribe(self.parent.flux_widget.update_gui_data_proton)  # type: ignore
-        self.get_hcp_hist_event.subscribe(self.parent.flux_widget.update_gui_data_hcp)  # type: ignore
+        # self.ACQ_task_sync_time_event.subscribe(self.sync_data_mngr.update_syncname)
         self.filters_data: FiltersData = FiltersData()
         self.graph_filters = None
         self.enable_test_csa_flag: str = "enable_test_csa_flag"
@@ -171,12 +171,6 @@ class RunMeasWidget(QtWidgets.QDialog):
         try:
             for name in self.task_manager.get_active_tasks():
                 # Очистку гистограмм делаем только если была HH задача
-                if name == "HH_task":
-                    try:
-                        await self.mpp_cmd.clear_hist()
-                    except Exception:
-                        ...
-                    self.task_manager.cancel_task(name)
                 if name == "ACQ_task":
                     try:
                         await self.mpp_cmd.stop_measure()
@@ -249,7 +243,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.graph_filters = self.filters_data.filters[self.comboBox_filter.currentText()]
 
         ACQ_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
-        HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
+        HH_task: Callable[[], Awaitable[None]] = self.run_flux_widget.asyncio_HH_loop_request
         if await self.w_ser_dialog.check_connection():
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag]
             if self.flags[self.start_measure_flag]:
@@ -323,7 +317,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 if self.flags[self.wr_log_flag]:
                     peak0 = max(result_ch0_int) if result_ch0_int else 0
                     peak1 = max(result_ch1_int) if result_ch1_int else 0
-                    save = (peak0&0xFFF > lvl) or (peak1&0xFFF > 7)
+                    save = (peak0&0xFFF > lvl) or (peak1&0xFFF > 5)
                 else:
                     save = False
                 try:
@@ -368,112 +362,6 @@ class RunMeasWidget(QtWidgets.QDialog):
         except Exception as e:
             await self._stop_measuring(f"Ошибка (ACQ): {e}")
             return
-
-    def _accumulate_with_reset(self, prev, acc, curr):
-        """Accumulate per-bin counts with reset or wrap detection.
-
-        Logic per bin:
-        - If curr >= prev: delta = curr - prev
-        - If curr < prev and prev is near max (wrap on 12-bit): delta = (MOD - prev) + curr
-        - Else (hard reset): delta = curr
-
-        Returns updated (prev, acc) as numpy arrays.
-        """
-        import numpy as np
-        curr_arr = np.array(curr, dtype=np.int64)
-        if prev is None or acc is None:
-            return curr_arr, curr_arr.copy()
-        try:
-            prev_arr = np.array(prev, dtype=np.int64)
-            acc_arr = np.array(acc, dtype=np.int64)
-            if len(prev_arr) != len(curr_arr) or len(acc_arr) != len(curr_arr):
-                return curr_arr, curr_arr.copy()
-            raw_delta = curr_arr - prev_arr
-            MOD = getattr(self, "_counter_modulus", 4096)
-            wrap_threshold = MOD - 64
-            is_wrap = (raw_delta < 0) & (prev_arr >= wrap_threshold)
-            wrap_delta = (MOD - prev_arr) + curr_arr
-            reset_delta = curr_arr
-            delta = np.where(raw_delta >= 0, raw_delta, np.where(is_wrap, wrap_delta, reset_delta))
-            acc_arr = acc_arr + delta
-            return curr_arr, acc_arr
-        except Exception:
-            return curr_arr, curr_arr.copy()
-
-    async def asyncio_HH_loop_request(self) -> None:
-        """Опрос счетчика частиц"""
-        self.graph_widget.hp_counter.hist_clear()
-        try:
-            if not self.w_ser_dialog.is_modbus_ready():
-                await self._stop_measuring("Потеряно соединение (HH init)")
-                return
-            await self.mpp_cmd.clear_hist()
-            await self.mpp_cmd.clear_hcp_hist()
-        except Exception as e:
-            await self._stop_measuring(f"Ошибка подготовки гистограмм: {e}")
-            return
-        save: bool = False
-        # reset accumulators at HH start
-        self._prev_electron = None; self._acc_electron = None
-        self._prev_proton = None; self._acc_proton = None
-        self._prev_hcp = None; self._acc_hcp = None
-        self.graph_widget.show()
-        # counter_clear = 0
-        data: list[int] = []
-        while 1:
-            await asyncio.sleep(2)
-            if not self.w_ser_dialog.is_modbus_ready():
-                await self._stop_measuring("Потеряно соединение")
-                return
-            # counter_clear += 1
-            # if counter_clear > 50:
-            #     counter_clear = 0
-            #     await self.mpp_cmd.clear_hist()
-            try:
-                result_hist32: bytes = await self.mpp_cmd.get_hist32()
-                result_hist16: bytes = await self.mpp_cmd.get_hist16()
-                result_hcp_hist: bytes = await self.mpp_cmd.get_hcp_hist()
-            except Exception as e:
-                await self._stop_measuring(f"Ошибка чтения гистограмм: {e}")
-                return
-
-            result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
-            result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
-            result_hcp_hist_int: list[int] = await self.parser.mpp_pars_16b(result_hcp_hist)
-            # accumulate with reset detection
-            self._prev_electron, self._acc_electron = self._accumulate_with_reset(self._prev_electron, self._acc_electron, result_hist32_int)
-            self._prev_proton, self._acc_proton = self._accumulate_with_reset(self._prev_proton, self._acc_proton, result_hist16_int)
-            self._prev_hcp, self._acc_hcp = self._accumulate_with_reset(self._prev_hcp, self._acc_hcp, result_hcp_hist_int)
-            try:
-                self.get_electron_hist_event.emit(self._acc_electron.tolist())
-                self.get_proton_hist_event.emit(self._acc_proton.tolist())
-                self.get_hcp_hist_event.emit(self._acc_hcp.tolist())
-            except Exception:
-                self.get_electron_hist_event.emit(result_hist32_int)
-                self.get_proton_hist_event.emit(result_hist16_int)
-                self.get_hcp_hist_event.emit(result_hcp_hist_int)
-
-            # Обработчик флага сохранения
-            if self.flags[self.wr_log_flag]:
-                save = True
-            else:
-                save = False
-
-            try:
-                if self._acc_electron is not None and self._acc_proton is not None and self._acc_hcp is not None:
-                    data = self._acc_electron.tolist() + self._acc_proton.tolist() + self._acc_hcp.tolist()
-                else:
-                    data = result_hist32_int + result_hist16_int + result_hcp_hist_int
-                await self.graph_widget.hp_counter.draw_hist(data, bin_count=len(data),
-                    name_file_save_data=self.name_file_save,
-                    name_data=self.name_data,
-                    path_to_save=self.path_to_save,
-                    save_log=save,
-                    data_is_hist=True
-                    )
-            except asyncio.exceptions.CancelledError as e:
-                self.logger.error(str(e))
-                return None
 
     def _on_trigger_changed(self):
         """Emit threshold value from UI to plotters for save filtering."""

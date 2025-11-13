@@ -61,6 +61,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         super().__init__()
         loadUi(Path(__file__).parent.joinpath("main_ui_renderer.ui"), self)
         self.resize(1300, 800)
+        self.shared_buffer_str: str = '' # общий буфер для обмена данными между процессами
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
         self.logger = log_init()
@@ -109,8 +110,8 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         # Виджеты
         self.w_graph_widget: GraphWidget = GraphWidget()
         self.w_ser_dialog: SerialConnect = SerialConnect(self.logger)
+        self.flux_widget: FluxWidget = FluxWidget()
         self.run_flux_widget: RunFluxWidget = RunFluxWidget(self)
-        self.flux_widget: FluxWidget = FluxWidget(self)
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
         self.ddii_control_widget: DDIIControlWidget = DDIIControlWidget(self)
         self.client = self.w_ser_dialog.client

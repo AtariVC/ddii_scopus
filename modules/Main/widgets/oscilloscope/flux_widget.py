@@ -47,20 +47,13 @@ class FluxWidget(QtWidgets.QDialog):
     lineEdit_hcp_20: QtWidgets.QLineEdit
     lineEdit_hcp_45: QtWidgets.QLineEdit
 
-    def __init__(self, *args) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.parent = args[0]
         loadUi(Path(__file__).parent.joinpath("flux_widget.ui"), self)
         self.mw = ModbusWorker()
         self.parser = Parsers()
         self.init_QObjects()
-        # self.parent.run_meas_widget.get_electron_hist_event.subscribe(self.update_gui_data_proton)
-        # self.parent.run_meas_widget.get_proton_hist_event.subscribe(self.update_gui_data_proton)
-        if __name__ != "__main__":
-            self.logger = self.parent.logger
-            # self.w_ser_dialog.coroutine_finished.connect(self.get_client)
-        else:
-            pass
+        self.logger = log_init()
 
     def init_QObjects(self) -> None:
         self.le_obj_electron: dict[str, QtWidgets.QLineEdit] = {
