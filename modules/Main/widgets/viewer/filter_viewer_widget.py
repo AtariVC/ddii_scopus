@@ -9,6 +9,7 @@ from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt
 import sys
 from PyQt6.QtGui import QIntValidator
+from qtpy.uic import loadUi
 
 
 class FilterViewerWidget(QtWidgets.QWidget):
@@ -17,67 +18,43 @@ class FilterViewerWidget(QtWidgets.QWidget):
     Ожидает, что родитель передан как MainUIRenderer и содержит graph_viewer_widget.
     """
 
+    checkBox_pips: QtWidgets.QCheckBox
+    lineEdit_threshold_pips: QtWidgets.QLineEdit
+    checkBox_sipm: QtWidgets.QCheckBox
+    lineEdit_threshold_sipm: QtWidgets.QLineEdit
+    pushButton_apply: QtWidgets.QPushButton
+    pushButton_prev: QtWidgets.QPushButton
+    pushButton_next: QtWidgets.QPushButton
+    listWidget_times: QtWidgets.QListWidget
+
+    pushButton_save_frame: QtWidgets.QPushButton
+    lineEdit_num_frame: QtWidgets.QLineEdit
+
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._mw = parent  # MainUIRenderer or None
+        loadUi(Path(__file__).parent.joinpath("filter_viewer_widget.ui"), self)
         # Ensure container reports a reasonable minimum height so outer wrapper
         # (create_tab_widget_items) doesn't clamp it to ~40px and hide content
         self.setMinimumHeight(220)
         self._matched: List[int] = []  # 1-based индексы кадров
         self._pos: int = -1
+        self.pushButton_save_frame.clicked.connect(self.pushButton_save_frame_handler)
 
-        self._build_ui()
+        # self._build_ui()
         self._wire()
 
-    def _build_ui(self) -> None:
-        self.setObjectName("FilterViewerWidget")
-        layout = QtWidgets.QVBoxLayout(self)
-        # Horizontal controls row (no inner group box)
-        h = QtWidgets.QHBoxLayout()
-
-        self.label_threshold_pips = QtWidgets.QLabel("Порог PIPS:")
-        self.lineEdit_threshold_pips = QtWidgets.QLineEdit()
-        self.lineEdit_threshold_pips.setPlaceholderText("Порог PIPS…")
-        self.lineEdit_threshold_pips.setFixedWidth(90)
-        self.lineEdit_threshold_pips.setValidator(QIntValidator(0, 10000, self))
-        self.label_threshold_sipm = QtWidgets.QLabel("Порог SiPM:")
-        self.lineEdit_threshold_sipm = QtWidgets.QLineEdit()
-        self.lineEdit_threshold_sipm.setPlaceholderText("Порог SiPM…")
-        self.lineEdit_threshold_sipm.setFixedWidth(90)
-        self.lineEdit_threshold_sipm.setValidator(QIntValidator(0, 10000, self))
-        self.checkBox_pips = QtWidgets.QCheckBox("Порог PIPS:")
-        self.checkBox_pips.setChecked(True)
-        self.checkBox_sipm = QtWidgets.QCheckBox("Порог SiPM:")
-        self.checkBox_sipm.setChecked(True)
-        # Place indicator after text (checkbox on the right side)
-        self.checkBox_pips.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.checkBox_sipm.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.pushButton_apply = QtWidgets.QPushButton("Фильтровать")
-        self.pushButton_prev = QtWidgets.QPushButton("<")
-        self.pushButton_next = QtWidgets.QPushButton(">")
-
-        for w in (
-            self.checkBox_pips,
-            self.lineEdit_threshold_pips,
-            self.checkBox_sipm,
-            self.lineEdit_threshold_sipm,
-            self.pushButton_apply,
-            self.pushButton_prev,
-            self.pushButton_next,
-        ):
-            h.addWidget(w)
-
-        self.listWidget_times = QtWidgets.QListWidget()
-        self.listWidget_times.setMaximumHeight(120)
-
-        layout.addLayout(h)
-        layout.addWidget(self.listWidget_times)
-
+    
     def _wire(self) -> None:
         self.pushButton_apply.clicked.connect(self._on_apply)
         self.pushButton_prev.clicked.connect(lambda: self._step(-1))
         self.pushButton_next.clicked.connect(lambda: self._step(+1))
         self.listWidget_times.itemClicked.connect(self._on_pick)
+
+    def pushButton_save_frame_handler(self):
+        num_frame: int = int(self.lineEdit_num_frame.text())
+        self.save_desired_frame_hdf5(num_frame) # type: ignore
+
 
     def _viewer(self):
         return getattr(self._mw, "graph_viewer_widget", None)
@@ -115,6 +92,7 @@ class FilterViewerWidget(QtWidgets.QWidget):
         if gv is None or not self._matched:
             return
         self._pos = max(0, min(len(self._matched) - 1, self._pos + step))
+        self.lineEdit_num_frame.setText(str(self._pos))
         gv.go_to_index(self._matched[self._pos])
         try:
             self.listWidget_times.setCurrentRow(self._pos)

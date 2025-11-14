@@ -9,7 +9,7 @@ import qasync
 import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
-from src.log_config import get_logger
+from src.log_config import get_logger, log_init
 from modules.Main.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget
 ####### импорты из других директорий ######
 # /src
@@ -28,7 +28,7 @@ sys.path.append(str(src_path))
 # from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
 from src.event.event import Event  # noqa: E402
 from src.plot_renderer import GraphPen, HistPen  # noqa: E402
-from src.write_data_to_file import read_hdf5_file  # noqa: E402
+from src.write_data_to_file import read_hdf5_file, write_to_hdf5_file  # noqa: E402
 
 
 class GraphViewerWidget(QtWidgets.QWidget):
@@ -43,10 +43,16 @@ class GraphViewerWidget(QtWidgets.QWidget):
     label_time_data: QtWidgets.QLabel
     horizontalSlider_time_scale: QtWidgets.QSlider
 
+    # slider_update_event
+
     def __init__(self, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).parent.joinpath("graph_viewer_widget.ui"), self)
         self.pen_init()
+        self.massageBox = QtWidgets.QMessageBox()
+        self.massageBox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+        self.logger = log_init()
+        self.parent_hdf5_path = ''
         if __name__ != "__main__":
             self.parent = args[0]
             self.explorer: ExplorerHDF5Widget = self.parent.explorer_hdf5_widget # type: ignore
@@ -78,6 +84,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
 
     def open_graphs(self, path: str) -> None:
         """Открывает графики из файла"""
+        self.parent_hdf5_path = path
         self.horizontalSlider_time_scale.setValue(0)
         self.dataset_pips = read_hdf5_file(Path(path), self.name_pen_pips)
         self.dataset_sipm = read_hdf5_file(Path(path), self.name_pen_sipm)
@@ -143,7 +150,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
             else:
                 self.hp_sipm.hist_clear()
             if self.dataset_h_counter:
-                data_h_counter = list(self.dataset_h_counter.values())[current_val // len(self.dataset_h_counter.values())].T
+                data_h_counter = list(self.dataset_h_counter.values())[current_val-1].T
                 await self.counter_h.draw_hist(data_h_counter[1].tolist(), clear=True, data_is_hist=True)
             else:
                 self.counter_h.hist_clear()
@@ -171,23 +178,29 @@ class GraphViewerWidget(QtWidgets.QWidget):
         sipm_thr = 0 if level_sipm is None else int(level_sipm)
         matched_idx: list[int] = []
         for i in range(1, self.amount_measurements + 1):
-            ok = False
+            ok_pips = False
+            ok_sipm = False
             if use_pips and self.dataset_pips:
                 try:
                     arr = list(self.dataset_pips.values())[i - 1].T[1]
-                    if len(arr) and max(arr) > pips_thr:
-                        ok = True
+                    if max(arr) > pips_thr:
+                        ok_pips = True
                 except Exception:
                     ...
-            if (not ok) and use_sipm and self.dataset_sipm:
+            if use_sipm and self.dataset_sipm:
                 try:
                     arr = list(self.dataset_sipm.values())[i - 1].T[1]
-                    if len(arr) and max(arr) > sipm_thr:
-                        ok = True
+                    if max(arr) > sipm_thr:
+                        ok_sipm = True
                 except Exception:
                     ...
-            if ok:
+            if ok_pips and ok_sipm:
                 matched_idx.append(i)
+            if not matched_idx:
+                self.massageBox.setText("Warning")
+                self.massageBox.setInformativeText('No data found')
+                self.massageBox.setWindowTitle("Warning")
+                self.massageBox.show()
         return matched_idx
 
     def get_time_for_index(self, idx: int) -> str:
@@ -209,6 +222,42 @@ class GraphViewerWidget(QtWidgets.QWidget):
                     ...
         except Exception:
             ...
+
+    def save_desired_frame_hdf5(self, index):
+        save_path: Path = Path("./log/scope").resolve()
+        if index > self.amount_measurements:
+            self.massageBox.setText("Warning")
+            self.massageBox.setInformativeText('The number of frames must be less than the total number of frames.')
+            self.massageBox.setWindowTitle("Warning")
+            self.massageBox.show()
+        elif not index:
+            self.massageBox.setText("Warning")
+            self.massageBox.setInformativeText('Error index')
+            self.massageBox.setWindowTitle("Warning")
+            self.massageBox.show()
+        try:
+            if self.dataset_pips:
+                data_pips = list(self.dataset_pips.values())[index-1].T
+            if self.dataset_sipm:
+                data_sipm = list(self.dataset_sipm.values())[index-1].T
+            if self.dataset_h_pips:
+                data_h_pips = list(self.dataset_h_pips.values())[index-1].T
+            if self.dataset_h_sipm:
+                data_h_sipm = list(self.dataset_h_sipm.values())[index-1].T
+            if self.dataset_h_counter:
+                data_h_counter = list(self.dataset_h_counter.values())[index//len(self.dataset_h_counter.values())-1][-1].T
+        except Exception as e:
+            self.logger.error(e)
+        try:
+            write_to_hdf5_file(data_pips, self.name_pen_pips, save_path, self.measure_time_list[index-1], self.measure_time_list[index-1])
+            write_to_hdf5_file(data_sipm, self.name_pen_sipm, save_path, self.measure_time_list[index-1], self.measure_time_list[index-1])
+            write_to_hdf5_file(data_h_pips, self.name_pen_h_pips, save_path, self.measure_time_list[index-1], self.measure_time_list[index-1])
+            write_to_hdf5_file(data_h_sipm, self.name_pen_h_sipm, save_path, self.measure_time_list[index-1], self.measure_time_list[index-1])
+        except Exception as e:
+            self.logger.error(e)
+        
+
+
 
 
 if __name__ == "__main__":
