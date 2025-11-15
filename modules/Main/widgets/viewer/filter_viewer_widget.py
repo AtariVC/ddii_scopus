@@ -30,7 +30,7 @@ class FilterViewerWidget(QtWidgets.QWidget):
     pushButton_save_frame: QtWidgets.QPushButton
     lineEdit_num_frame: QtWidgets.QLineEdit
 
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent) -> None:
         super().__init__(parent)
         self._mw = parent  # MainUIRenderer or None
         loadUi(Path(__file__).parent.joinpath("filter_viewer_widget.ui"), self)
@@ -38,6 +38,9 @@ class FilterViewerWidget(QtWidgets.QWidget):
         # (create_tab_widget_items) doesn't clamp it to ~40px and hide content
         self.setMinimumHeight(220)
         self._matched: List[int] = []  # 1-based индексы кадров
+        if __name__ != "__main__":
+            _gw = self._viewer()
+            _gw.slider_update_event.subscribe(lambda val: self.lineEdit_num_frame.setText(str(val)))
         self._pos: int = -1
         self.pushButton_save_frame.clicked.connect(self.pushButton_save_frame_handler)
 
@@ -111,6 +114,6 @@ class FilterViewerWidget(QtWidgets.QWidget):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     qtmodern.styles.dark(app)
-    w = FilterViewerWidget()
+    w = FilterViewerWidget(None)
     w.show()
     app.exec()

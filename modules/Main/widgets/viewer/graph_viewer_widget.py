@@ -43,7 +43,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
     label_time_data: QtWidgets.QLabel
     horizontalSlider_time_scale: QtWidgets.QSlider
 
-    # slider_update_event
+    slider_update_event: Event
 
     def __init__(self, *args) -> None:
         super().__init__()
@@ -52,6 +52,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.massageBox = QtWidgets.QMessageBox()
         self.massageBox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
         self.logger = log_init()
+        self.slider_update_event = Event(int)
         self.parent_hdf5_path = ''
         if __name__ != "__main__":
             self.parent = args[0]
@@ -126,6 +127,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
             return
         try:
             current_val = self.horizontalSlider_time_scale.value()
+            self.slider_update_event.emit(current_val)
             self.label_counter_data.setText(f"{current_val-1}/{self.amount_measurements-1}")
             time_str = self.time_formater(self.measure_time_list[current_val - 1])
             self.label_time_data.setText(f"{time_str}")
