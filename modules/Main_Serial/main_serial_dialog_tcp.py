@@ -65,7 +65,7 @@ class ModbusRelayServer:
                                 pass
                         text = bb.rstrip(b"\x00").decode(errors="ignore")
                         if text:
-                            logger.info(f"[TCP SERVER] Получена идентификация клиента: {text}")
+                            logger.info(f"[TCP SERVER] Новое подключение: {text}")
                 except Exception:
                     pass
 
@@ -330,7 +330,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 try:
                     await self._send_client_identity(tcp_client)
                 except Exception as e:
-                    self.logger.warning(f"Не удалось отправить идентификацию клиента: {e}")
+                    self.logger.warning(f"Не удалось подключиться: {e}")
             else:
                 # Закрываем созданный клиент, если не удалось подключиться
                 try:
@@ -366,7 +366,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 regs.append(int.from_bytes(data[i : i + 2], byteorder="big", signed=False))
             # Пишем начиная с адреса 80, unit id 1 (single=True в сервере игнорирует unit)
             await tcp_client.write_registers(address=80, values=regs, unit=1)
-            self.logger.info("Идентификация клиента отправлена серверу")
+            self.logger.info("Отправлен идентификатор серверу")
         except Exception as e:
             self.logger.warning(f"Ошибка при формировании/отправке идентификации клиента: {e}")
 
