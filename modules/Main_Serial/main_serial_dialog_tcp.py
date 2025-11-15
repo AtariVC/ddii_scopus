@@ -4,6 +4,7 @@ from pathlib import Path
 
 import qasync
 import socket
+import getpass
 import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
 from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusSlaveContext
@@ -26,7 +27,7 @@ from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
 from src.customComboBox_COMport import CustomComboBox_COMport  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
 from src.env_var import EnvironmentVar  # noqa: E402
-from src.log_config import log_init, log_s  # noqa: E402
+from src.log_config import log_init, log_s, get_logger  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
 
 BAUDRATE = 125000
@@ -46,10 +47,32 @@ class ModbusRelayServer:
 
     def _setup_datastore(self):
         """Настройка хранилища данных Modbus"""
+        logger = get_logger(__name__)
+
+        class LoggingSequentialDataBlock(ModbusSequentialDataBlock):
+            def setValues(self, address, values):  # type: ignore[override]
+                super().setValues(address, values)
+                try:
+                    # Если пишут в диапазон 80.., пробуем декодировать как ASCII и логируем
+                    if int(address) >= 80:
+                        # values может быть list[int] или bytes
+                        regs = list(values) if isinstance(values, (list, tuple)) else [values]
+                        bb = bytearray()
+                        for v in regs:
+                            try:
+                                bb.extend(int(v).to_bytes(2, byteorder="big", signed=False))
+                            except Exception:
+                                pass
+                        text = bb.rstrip(b"\x00").decode(errors="ignore")
+                        if text:
+                            logger.info(f"[TCP SERVER] Получена идентификация клиента: {text}")
+                except Exception:
+                    pass
+
         store = ModbusSlaveContext(
             di=ModbusSequentialDataBlock(0, [0] * 100),
             co=ModbusSequentialDataBlock(0, [0] * 100),
-            hr=ModbusSequentialDataBlock(0, [0] * 100),
+            hr=LoggingSequentialDataBlock(0, [0] * 200),
             ir=ModbusSequentialDataBlock(0, [0] * 100),
         )
         self.context = ModbusServerContext(slaves=store, single=True)
@@ -293,6 +316,9 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         port = int(self.lineEdit_tcp_port.text())
 
         try:
+            # Предварительная диагностика подключения (DNS/доступность порта)
+            await self._tcp_preflight_diagnostics(host, port)
+
             tcp_client = AsyncModbusTcpClient(host=host, port=port, timeout=2)
 
             connected = await tcp_client.connect()
@@ -300,17 +326,79 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 self.tcp_client = tcp_client
                 self.tcp_status_changed.emit(f"Подключено к {host}:{port}", True)
                 self.logger.info(f"Подключено к TCP серверу {host}:{port}")
+                # Отправляем идентификацию клиента на сервер (в holding registers начиная с 80)
+                try:
+                    await self._send_client_identity(tcp_client)
+                except Exception as e:
+                    self.logger.warning(f"Не удалось отправить идентификацию клиента: {e}")
             else:
                 # Закрываем созданный клиент, если не удалось подключиться
                 try:
                     tcp_client.close()
                 except Exception:
                     pass
+                self.logger.error(
+                    f"AsyncModbusTcpClient.connect() вернул False (host={host}, port={port}).\n"
+                    "Проверьте, что сервер запущен, порт не занят и брандмауэр не блокирует соединение."
+                )
                 self.tcp_status_changed.emit("Не удалось подключиться", False)
 
         except Exception as e:
             self.tcp_status_changed.emit(f"Ошибка подключения: {e}", False)
             self.logger.error(f"Ошибка TCP подключения: {e}")
+
+    async def _send_client_identity(self, tcp_client: AsyncModbusTcpClient) -> None:
+        """Отправка на сервер краткой информации о клиенте в HR[80..]."""
+        try:
+            user = None
+            try:
+                user = getpass.getuser()
+            except Exception:
+                user = None
+            hostname = socket.gethostname()
+            local_ip = self._get_local_ip()
+            info = f"client={user or 'unknown'} host={hostname} ip={local_ip}"
+            data = info.encode("utf-8")
+            if len(data) % 2 == 1:
+                data += b"\x00"
+            regs: list[int] = []
+            for i in range(0, len(data), 2):
+                regs.append(int.from_bytes(data[i : i + 2], byteorder="big", signed=False))
+            # Пишем начиная с адреса 80, unit id 1 (single=True в сервере игнорирует unit)
+            await tcp_client.write_registers(address=80, values=regs, unit=1)
+            self.logger.info("Идентификация клиента отправлена серверу")
+        except Exception as e:
+            self.logger.warning(f"Ошибка при формировании/отправке идентификации клиента: {e}")
+
+    async def _tcp_preflight_diagnostics(self, host: str, port: int) -> None:
+        """Диагностика TCP перед подключением: DNS и доступность порта.
+
+        Пишет подробности в лог, не выбрасывает исключений наружу.
+        """
+        # DNS‑резолвинг
+        try:
+            infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+            addrs = [f"{ai[4][0]}:{ai[4][1]}" for ai in infos]
+            self.logger.debug(f"DNS {host}:{port} -> {', '.join(addrs)}")
+        except Exception as e:
+            self.logger.error(f"DNS ошибка для {host}:{port}: {e}")
+        # Пробный коннект с таймаутом через asyncio (не Modbus)
+        try:
+            conn = asyncio.open_connection(host=host, port=port)
+            reader, writer = await asyncio.wait_for(conn, timeout=1.5)
+            try:
+                sock = writer.get_extra_info("socket")
+                peer = writer.get_extra_info("peername")
+                lcl = writer.get_extra_info("sockname")
+                self.logger.debug(f"TCP порт доступен, peer={peer}, local={lcl}, sock={sock}")
+            finally:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    ...
+        except Exception as e:
+            self.logger.error(f"Порт недоступен для TCP: {host}:{port} — {e}")
 
     def disconnect_tcp_client(self):
         """Отключение TCP клиента"""
