@@ -39,7 +39,8 @@ class ModbusRelayServer:
         self.serial_client = serial_client
         self.host = host
         self.port = port
-        self.server = None
+        self.server = None  # may be asyncio.Server in some versions
+        self.server_task = None  # asyncio.Task for server lifetime
         self.context = None
         self._setup_datastore()
 
@@ -56,10 +57,20 @@ class ModbusRelayServer:
     async def start_server(self):
         """Запуск TCP сервера"""
         try:
-            self.server = await StartAsyncTcpServer(
-                context=self.context, address=(self.host, self.port), defer_start=False
-            )
-            print(f"Modbus TCP сервер запущен на {self.host}:{self.port}")
+            # В ряде версий pymodbus StartAsyncTcpServer является длительно живущей корутиной,
+            # поэтому запускаем её как фоновую задачу, чтобы не блокировать UI-слот.
+            srv_coro = StartAsyncTcpServer(context=self.context, address=(self.host, self.port))
+            self.server_task = asyncio.create_task(srv_coro)
+            # Дадим циклу шанс выполнить привязку сокета и отловить мгновенные ошибки
+            await asyncio.sleep(0.05)
+            if self.server_task.done():
+                # Если задача завершилась мгновенно — проверим на исключение
+                exc = self.server_task.exception()
+                if exc:
+                    print(f"Ошибка запуска сервера: {exc}")
+                    self.server_task = None
+                    return False
+            print(f"Modbus TCP сервер запущен (фоново) на {self.host}:{self.port}")
             return True
         except Exception as e:
             print(f"Ошибка запуска сервера: {e}")
@@ -67,8 +78,28 @@ class ModbusRelayServer:
 
     def stop_server(self):
         """Остановка TCP сервера"""
+        stopped = False
+        # Останавливаем задачу сервера, если запускается как Task
+        if self.server_task:
+            try:
+                self.server_task.cancel()
+            except Exception:
+                pass
+            self.server_task = None
+            stopped = True
+        # Дополнительно пробуем корректно закрыть объект сервера, если он есть
         if self.server:
-            self.server.server_close()
+            try:
+                self.server.close()
+                stopped = True
+            except Exception:
+                try:
+                    self.server.server_close()
+                    stopped = True
+                except Exception:
+                    pass
+            self.server = None
+        if stopped:
             print("Modbus TCP сервер остановлен")
 
 
@@ -226,10 +257,27 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
         if await relay_server.start_server():
             self.relay_server = relay_server
-            self.tcp_status_changed.emit(f"Сервер запущен на {host}:{port}", True)
-            self.logger.info(f"TCP сервер запущен на {host}:{port}")
+            # Попробуем получить фактический адрес сокета
+            bound_addr = None
+            try:
+                server_obj = getattr(relay_server, "server", None)
+                if server_obj is not None and hasattr(server_obj, "sockets"):
+                    sockets = getattr(server_obj, "sockets", [])
+                    if sockets:
+                        bound_addr = sockets[0].getsockname()
+            except Exception:
+                bound_addr = None
+            addr_str = f"{host}:{port}" if not bound_addr else f"{bound_addr[0]}:{bound_addr[1]}"
+            # Логируем подробности сервера
+            self.logger.info(f"TCP сервер УСПЕШНО запущен на {addr_str}")
+            # Обновляем кнопку сразу
+            self.pushButton_connect_tcp.setText("Остановить")
+            # Сообщаем в статус: успех
+            self.tcp_status_changed.emit(f"Успешный запуск сервера на {addr_str}", True)
         else:
+            # Сообщаем в статус: ошибка
             self.tcp_status_changed.emit("Ошибка запуска сервера", False)
+            self.pushButton_connect_tcp.setText("Запустить")
 
     def stop_tcp_server(self):
         """Остановка TCP сервера"""
