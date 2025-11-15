@@ -87,6 +87,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     pushButton_connect_tcp: QtWidgets.QPushButton
     widget_led_tcp: QtWidgets.QWidget
     label_tcp: QtWidgets.QLabel
+    checkBox_host: QtWidgets.QCheckBox
 
     coroutine_finished = QtCore.pyqtSignal()
     tcp_status_changed = QtCore.pyqtSignal(str, bool)
@@ -119,6 +120,11 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
         self.pushButton_connect_tcp.clicked.connect(self.tcp_button_handler)
         self.tcp_status_changed.connect(self.update_tcp_status)
+        # Реакция на смену режима Хост/Клиент
+        try:
+            self.checkBox_host.toggled.connect(lambda _: self.update_tcp_mode_ui())
+        except Exception:
+            ...
 
         # Обновляем интерфейс при смене вкладок
         self.tabWidget_serial.currentChanged.connect(self.update_tcp_interface)
@@ -172,19 +178,28 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
     def update_tcp_interface(self, index):
         """Обновление интерфейса TCP в зависимости от состояния serial"""
         if index == 1:  # Вкладка TCP
-            if self.client is not None:  # Есть serial подключение
-                self.pushButton_connect_tcp.setText("Запустить" if self.relay_server is None else "Остановить")
-                self.label_tcp.setText("Состояние сервера:")
-            else:  # Нет serial подключения
-                self.pushButton_connect_tcp.setText("Подключить" if self.tcp_client is None else "Отключить")
-                self.label_tcp.setText("Состояние подключения:")
+            self.update_tcp_mode_ui()
+
+    def update_tcp_mode_ui(self):
+        """Настройка UI под выбранный режим TCP (Хост/Клиент)."""
+        is_host = bool(self.checkBox_host.isChecked())
+        if is_host:
+            # Режим сервера (Хост)
+            self.pushButton_connect_tcp.setText("Остановить" if self.relay_server is not None else "Запустить")
+            self.label_tcp.setText("Состояние сервера:")
+        else:
+            # Режим клиента
+            self.pushButton_connect_tcp.setText("Отключить" if self.tcp_client is not None else "Подключить")
+            self.label_tcp.setText("Состояние подключения:")
 
     @qasync.asyncSlot()
     async def tcp_button_handler(self):
         """Обработчик кнопки TCP"""
-        if self.client is not None:  # Есть serial подключение - управляем сервером
+        if self.checkBox_host.isChecked():
+            # Режим Хост: запуск/остановка локального сервера
             await self.tcp_server_handler()
-        else:  # Нет serial подключения - подключаемся как клиент
+        else:
+            # Режим Клиент: подключение/отключение к серверу
             await self.tcp_client_handler()
 
     async def tcp_server_handler(self):
@@ -278,7 +293,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
     def update_tcp_status(self, message, is_connected):
         """Обновление статуса TCP"""
-        if self.client is not None:  # Режим сервера
+        if self.checkBox_host.isChecked():  # Режим сервера
             self.label_tcp.setText(f"Состояние сервера: {message}")
         else:  # Режим клиента
             self.label_tcp.setText(f"Состояние подключения: {message}")
@@ -286,7 +301,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.widget_led_tcp.setStyleSheet(widget_led_on() if is_connected else widget_led_off())
 
         # Обновляем текст кнопки
-        if self.client is not None:
+        if self.checkBox_host.isChecked():
             self.pushButton_connect_tcp.setText("Остановить" if is_connected else "Запустить")
         else:
             self.pushButton_connect_tcp.setText("Отключить" if is_connected else "Подключить")
@@ -402,7 +417,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         else:
             cm = ModbusCMCommand(cli, logger)
         try:
-            mpp = ModbusMPPCommand(cli, logger, self.mpp_id, logger, log_enabled=True)
+            mpp = ModbusMPPCommand(cli, logger, self.mpp_id)
         except Exception:
             mpp = ModbusMPPCommand(cli, logger)
         return cm, mpp

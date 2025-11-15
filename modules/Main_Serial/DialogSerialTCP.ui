@@ -75,7 +75,7 @@
         </font>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <property name="elideMode">
         <enum>Qt::ElideLeft</enum>
@@ -382,7 +382,7 @@
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_w_3" stretch="2,1,1,1,1,1,1,1,2">
+          <layout class="QHBoxLayout" name="horizontalLayout_w_3" stretch="2,1,1,1,1,1,1,1,0,2">
            <item>
             <spacer name="horizontalSpacer_3">
              <property name="orientation">
@@ -595,6 +595,13 @@
              </property>
              <property name="text">
               <string>Подключить</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="checkBox_host">
+             <property name="text">
+              <string>Хост</string>
              </property>
             </widget>
            </item>
