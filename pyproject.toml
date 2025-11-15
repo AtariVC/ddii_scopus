@@ -36,6 +36,8 @@ dependencies = [
     "qcustomwindow @ git+https://github.com/CrinitusFeles/QCustomWindow.git ; sys_platform == 'win32'",
     "pdoc>=15.0.4",
     "bs4>=0.0.2",
+    "pymyip0>=0.1",
+    "requests>=2.32.5",
 ]
 
 [build-system]

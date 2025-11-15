@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import qasync
+import socket
 import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
 from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusSlaveContext
@@ -109,7 +110,11 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         self.tcp_client: AsyncModbusTcpClient | None = None
         self.relay_server: ModbusRelayServer | None = None
         # Признаки TCP клиента/сервера определяются по self.tcp_client/self.relay_server
-
+        # Устанавливаем локальный IP при запуске, если доступен
+        try:
+            self.lineEdit_ip.setText(self._get_local_ip())
+        except Exception:
+            ...
         # Подключаем обработчики
         self.pushButton_connect_w.clicked.connect(self.pushButton_connect_Handler)
         self.pushButton_connect_tcp.clicked.connect(self.tcp_button_handler)
@@ -122,10 +127,13 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         class _NullModbusClient(AsyncModbusSerialClient):
             def __init__(self):
                 pass
+
             async def read_holding_registers(self, *args, **kwargs):
                 raise RuntimeError("No Modbus client connected")
+
             async def write_registers(self, *args, **kwargs):
                 raise RuntimeError("No Modbus client connected")
+
             async def connect(self, *args, **kwargs):
                 return False
 
@@ -133,6 +141,33 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
                 return None
 
         self._null_client = _NullModbusClient()
+
+    def _get_local_ip(self) -> str:
+        """Возвращает локальный IPv4 адрес (не loopback), если возможно.
+
+        Порядок попыток:
+        1) UDP-сокет к 8.8.8.8:80 (без реальной отправки) и чтение адреса интерфейса.
+        2) Перебор адресов хоста через gethostbyname_ex и выбор не-127.*
+        3) Fallback: 127.0.0.1
+        """
+        # Try UDP trick — не выполняет сетевой обмен, только выбор интерфейса
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                ip = s.getsockname()[0]
+                if ip and not ip.startswith("127."):
+                    return ip
+        except Exception:
+            pass
+        # Fallback: resolve hostname
+        try:
+            hostname = socket.gethostname()
+            for ip in socket.gethostbyname_ex(hostname)[2]:
+                if ip and not ip.startswith("127."):
+                    return ip
+        except Exception:
+            pass
+        return "127.0.0.1"
 
     def update_tcp_interface(self, index):
         """Обновление интерфейса TCP в зависимости от состояния serial"""
@@ -372,7 +407,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
             mpp = ModbusMPPCommand(cli, logger)
         return cm, mpp
 
-    async def check_connection(self, only_cm = True, only_mpp = True) -> bool:
+    async def check_connection(self, only_cm=True, only_mpp=True) -> bool:
         """
         Проверка подключения CM и MPP по Serial. Для внешнего использования.
 
