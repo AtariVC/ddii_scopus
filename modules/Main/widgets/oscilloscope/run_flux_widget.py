@@ -119,10 +119,14 @@ class RunFluxWidget(QtWidgets.QDialog):
                         self.task_manager.create_task(HH_task(), "HH_task")
                         self.task_manager.create_task(ACQ_Peak_task(), "ACQ_Peak_task")
                     except Exception as e:
+                        self.graph_widget.hp_sipm.hist_clear()
+                        self.graph_widget.hp_pips.hist_clear()
                         await self._stop_measuring(f"Ошибка запуска задач: {e}")
                 
         else:
             self.flags[self.start_measure_flag] = False
+            self.graph_widget.hp_sipm.hist_clear()
+            self.graph_widget.hp_pips.hist_clear()
             await self._stop_measuring()
             self.only_acq_flag = False
             self.pushButton_hist_run_measure.setText("Начать изм")
