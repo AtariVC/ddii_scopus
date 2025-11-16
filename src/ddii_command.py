@@ -212,7 +212,7 @@ class ModbusMPPCommand(EnvironmentVar):
     Args:
         EnvironmentVar (_type_): внутренние постоянные окружения
     """
-    def __init__(self, client, logger, *args, log_enabled: bool = True, serial_log_enabled: bool = True):
+    def __init__(self, client, logger, *args, log_enabled: bool = True, serial_log_enabled: bool = False):
         super().__init__()
         self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
