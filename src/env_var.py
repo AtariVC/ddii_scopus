@@ -27,7 +27,11 @@ class EnvironmentVar():
     CM_DBG_GET_HVIP_AB              = 0x000E
     CM_GET_TERM                     = 0x000F
     CM_DBG_GET_DESIRED_HVIP         = 0x0011
-    
+    CM_SET_READ_POINTER             = 30
+    CM_SET_WRITE_POINTER            = 32
+    CM_GET_READ_POINTER             = 29
+    CM_GET_WRITE_POINTER            = 31
+    READ_MEM_FRAME                  = 33
 
     REG_MPP_CTRL                    = 0x0000
     REG_MPP_CTRL_ISSUE_WAVEFORM     = 0x0009

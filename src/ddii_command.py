@@ -34,6 +34,29 @@ class ModbusCMCommand(EnvironmentVar):
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
         
+    async def write_mem_ptr(self, rad_ptr: int) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.write_registers(self.CM_SET_READ_POINTER, 
+                                                                            rad_ptr, 
+                                                                            slave=self.CM_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
+        
+    async def read_mem(self) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.READ_MEM_FRAME, 
+                                                                            32, 
+                                                                            slave=self.CM_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
     
     async def set_csa_test_enable(self, state) -> bytes:
         try:

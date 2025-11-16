@@ -41,6 +41,7 @@ from Main.widgets.viewer.filter_viewer_widget import FilterViewerWidget  # noqa:
 from Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from Main.widgets.debug.debug_graph import DebugGraphWidget # noqa: E402
 from Main.widgets.debug.debug_table import DebugTableWidget # noqa: E402
+from Main.widgets.parser.cmd_wind_read_mem import CmdWindReadMemWidget  # noqa: E402
 #############################################
 
 from src.craft_custom_widget import add_serial_widget
@@ -85,7 +86,8 @@ class MainUIRenderer(QtWidgets.QMainWindow):
                 "Файл менеджер": self.explorer_hdf5_widget,
                 "Фильтр кадров": self.graph_filter_widget,
             },
-            "Парсер": {},
+            "Парсер": {
+                "Чтение памяти": self.cmd_wind_read_mem},
             "Отладка": {
                 "": DebugTableWidget(),
             },
@@ -122,6 +124,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self)
         self.graph_filter_widget: FilterViewerWidget = FilterViewerWidget(self)
         self.graph_debug_widget: DebugGraphWidget = DebugGraphWidget()
+        self.cmd_wind_read_mem: CmdWindReadMemWidget = CmdWindReadMemWidget(self)
         model = self.widget_model()
         self.tab_widget = create_tab_widget_items(model, self.on_tab_widget_handler)
         #### отдельно добавляем SerialConnectWidget
