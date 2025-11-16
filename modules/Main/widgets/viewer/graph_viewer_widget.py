@@ -83,8 +83,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         )
         # Filtering state managed by external widget
 
-    @qasync.asyncSlot()
-    async def open_graphs(self, path: str) -> None:
+    def open_graphs(self, path: str) -> None:
         """Открывает графики из файла"""
         self.parent_hdf5_path = path
         self.horizontalSlider_time_scale.setValue(0)
@@ -101,7 +100,6 @@ class GraphViewerWidget(QtWidgets.QWidget):
             self.horizontalSlider_time_scale.setMaximum(self.amount_measurements)
             self.label_counter_data.setText(f"{self.horizontalSlider_time_scale.value()}/{self.amount_measurements}")
             self.horizontalSlider_time_scale.setValue(1)
-            await self.slider_graphs_updater()
         else:
             self.label_time_data.setText(f"Нет данных")
         # Filter state is external; nothing to reset here
