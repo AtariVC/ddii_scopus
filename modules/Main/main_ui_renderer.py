@@ -50,18 +50,21 @@ from src.main_window_maker import create_split_widget, create_tab_widget_items, 
 from src.modbus_worker import ModbusWorker  # noqa: E402
 from src.parsers import Parsers  # noqa: E402
 from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
+from src.event.event import Event  # noqa: E402
 
 
 class MainUIRenderer(QtWidgets.QMainWindow):
     gridLayout_main_split: QtWidgets.QGridLayout
 
     coroutine_get_client_finished = QtCore.pyqtSignal()
+    
+    shared_bfr_update_event: Event
 
     def __init__(self) -> None:
         super().__init__()
         loadUi(Path(__file__).parent.joinpath("main_ui_renderer.ui"), self)
         self.resize(1300, 800)
-        self.shared_buffer_str: str = '' # общий буфер для обмена данными между процессами
+        self.shared_bfr_update_event = Event() # общий буфер для обмена данными между процессами
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
         self.logger = log_init()
