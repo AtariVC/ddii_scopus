@@ -95,6 +95,8 @@ class RunFluxWidget(QtWidgets.QDialog):
             await self._stop_measuring("Нет соединения")
         if not self.flags[self.start_measure_flag]:
             self.pushButton_hist_run_measure.setText("Остановить изм.")
+            self.graph_widget.hp_sipm.hist_clear()
+            self.graph_widget.hp_pips.hist_clear()
             delay = int(self.lineEdit_interval_request.text())
             #### Path to save ####
             path_to_save: Path = self._init_path_to_save()
@@ -125,8 +127,6 @@ class RunFluxWidget(QtWidgets.QDialog):
                 
         else:
             self.flags[self.start_measure_flag] = False
-            self.graph_widget.hp_sipm.hist_clear()
-            self.graph_widget.hp_pips.hist_clear()
             await self._stop_measuring()
             self.only_acq_flag = False
             self.pushButton_hist_run_measure.setText("Начать изм")
