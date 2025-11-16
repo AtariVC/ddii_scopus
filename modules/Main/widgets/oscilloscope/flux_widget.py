@@ -104,9 +104,9 @@ class FluxWidget(QtWidgets.QDialog):
         except Exception as e:
             self.logger.error(str(e))
             
-    def update_data_acq(self, acq1: str, acq2: str):
+    def update_data_acq(self, acq: list[str]):
         try:
-            self.lineEdit_acq1.setText(acq1)
-            self.lineEdit_acq2.setText(acq2)
+            self.lineEdit_acq1.setText(acq[0])
+            self.lineEdit_acq2.setText(acq[1])
         except Exception as e:
             self.logger.error(e)

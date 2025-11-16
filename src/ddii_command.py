@@ -212,7 +212,7 @@ class ModbusMPPCommand(EnvironmentVar):
     Args:
         EnvironmentVar (_type_): внутренние постоянные окружения
     """
-    def __init__(self, client, logger, *args, log_enabled: bool = True, serial_log_enabled: bool = False):
+    def __init__(self, client, logger, *args, log_enabled: bool = True, serial_log_enabled: bool = True):
         super().__init__()
         self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
@@ -365,6 +365,18 @@ class ModbusMPPCommand(EnvironmentVar):
     async def get_ddin(self):
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.DDIN_PEACK, 
+                                                                            1,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+        
+    async def get_tmp_count(self):
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.TMPCOUNT, 
                                                                             1,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
