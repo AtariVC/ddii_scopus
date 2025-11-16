@@ -101,7 +101,6 @@ class RunFluxWidget(QtWidgets.QDialog):
             #### Path to save ####
             path_to_save: Path = self._init_path_to_save()
             name_file_save: str = self._init_name_file_save()
-            self.only_acq_flag = True
             status_init: bool = await self.init_HH_request(delay, path_to_save,
                                                           name_file_save,
                                                           self.flags[self.wr_log_flag])
@@ -222,7 +221,7 @@ class RunFluxWidget(QtWidgets.QDialog):
             
             if not self.name_data:
                 current_datetime = datetime.datetime.now()
-                self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+                self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:24]
 
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
@@ -285,10 +284,10 @@ class RunFluxWidget(QtWidgets.QDialog):
                 await self._stop_measuring(f"Ошибка чтения гистограмм: {e}")
                 return
             
-            if not self.name_data:
-                current_datetime = datetime.datetime.now()
-                self.parent.shared_bfr_update_event.emit(self.name_data) # type: ignore
-                self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+            # if not self.name_data:
+            current_datetime = datetime.datetime.now()
+            # self.parent.shared_bfr_update_event.emit(self.name_data) # type: ignore
+            self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:24]
 
             acq1: list[int]  = await self.parser.mpp_pars_16b(result_acq1)
             acq2: list[int]  = await self.parser.mpp_pars_16b(result_acq2)
@@ -296,26 +295,25 @@ class RunFluxWidget(QtWidgets.QDialog):
             self.get_acq_event.emit([str(acq1[1]), str(acq2[1])])
 
             try:
-                if self.only_acq_flag:
-                    if self.TmpCount != tmp_count[1]:
-                        self.TmpCount = tmp_count[1]
-                        await self.graph_widget.hp_pips.draw_hist([acq1[1]], bin_count=4096,
-                            name_file_save_data=self.name_file_save,
-                            name_data=self.name_data,
-                            path_to_save=self.path_to_save,
-                            save_log=self.save_log_file,
-                            data_is_hist=False
-                            )
-                        await self.graph_widget.hp_sipm.draw_hist([acq2[1]], bin_count=4096,
-                            name_file_save_data=self.name_file_save,
-                            name_data=self.name_data,
-                            path_to_save=self.path_to_save,
-                            save_log=self.save_log_file,
-                            data_is_hist= False
-                            )
-                self.name_data = '' # Сбрасываем имя, нужно для работы синхронизации имени данных с другими процессами
+                if self.TmpCount != tmp_count[1]:
+                    self.TmpCount = tmp_count[1]
+                    await self.graph_widget.hp_pips.draw_hist([acq1[1]], bin_count=4096,
+                        name_file_save_data=self.name_file_save,
+                        name_data=self.name_data,
+                        path_to_save=self.path_to_save,
+                        save_log=self.save_log_file,
+                        data_is_hist=False
+                        )
+                    await self.graph_widget.hp_sipm.draw_hist([acq2[1]], bin_count=4096,
+                        name_file_save_data=self.name_file_save,
+                        name_data=self.name_data,
+                        path_to_save=self.path_to_save,
+                        save_log=self.save_log_file,
+                        data_is_hist= False
+                        )
+                # self.name_data = '' # Сбрасываем имя, нужно для работы синхронизации имени данных с другими процессами
             except asyncio.exceptions.CancelledError as e:
-                self.name_data = ''
+                # self.name_data = ''
                 self.logger.error(str(e))
                 return None
 

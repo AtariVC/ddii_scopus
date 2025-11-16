@@ -239,7 +239,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         #### Path to save ####
         self.parent_path: Path = Path("./log/scope").resolve()
         current_datetime = datetime.datetime.now()
-        time: str = current_datetime.strftime("%d-%m-%Y")[:23]
+        time: str = current_datetime.strftime("%d-%m-%Y")[:24]
         self.path_to_save: Path = self.parent_path / time
         self.graph_filters = self.filters_data.filters[self.comboBox_filter.currentText()]
 
@@ -252,7 +252,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                 self.pushButton_run_measure.setText("Остановить изм.")
                 # TODO: сделать чек боксы не активными
                 current_datetime = datetime.datetime.now()
-                self.name_file_save: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
+                self.name_file_save: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:24]
                 await self.run_flux_widget.init_HH_request(delay = 3, 
                                                            path_to_save = self.path_to_save, 
                                                            name_file_save=self.name_file_save,
@@ -304,7 +304,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                     await self._stop_measuring("Потеряно соединение")
                     return
                 current_datetime = datetime.datetime.now()
-                self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+                self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:24]
                 self.parent.shared_bfr_update_event.emit(self.name_data) # type: ignore
                 # self.ACQ_task_sync_time_event.emit(self.name_data)  # для синхронизации данных по времени
                 if not self.flags[self.enable_trig_meas_flag]:
