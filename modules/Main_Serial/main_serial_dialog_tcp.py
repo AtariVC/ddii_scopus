@@ -36,50 +36,139 @@ BAUDRATE = 125000
 class ModbusRelayServer:
     """Сервер для ретрансляции Modbus данных"""
 
-    def __init__(self, serial_client, host="0.0.0.0", port=5012):
+    def __init__(self, serial_client, host="0.0.0.0", port=5012, cm_id: int | None = None, mpp_id: int | None = None):
         self.serial_client = serial_client
         self.host = host
         self.port = port
         self.server = None  # may be asyncio.Server in some versions
         self.server_task = None  # asyncio.Task for server lifetime
         self.context = None
+        self.loop = None
+        self.cm_id = cm_id
+        self.mpp_id = mpp_id
         self._setup_datastore()
 
     def _setup_datastore(self):
-        """Настройка хранилища данных Modbus"""
+        """Настройка хранилища данных Modbus.
+        Создаёт прокси‑блоки, которые пробрасывают чтение/запись в serial‑клиент,
+        а также отдельную область HR[80..] для сообщений идентификации клиентов.
+        """
         logger = get_logger(__name__)
 
-        class LoggingSequentialDataBlock(ModbusSequentialDataBlock):
-            def setValues(self, address, values):  # type: ignore[override]
-                super().setValues(address, values)
-                try:
-                    # Если пишут в диапазон 80.., пробуем декодировать как ASCII и логируем
-                    if int(address) >= 80:
-                        # values может быть list[int] или bytes
-                        regs = list(values) if isinstance(values, (list, tuple)) else [values]
-                        bb = bytearray()
-                        for v in regs:
-                            try:
-                                bb.extend(int(v).to_bytes(2, byteorder="big", signed=False))
-                            except Exception:
-                                pass
-                        text = bb.rstrip(b"\x00").decode(errors="ignore")
-                        if text:
-                            logger.info(f"[TCP SERVER] Новое подключение: {text}")
-                except Exception:
-                    pass
+        class ProxySequentialDataBlock(ModbusSequentialDataBlock):
+            def __init__(self, relay: 'ModbusRelayServer', unit_id: int, kind: str):
+                super().__init__(0, [0] * 512)
+                self.relay = relay
+                self.unit_id = unit_id
+                self.kind = kind  # 'hr' | 'ir'
 
-        store = ModbusSlaveContext(
-            di=ModbusSequentialDataBlock(0, [0] * 100),
-            co=ModbusSequentialDataBlock(0, [0] * 100),
-            hr=LoggingSequentialDataBlock(0, [0] * 200),
-            ir=ModbusSequentialDataBlock(0, [0] * 100),
-        )
-        self.context = ModbusServerContext(slaves=store, single=True)
+            def getValues(self, address, count=1):  # type: ignore[override]
+                # Служебная область (идентификация клиентов) обслуживается локально
+                try:
+                    if int(address) >= 80:
+                        return super().getValues(address, count)
+                except Exception:
+                    ...
+                cli = self.relay.serial_client
+                if cli is None:
+                    return [0] * int(count)
+                try:
+                    loop = self.relay.loop or asyncio.get_event_loop()
+                    if self.kind == 'hr':
+                        fut = asyncio.run_coroutine_threadsafe(
+                            cli.read_holding_registers(int(address), int(count), slave=int(self.unit_id)), loop
+                        )
+                    else:
+                        fut = asyncio.run_coroutine_threadsafe(
+                            cli.read_input_registers(int(address), int(count), slave=int(self.unit_id)), loop
+                        )
+                    resp = fut.result(timeout=2.0)
+                    regs = getattr(resp, 'registers', None)
+                    if regs is None:
+                        try:
+                            raw = resp.encode()
+                            regs = [int.from_bytes(raw[i:i+2], 'big') for i in range(0, len(raw), 2)]
+                        except Exception:
+                            regs = [0] * int(count)
+                    return list(regs)[: int(count)]
+                except Exception as e:
+                    logger.error(f"Proxy getValues error ({self.kind}) addr={address} cnt={count}: {e}")
+                    return [0] * int(count)
+
+            def setValues(self, address, values):  # type: ignore[override]
+                # Перехватываем служебную область идентификации — не пробрасываем в прибор
+                try:
+                    if int(address) >= 80:
+                        super().setValues(address, values)
+                        try:
+                            regs = list(values) if isinstance(values, (list, tuple)) else [values]
+                            bb = bytearray()
+                            for v in regs:
+                                try:
+                                    bb.extend(int(v).to_bytes(2, byteorder='big', signed=False))
+                                except Exception:
+                                    pass
+                            text = bb.rstrip(b"\x00").decode(errors='ignore')
+                            if text:
+                                logger.info(f"[TCP SERVER] Новое подключение: {text}")
+                        except Exception:
+                            ...
+                        return
+                except Exception:
+                    ...
+                cli = self.relay.serial_client
+                if cli is None:
+                    return
+                try:
+                    loop = self.relay.loop or asyncio.get_event_loop()
+                    fut = asyncio.run_coroutine_threadsafe(
+                        cli.write_registers(int(address), list(values), slave=int(self.unit_id)), loop
+                    )
+                    fut.result(timeout=2.0)
+                except Exception as e:
+                    logger.error(f"Proxy setValues error addr={address}: {e}")
+
+        # Собираем карту slaves по unit id (ЦМ/МПП)
+        try:
+            slaves: dict[int, ModbusSlaveContext] = {}
+            if self.cm_id is not None:
+                slaves[int(self.cm_id)] = ModbusSlaveContext(
+                    di=ModbusSequentialDataBlock(0, [0] * 64),
+                    co=ModbusSequentialDataBlock(0, [0] * 64),
+                    hr=ProxySequentialDataBlock(self, int(self.cm_id), 'hr'),
+                    ir=ProxySequentialDataBlock(self, int(self.cm_id), 'ir'),
+                )
+            if self.mpp_id is not None:
+                slaves[int(self.mpp_id)] = ModbusSlaveContext(
+                    di=ModbusSequentialDataBlock(0, [0] * 64),
+                    co=ModbusSequentialDataBlock(0, [0] * 64),
+                    hr=ProxySequentialDataBlock(self, int(self.mpp_id), 'hr'),
+                    ir=ProxySequentialDataBlock(self, int(self.mpp_id), 'ir'),
+                )
+            if slaves:
+                self.context = ModbusServerContext(slaves=slaves, single=False)
+            else:
+                store = ModbusSlaveContext(
+                    di=ModbusSequentialDataBlock(0, [0] * 64),
+                    co=ModbusSequentialDataBlock(0, [0] * 64),
+                    hr=ModbusSequentialDataBlock(0, [0] * 512),
+                    ir=ModbusSequentialDataBlock(0, [0] * 64),
+                )
+                self.context = ModbusServerContext(slaves=store, single=True)
+        except Exception as e:
+            logger.error(f"Ошибка создания контекста сервера: {e}")
+            store = ModbusSlaveContext(
+                di=ModbusSequentialDataBlock(0, [0] * 64),
+                co=ModbusSequentialDataBlock(0, [0] * 64),
+                hr=ModbusSequentialDataBlock(0, [0] * 512),
+                ir=ModbusSequentialDataBlock(0, [0] * 64),
+            )
+            self.context = ModbusServerContext(slaves=store, single=True)
 
     async def start_server(self):
         """Запуск TCP сервера"""
         try:
+            self.loop = asyncio.get_event_loop()
             # В ряде версий pymodbus StartAsyncTcpServer является длительно живущей корутиной,
             # поэтому запускаем её как фоновую задачу, чтобы не блокировать UI-слот.
             srv_coro = StartAsyncTcpServer(context=self.context, address=(self.host, self.port))
@@ -276,7 +365,7 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         port = int(self.lineEdit_tcp_port.text())
 
         # Создаем сервер и сохраняем только при успешном запуске
-        relay_server = ModbusRelayServer(self.client, host, port)
+        relay_server = ModbusRelayServer(self.client, host, port, cm_id=self.CM_ID, mpp_id=self.mpp_id)
 
         if await relay_server.start_server():
             self.relay_server = relay_server
@@ -541,13 +630,19 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
 
     # ===== Проверки состояния подключения по Serial =====
     def is_modbus_ready(self) -> bool:
-        return self.client is not None
+        # Готовность при наличии любого транспорта: Serial или TCP‑клиента
+        return (self.client is not None) or (self.tcp_client is not None)
 
     def get_commands_interface(self, logger) -> tuple[ModbusCMCommand, ModbusMPPCommand]:
         """Возвращает новые объекты команд с актуальным клиентом и MPP_ID.
         Если соединения нет, возвращает команды с null‑клиентом.
         """
-        cli = self.client if self.client is not None else self._null_client
+        # Выбираем доступный транспорт: приоритет у Serial, затем TCP‑клиента
+        cli = (
+            self.client
+            if self.client is not None
+            else (self.tcp_client if self.tcp_client is not None else self._null_client)
+        )
         if bool(self.checkBox_mpp_only.isChecked()):
             cm = ModbusCMCommand(self._null_client, logger)
         else:
@@ -573,6 +668,12 @@ class SerialConnect(QtWidgets.QWidget, EnvironmentVar):
         if not self.is_modbus_ready():
             self.logger.debug("Modbus клиент не подключен")
             return False
+        # Если работаем как TCP‑клиент, считаем подключение готовым (проверка выполнится на стороне сервера)
+        if self.tcp_client is not None and self.client is None:
+            self.status_CM = 1
+            self.status_MPP = 1
+            await self.update_label_connect()
+            return True
         await self._check_connect()
         if self.status_CM and self.status_MPP:
             return True  # Оба устройства подключены
