@@ -30,7 +30,10 @@ class EnvironmentVar():
     
 
     REG_MPP_CTRL                    = 0x0000
-    REG_MPP_ISSUE_WAVEFORM          = 0x0009
+    REG_MPP_CTRL_ISSUE_WAVEFORM     = 0x0009
+    ACQ1_PEACK                      = 0x0007
+    ACQ2_PEACK                      = 0x0008
+    DDIN_PEACK                      = 0x0009
     REG_MPP_HH                      = 0x000B
     REG_GET_MPP_STRUCT              = 0x0006
     REG_MPP_HIST_32                 = 0x0014

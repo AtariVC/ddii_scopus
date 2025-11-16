@@ -54,9 +54,11 @@ class RunFluxWidget(QtWidgets.QDialog):
         self.get_electron_hist_event = Event(list)
         self.get_proton_hist_event = Event(list)
         self.get_hcp_hist_event = Event(list)
+        self.get_acq = Event(tuple)
         self.get_electron_hist_event.subscribe(self.parent.flux_widget.update_gui_data_electron)  # type: ignore
         self.get_proton_hist_event.subscribe(self.parent.flux_widget.update_gui_data_proton)  # type: ignore
         self.get_hcp_hist_event.subscribe(self.parent.flux_widget.update_gui_data_hcp)  # type: ignore
+        self.get_acq.subscribe(self.parent.flux_widget.update_data_acq) # type: ignore
 
         self.checkbox_flag_mapping = {self.checkBox_write_log: self.wr_log_flag}
         self.init_flags()
@@ -145,6 +147,9 @@ class RunFluxWidget(QtWidgets.QDialog):
         # counter_clear = 0
         save: bool = False
         data: list[int] = []
+        acq1_seq: list[int] = []
+        acq2_seq: list[int] = []
+        ddin_last: bytes = b'0'
         while 1:
             await asyncio.sleep(2)
             if not self.w_ser_dialog.is_modbus_ready():
@@ -155,9 +160,14 @@ class RunFluxWidget(QtWidgets.QDialog):
             #     counter_clear = 0
             #     await self.mpp_cmd.clear_hist()
             try:
-                result_hist32: bytes = await self.mpp_cmd.get_hist32()
-                result_hist16: bytes = await self.mpp_cmd.get_hist16()
-                result_hcp_hist: bytes = await self.mpp_cmd.get_hcp_hist()
+                ddin: bytes = await self.mpp_cmd.get_ddin()
+                if ddin_last != ddin:
+                    result_hist32: bytes = await self.mpp_cmd.get_hist32()
+                    result_hist16: bytes = await self.mpp_cmd.get_hist16()
+                    result_hcp_hist: bytes = await self.mpp_cmd.get_hcp_hist()
+                    result_acq1: bytes = await self.mpp_cmd.get_acq1()
+                    result_acq2: bytes = await self.mpp_cmd.get_acq2()
+                
             except Exception as e:
                 await self._stop_measuring(f"Ошибка чтения гистограмм: {e}")
                 return
@@ -165,6 +175,8 @@ class RunFluxWidget(QtWidgets.QDialog):
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
             result_hcp_hist_int: list[int] = await self.parser.mpp_pars_16b(result_hcp_hist)
+            acq1: list[int]  = await self.parser.mpp_pars_16b(result_acq1)
+            acq2: list[int]  = await self.parser.mpp_pars_16b(result_acq2)
             # accumulate with reset detection
             self._prev_electron, self._acc_electron = self._accumulate_with_reset(self._prev_electron, self._acc_electron, result_hist32_int)
             self._prev_proton, self._acc_proton = self._accumulate_with_reset(self._prev_proton, self._acc_proton, result_hist16_int)
@@ -177,19 +189,37 @@ class RunFluxWidget(QtWidgets.QDialog):
                 self.get_electron_hist_event.emit(result_hist32_int)
                 self.get_proton_hist_event.emit(result_hist16_int)
                 self.get_hcp_hist_event.emit(result_hcp_hist_int)
+                self.get_acq.emit((acq1[0], acq2[0]))
 
             # Обработчик флага сохранения
             if self.flags[self.wr_log_flag]:
                 save = True
             else:
                 save = False
-
+            # TODO: нужно сделать синхронизацию имен по времени кадра приходящего с RunMeasWidget если запуск
+            # осуществляется от туда. Если нет, то создаем используем свою временную метку в имени кадра.
             try:
                 if self._acc_electron is not None and self._acc_proton is not None and self._acc_hcp is not None:
                     data = self._acc_electron.tolist() + self._acc_proton.tolist() + self._acc_hcp.tolist()
                 else:
                     data = result_hist32_int + result_hist16_int + result_hcp_hist_int
                 await self.graph_widget.hp_counter.draw_hist(data, bin_count=len(data),
+                    name_file_save_data=self.name_file_save,
+                    name_data=self.name_data,
+                    path_to_save=self.path_to_save,
+                    save_log=save,
+                    data_is_hist=True
+                    )
+                acq1_seq.append(acq1[0])
+                await self.graph_widget.hp_pips.draw_hist(acq1_seq, bin_count=4096,
+                    name_file_save_data=self.name_file_save,
+                    name_data=self.name_data,
+                    path_to_save=self.path_to_save,
+                    save_log=save,
+                    data_is_hist=True
+                    )
+                acq2_seq.append(acq2[0])
+                await self.graph_widget.hp_sipm.draw_hist(acq2_seq, bin_count=4096,
                     name_file_save_data=self.name_file_save,
                     name_data=self.name_data,
                     path_to_save=self.path_to_save,

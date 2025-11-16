@@ -47,6 +47,9 @@ class FluxWidget(QtWidgets.QDialog):
     lineEdit_hcp_20: QtWidgets.QLineEdit
     lineEdit_hcp_45: QtWidgets.QLineEdit
 
+    lineEdit_acq1: QtWidgets.QLineEdit
+    lineEdit_acq2: QtWidgets.QLineEdit
+    
     def __init__(self) -> None:
         super().__init__()
         loadUi(Path(__file__).parent.joinpath("flux_widget.ui"), self)
@@ -100,3 +103,10 @@ class FluxWidget(QtWidgets.QDialog):
                 val.setText(str(massage[i]))
         except Exception as e:
             self.logger.error(str(e))
+            
+    def update_data_acq(self, acq1: str, acq2: str):
+        try:
+            self.lineEdit_acq1.setText(acq1)
+            self.lineEdit_acq2.setText(acq2)
+        except Exception as e:
+            self.logger.error(e)

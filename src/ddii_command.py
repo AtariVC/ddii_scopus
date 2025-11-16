@@ -362,6 +362,42 @@ class ModbusMPPCommand(EnvironmentVar):
             self.logger.debug('МПП не отвечает')
             return b'-1'
 
+    async def get_ddin(self):
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.DDIN_PEACK, 
+                                                                            1,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+        
+    async def get_acq1(self):
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.ACQ1_PEACK, 
+                                                                            1,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+        
+    async def get_acq2(self):
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(self.ACQ2_PEACK, 
+                                                                            1,
+                                                                            slave=self.MPP_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('МПП не отвечает')
+            return b'-1'
+
     async def calibrate_ACQ(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
@@ -381,7 +417,7 @@ class ModbusMPPCommand(EnvironmentVar):
         """
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_CTRL, 
-                                                                            self.REG_MPP_ISSUE_WAVEFORM,
+                                                                            self.REG_MPP_CTRL_ISSUE_WAVEFORM,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()

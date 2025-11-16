@@ -4423,9 +4423,10 @@ window.pdocSearch = (function () {
 			default_value: '0',
 		},
 		{
-			fullname: 'ddii_scopus.src.env_var.EnvironmentVar.REG_MPP_ISSUE_WAVEFORM',
+			fullname:
+				'ddii_scopus.src.env_var.EnvironmentVar.REG_MPP_CTRL_ISSUE_WAVEFORM',
 			modulename: 'ddii_scopus.src.env_var',
-			qualname: 'EnvironmentVar.REG_MPP_ISSUE_WAVEFORM',
+			qualname: 'EnvironmentVar.REG_MPP_CTRL_ISSUE_WAVEFORM',
 			kind: 'variable',
 			doc: '<p></p>\n',
 			default_value: '9',

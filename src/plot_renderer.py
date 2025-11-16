@@ -313,12 +313,24 @@ class HistPen():
         # Если данные не являются уже готовой гистограммой
 
         if not data_is_hist:
-            data_tohist = [max(data)]
-            if isinstance(self.accum_data, list) and data_tohist[0] > threshold:
-                self.accum_data.extend(data_tohist)
+            # Биннингуем сырые значения в bin_count бинов по диапазону [0, bin_count]
+            values = np.asarray(list(map(float, data)))
+            # Фильтрация по порогу: исключаем значения ниже threshold
+            if threshold is not None:
+                try:
+                    thr = float(threshold)
+                except Exception:
+                    thr = 0.0
+                values = values[values >= thr]
+            if values.size == 0:
+                return None
             bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
-            # Build histogram for display using all accumulated values
-            y, x = np.histogram(self.accum_data, bins)
+            y_cur, x = np.histogram(values, bins)
+            # Аккумулируем гистограмму во времени
+            if not isinstance(self.accum_data, np.ndarray) or self.accum_data.shape[0] != y_cur.shape[0]:
+                self.accum_data = np.zeros_like(y_cur, dtype=int)
+            self.accum_data = self.accum_data + y_cur.astype(int)
+            y = self.accum_data
         else:
             bin_count = len(data)
             bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
@@ -347,13 +359,9 @@ class HistPen():
                 self.path_to_save: Path = path_to_save
                 # Apply threshold filtering for saving
                 if not data_is_hist:
-                    # Filter accumulated raw values by threshold and compute histogram for saving
-                    acc = np.asarray(self.accum_data)
-                    # acc = acc[acc > self._save_threshold]
-                    # if acc.size == 0:
-                    #     return
-                    y_save, x_save = np.histogram(acc, bins)
-                    write_to_hdf5_file([x_save[:-1], y_save], self.name_frame, self.path_to_save,
+                    # Сохраняем текущую накопленную гистограмму
+                    y_save = np.asarray(self.accum_data)
+                    write_to_hdf5_file([x[:-1], y_save], self.name_frame, self.path_to_save,
                                        name_file_hdf5=name_file_save_data,
                                        name_data=name_data)
                 elif data_is_hist and self._save_threshold is not None:
