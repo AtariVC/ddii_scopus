@@ -93,20 +93,17 @@ class RunFluxWidget(QtWidgets.QDialog):
     async def pushButton_hist_run_measure_handler(self) -> None:
         if not self.w_ser_dialog.is_modbus_ready():
             await self._stop_measuring("Нет соединения")
-        if self.flags[self.start_measure_flag] == False:
+        if not self.flags[self.start_measure_flag]:
             self.pushButton_hist_run_measure.setText("Остановить изм.")
             delay = int(self.lineEdit_interval_request.text())
             #### Path to save ####
             path_to_save: Path = self._init_path_to_save()
             name_file_save: str = self._init_name_file_save()
-            # Обработчик флага сохранения
-            if self.flags[self.wr_log_flag]:
-                save = True
-            else:
-                save = False
             self.only_acq_flag = True
-            staus_init: bool = await self.init_HH_request(delay, path_to_save, name_file_save, save)
-            if staus_init:
+            status_init: bool = await self.init_HH_request(delay, path_to_save,
+                                                          name_file_save,
+                                                          self.flags[self.wr_log_flag])
+            if status_init:
                 self.flags[self.start_measure_flag] = True
                 try:
                     lvl = int(self.lineEdit_threshold.text())
@@ -115,10 +112,12 @@ class RunFluxWidget(QtWidgets.QDialog):
                 await self.mpp_cmd.set_level(lvl)
                 await self.mpp_cmd.start_measure(on=1)
                 HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
+                ACQ_Peak_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_Peak_loop_request
                 if await self.w_ser_dialog.check_connection():
                     await self.init_mb_cmd()
                     try:
                         self.task_manager.create_task(HH_task(), "HH_task")
+                        self.task_manager.create_task(ACQ_Peak_task(), "ACQ_Peak_task")
                     except Exception as e:
                         await self._stop_measuring(f"Ошибка запуска задач: {e}")
                 
@@ -144,6 +143,8 @@ class RunFluxWidget(QtWidgets.QDialog):
         try:
             for name in self.task_manager.get_active_tasks():
                 # Очистку гистограмм делаем только если была HH задача
+                if name == "ACQ_Peak_task":
+                    self.task_manager.cancel_task(name)
                 if name == "HH_task":
                     try:
                         await self.mpp_cmd.clear_hist()
@@ -192,9 +193,6 @@ class RunFluxWidget(QtWidgets.QDialog):
         """Опрос счетчика частиц"""
         # counter_clear = 0
         data: list[int] = []
-        acq1_seq: list[int] = []
-        acq2_seq: list[int] = []
-        ddin_last: bytes = b'0'
         # reset accumulators at HH start
         self.graph_widget.hp_counter.hist_clear()
         self._prev_electron = None; self._acc_electron = None
@@ -214,10 +212,6 @@ class RunFluxWidget(QtWidgets.QDialog):
                 result_hist32: bytes = await self.mpp_cmd.get_hist32()
                 result_hist16: bytes = await self.mpp_cmd.get_hist16()
                 result_hcp_hist: bytes = await self.mpp_cmd.get_hcp_hist()
-                result_acq1: bytes = await self.mpp_cmd.get_acq1()
-                result_acq2: bytes = await self.mpp_cmd.get_acq2()
-                result_tmp_count: bytes = await self.mpp_cmd.get_tmp_count() 
-                
             except Exception as e:
                 await self._stop_measuring(f"Ошибка чтения гистограмм: {e}")
                 return
@@ -229,13 +223,16 @@ class RunFluxWidget(QtWidgets.QDialog):
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
             result_hcp_hist_int: list[int] = await self.parser.mpp_pars_16b(result_hcp_hist)
-            acq1: list[int]  = await self.parser.mpp_pars_16b(result_acq1)
-            acq2: list[int]  = await self.parser.mpp_pars_16b(result_acq2)
-            tmp_count: list[int]  = await self.parser.mpp_pars_16b(result_tmp_count)
             # accumulate with reset detection
-            self._prev_electron, self._acc_electron = self._accumulate_with_reset(self._prev_electron, self._acc_electron, result_hist32_int)
-            self._prev_proton, self._acc_proton = self._accumulate_with_reset(self._prev_proton, self._acc_proton, result_hist16_int)
-            self._prev_hcp, self._acc_hcp = self._accumulate_with_reset(self._prev_hcp, self._acc_hcp, result_hcp_hist_int)
+            self._prev_electron, self._acc_electron = self._accumulate_with_reset(self._prev_electron,
+                                                                                  self._acc_electron,
+                                                                                  result_hist32_int)
+            self._prev_proton, self._acc_proton = self._accumulate_with_reset(self._prev_proton,
+                                                                              self._acc_proton,
+                                                                              result_hist16_int)
+            self._prev_hcp, self._acc_hcp = self._accumulate_with_reset(self._prev_hcp,
+                                                                        self._acc_hcp,
+                                                                        result_hcp_hist_int)
             try:
                 self.get_electron_hist_event.emit(self._acc_electron.tolist())
                 self.get_proton_hist_event.emit(self._acc_proton.tolist())
@@ -244,11 +241,7 @@ class RunFluxWidget(QtWidgets.QDialog):
                 self.get_electron_hist_event.emit(result_hist32_int)
                 self.get_proton_hist_event.emit(result_hist16_int)
                 self.get_hcp_hist_event.emit(result_hcp_hist_int)
-            self.get_acq_event.emit([str(acq1[1]), str(acq2[1])])
 
-
-            # TODO: нужно сделать синхронизацию имен по времени кадра приходящего с RunMeasWidget если запуск
-            # осуществляется от туда. Если нет, то создаем используем свою временную метку в имени кадра.
             try:
                 if self._acc_electron is not None and self._acc_proton is not None and self._acc_hcp is not None:
                     data = self._acc_electron.tolist() + self._acc_proton.tolist() + self._acc_hcp.tolist()
@@ -261,6 +254,44 @@ class RunFluxWidget(QtWidgets.QDialog):
                     save_log=self.save_log_file,
                     data_is_hist=True
                     )
+                self.name_data = '' # Сбрасываем имя, нужно для работы синхронизации имени данных с другими процессами
+            except asyncio.exceptions.CancelledError as e:
+                self.name_data = ''
+                self.logger.error(str(e))
+                return None
+            
+    async def asyncio_ACQ_Peak_loop_request(self) -> None:
+        """Опрос ACQ_Peak"""
+        self.graph_widget.hp_counter.hist_clear()
+        self._prev_electron = None; self._acc_electron = None
+        self._prev_proton = None; self._acc_proton = None
+        self._prev_hcp = None; self._acc_hcp = None
+        self.graph_widget.show()
+        while 1:
+            await asyncio.sleep(0.0005)
+            if not self.w_ser_dialog.is_modbus_ready():
+                await self._stop_measuring("Потеряно соединение")
+                return
+            try:
+                result_acq1: bytes = await self.mpp_cmd.get_acq1()
+                result_acq2: bytes = await self.mpp_cmd.get_acq2()
+                result_tmp_count: bytes = await self.mpp_cmd.get_tmp_count() 
+                
+            except Exception as e:
+                await self._stop_measuring(f"Ошибка чтения гистограмм: {e}")
+                return
+            
+            if not self.name_data:
+                current_datetime = datetime.datetime.now()
+                self.parent.shared_bfr_update_event.emit(self.name_data) # type: ignore
+                self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
+
+            acq1: list[int]  = await self.parser.mpp_pars_16b(result_acq1)
+            acq2: list[int]  = await self.parser.mpp_pars_16b(result_acq2)
+            tmp_count: list[int]  = await self.parser.mpp_pars_16b(result_tmp_count)
+            self.get_acq_event.emit([str(acq1[1]), str(acq2[1])])
+
+            try:
                 if self.only_acq_flag:
                     if self.TmpCount != tmp_count[1]:
                         self.TmpCount = tmp_count[1]
@@ -271,7 +302,6 @@ class RunFluxWidget(QtWidgets.QDialog):
                             save_log=self.save_log_file,
                             data_is_hist=False
                             )
-                        acq2_seq.append(acq2[1])
                         await self.graph_widget.hp_sipm.draw_hist([acq2[1]], bin_count=4096,
                             name_file_save_data=self.name_file_save,
                             name_data=self.name_data,
@@ -284,7 +314,6 @@ class RunFluxWidget(QtWidgets.QDialog):
                 self.name_data = ''
                 self.logger.error(str(e))
                 return None
-            
 
     
     def _accumulate_with_reset(self, prev, acc, curr):
