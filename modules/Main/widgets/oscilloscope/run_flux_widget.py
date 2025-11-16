@@ -50,15 +50,19 @@ class RunFluxWidget(QtWidgets.QDialog):
         self.wr_log_flag: str = "wr_log_flag"
         self.start_measure_flag: str = "start_measure_flag"
         self.flags: dict = {self.wr_log_flag: False, self.start_measure_flag: False}
+        self.only_acq_flag: bool = False 
         # ==== Events ====
         self.get_electron_hist_event = Event(list)
         self.get_proton_hist_event = Event(list)
         self.get_hcp_hist_event = Event(list)
         self.get_acq = Event(tuple)
+        self.name_data: str = ''
         self.get_electron_hist_event.subscribe(self.parent.flux_widget.update_gui_data_electron)  # type: ignore
         self.get_proton_hist_event.subscribe(self.parent.flux_widget.update_gui_data_proton)  # type: ignore
         self.get_hcp_hist_event.subscribe(self.parent.flux_widget.update_gui_data_hcp)  # type: ignore
         self.get_acq.subscribe(self.parent.flux_widget.update_data_acq) # type: ignore
+        self.parent.shared_bfr_update_event.subscribe(self._update_sync_name_hh) # type: ignore
+        self.delay: int = 2 # задержка опроса гистограмм
 
         self.checkbox_flag_mapping = {self.checkBox_write_log: self.wr_log_flag}
         self.init_flags()
@@ -86,9 +90,36 @@ class RunFluxWidget(QtWidgets.QDialog):
 
     @qasync.asyncSlot()
     async def pushButton_hist_run_measure_handler(self) -> None:
-        self.pushButton_hist_run_measure.setText("Остановить изм.")
-        if self._preparetion_HH_request():
-            await self.asyncio_HH_loop_request()
+        if self.flags[self.start_measure_flag] == False:
+            self.pushButton_hist_run_measure.setText("Остановить изм.")
+            delay = int(self.lineEdit_interval_request.text())
+            #### Path to save ####
+            path_to_save: Path = self._init_path_to_save()
+            name_file_save: str = self._init_name_file_save()
+            # Обработчик флага сохранения
+            if self.flags[self.wr_log_flag]:
+                save = True
+            else:
+                save = False
+            self.only_acq_flag = True
+            if self.init_HH_request(delay, path_to_save, name_file_save, save):
+                self.flags[self.start_measure_flag] = True
+                HH_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
+                if await self.w_ser_dialog.check_connection():
+                    await self.init_mb_cmd()
+                    try:
+                        self.task_manager.create_task(HH_task(), "HH_task")
+                    except Exception as e:
+                        await self._stop_measuring(f"Ошибка запуска задач: {e}")
+                
+        else:
+            self.flags[self.start_measure_flag] = False
+            await self._stop_measuring()
+            self.only_acq_flag = False
+            self.pushButton_hist_run_measure.setText("Начать изм")
+    
+    def _update_sync_name_hh(self, sync_name):
+        self.name_data = sync_name
         
     async def _stop_measuring(self, reason: str | None = None):
         """Останавливает измерения, гасит задачи и приводит UI в исходное состояние."""
@@ -115,43 +146,54 @@ class RunFluxWidget(QtWidgets.QDialog):
         self.flags[self.start_measure_flag] = False
         self.pushButton_hist_run_measure.setText("Запустить изм.")
 
-    def _init_path_to_save(self):
+    def _init_path_to_save(self) -> Path:
         #### Path to save ####
-        self.parent_path: Path = Path("./log/scope").resolve()
+        parent_path: Path = Path("./log/scope").resolve()
         current_datetime = datetime.datetime.now()
         time: str = current_datetime.strftime("%d-%m-%Y")[:23]
-        self.path_to_save: Path = self.parent_path / time
+        path_to_save: Path = parent_path / time
+        return path_to_save
+    
+    def _init_name_file_save(self) -> str:
+        current_datetime = datetime.datetime.now()
+        name_file_save: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
+        return name_file_save
 
-    async def _preparetion_HH_request(self):
-        self.graph_widget.hp_counter.hist_clear()
+    async def init_HH_request(self, delay, path_to_save: Path, name_file_save: str, save_log_file: bool) -> bool:
+        self.delay: int = delay
+        self.path_to_save = path_to_save
+        self.name_file_save = name_file_save
+        self.save_log_file = save_log_file
         try:
             if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение (HH init)")
                 return False
             await self.mpp_cmd.clear_hist()
             await self.mpp_cmd.clear_hcp_hist()
+            return True
         except Exception as e:
             await self._stop_measuring(f"Ошибка подготовки гистограмм: {e}")
             return False
         # set flag start measure
 
-        # reset accumulators at HH start
-        self._prev_electron = None; self._acc_electron = None
-        self._prev_proton = None; self._acc_proton = None
-        self._prev_hcp = None; self._acc_hcp = None
-        self.graph_widget.show()
+
 
     async def asyncio_HH_loop_request(self) -> None:
         """Опрос счетчика частиц"""
-        self._init_path_to_save()
         # counter_clear = 0
         save: bool = False
         data: list[int] = []
         acq1_seq: list[int] = []
         acq2_seq: list[int] = []
         ddin_last: bytes = b'0'
+        # reset accumulators at HH start
+        self.graph_widget.hp_counter.hist_clear()
+        self._prev_electron = None; self._acc_electron = None
+        self._prev_proton = None; self._acc_proton = None
+        self._prev_hcp = None; self._acc_hcp = None
+        self.graph_widget.show()
         while 1:
-            await asyncio.sleep(2)
+            await asyncio.sleep(self.delay)
             if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение")
                 return
@@ -171,6 +213,10 @@ class RunFluxWidget(QtWidgets.QDialog):
             except Exception as e:
                 await self._stop_measuring(f"Ошибка чтения гистограмм: {e}")
                 return
+            
+            if not self.name_data:
+                current_datetime = datetime.datetime.now()
+                self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
 
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
@@ -191,11 +237,7 @@ class RunFluxWidget(QtWidgets.QDialog):
                 self.get_hcp_hist_event.emit(result_hcp_hist_int)
                 self.get_acq.emit((acq1[0], acq2[0]))
 
-            # Обработчик флага сохранения
-            if self.flags[self.wr_log_flag]:
-                save = True
-            else:
-                save = False
+
             # TODO: нужно сделать синхронизацию имен по времени кадра приходящего с RunMeasWidget если запуск
             # осуществляется от туда. Если нет, то создаем используем свою временную метку в имени кадра.
             try:
@@ -207,26 +249,29 @@ class RunFluxWidget(QtWidgets.QDialog):
                     name_file_save_data=self.name_file_save,
                     name_data=self.name_data,
                     path_to_save=self.path_to_save,
-                    save_log=save,
+                    save_log=self.save_log_file,
                     data_is_hist=True
                     )
-                acq1_seq.append(acq1[0])
-                await self.graph_widget.hp_pips.draw_hist(acq1_seq, bin_count=4096,
-                    name_file_save_data=self.name_file_save,
-                    name_data=self.name_data,
-                    path_to_save=self.path_to_save,
-                    save_log=save,
-                    data_is_hist=True
-                    )
-                acq2_seq.append(acq2[0])
-                await self.graph_widget.hp_sipm.draw_hist(acq2_seq, bin_count=4096,
-                    name_file_save_data=self.name_file_save,
-                    name_data=self.name_data,
-                    path_to_save=self.path_to_save,
-                    save_log=save,
-                    data_is_hist=True
-                    )
+                if self.only_acq_flag:
+                    acq1_seq.append(acq1[0])
+                    await self.graph_widget.hp_pips.draw_hist(acq1_seq, bin_count=4096,
+                        name_file_save_data=self.name_file_save,
+                        name_data=self.name_data,
+                        path_to_save=self.path_to_save,
+                        save_log=self.save_log_file,
+                        data_is_hist=False
+                        )
+                    acq2_seq.append(acq2[0])
+                    await self.graph_widget.hp_sipm.draw_hist(acq2_seq, bin_count=4096,
+                        name_file_save_data=self.name_file_save,
+                        name_data=self.name_data,
+                        path_to_save=self.path_to_save,
+                        save_log=self.save_log_file,
+                        data_is_hist= False
+                        )
+                self.name_data = '' # Сбрасываем имя, нужно для работы синхронизации имени данных с другими процессами
             except asyncio.exceptions.CancelledError as e:
+                self.name_data = ''
                 self.logger.error(str(e))
                 return None
             

@@ -76,9 +76,9 @@ class RunMeasWidget(QtWidgets.QDialog):
         self.graph_widget: GraphWidget = self.parent.w_graph_widget  # type: ignore
         self.run_flux_widget: RunFluxWidget = self.parent.run_flux_widget  # type: ignore
         # Event to broadcast save-threshold changes to plotters
-        self.sync_name_mngr: SyncDataManeger = SyncDataManeger()
+        # self.sync_name_mngr: SyncDataManeger = SyncDataManeger()
         self.save_threshold_event = Event(int)
-        self.ACQ_task_sync_time_event = Event(str)
+        # self.ACQ_task_sync_time_event = Event(str)
         # self.ACQ_task_sync_time_event.subscribe(self.sync_data_mngr.update_syncname)
         self.filters_data: FiltersData = FiltersData()
         self.graph_filters = None
@@ -177,6 +177,7 @@ class RunMeasWidget(QtWidgets.QDialog):
                     except Exception:
                         ...
                     self.task_manager.cancel_task(name)
+                self.parent.run_flux_widget._stop_measuring() # type: ignore
         except Exception as e:
             self.logger.error(f"Error in stopping measurements: {str(e)}")
         # Сбрасываем флаг и UI
@@ -244,6 +245,7 @@ class RunMeasWidget(QtWidgets.QDialog):
 
         ACQ_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_loop_request
         HH_task: Callable[[], Awaitable[None]] = self.run_flux_widget.asyncio_HH_loop_request
+        
         if await self.w_ser_dialog.check_connection():
             self.flags[self.start_measure_flag] = not self.flags[self.start_measure_flag]
             if self.flags[self.start_measure_flag]:
@@ -251,6 +253,10 @@ class RunMeasWidget(QtWidgets.QDialog):
                 # TODO: сделать чек боксы не активными
                 current_datetime = datetime.datetime.now()
                 self.name_file_save: str = current_datetime.strftime("%d-%m-%Y_%H-%M-%S-%f")[:23]
+                await self.run_flux_widget.init_HH_request(delay = 3, 
+                                                           path_to_save = self.path_to_save, 
+                                                           name_file_save=self.name_file_save,
+                                                           save_log_file = self.flags[self.wr_log_flag])
                 # Обновляем клиент/ID для команд
                 await self.init_mb_cmd()
                 try:
@@ -299,13 +305,14 @@ class RunMeasWidget(QtWidgets.QDialog):
                     return
                 current_datetime = datetime.datetime.now()
                 self.name_data = current_datetime.strftime("%Y-%m-%d_%H-%M-%S-%f")[:23]
-                self.ACQ_task_sync_time_event.emit(self.name_data)  # для синхронизации данных по времени
+                self.parent.shared_bfr_update_event.emit(self.name_data) # type: ignore
+                # self.ACQ_task_sync_time_event.emit(self.name_data)  # для синхронизации данных по времени
                 if not self.flags[self.enable_trig_meas_flag]:
                     await self.mpp_cmd.start_measure_forced(0)
                     await self.mpp_cmd.start_measure_forced(1)
                 else:
                     await self.mpp_cmd.issue_waveform()
-                self.mpp_cmd.waveform_release()
+                await self.mpp_cmd.waveform_release()
                 await asyncio.sleep(1)
                 result_ch0: bytes = await self.mpp_cmd.read_oscill(ch=0)
                 result_ch1: bytes = await self.mpp_cmd.read_oscill(ch=1)
@@ -315,8 +322,8 @@ class RunMeasWidget(QtWidgets.QDialog):
                 result_ch1_int: list[int] = await self.parser.mpp_pars_16b(result_ch1)
                 # Сохранять только те данные, которые выше порога (ui trigger)
                 if self.flags[self.wr_log_flag]:
-                    peak0 = max(result_ch0_int) if result_ch0_int else 0
-                    peak1 = max(result_ch1_int) if result_ch1_int else 0
+                    peak0 = max(result_ch0_int)
+                    peak1 = max(result_ch1_int)
                     save = (peak0&0xFFF > lvl) or (peak1&0xFFF > 5)
                 else:
                     save = False
@@ -340,20 +347,18 @@ class RunMeasWidget(QtWidgets.QDialog):
                         clear=True,
                     )  # x, y
                     await self.graph_widget.hp_pips.draw_hist(
-                        data_pips[1],
+                        [max(data_pips[1])],
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
-                        save_log=save,
-                        threshold=lvl
+                        save_log=save
                     )
                     await self.graph_widget.hp_sipm.draw_hist(
-                        data_sipm[1],
+                        [max(data_sipm[1])],
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
-                        save_log=save,
-                        threshold=5,
+                        save_log=save
                     )
                 except asyncio.exceptions.CancelledError:
                     return None

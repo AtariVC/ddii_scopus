@@ -40,7 +40,7 @@ class FilterViewerWidget(QtWidgets.QWidget):
         self._matched: List[int] = []  # 1-based индексы кадров
         if __name__ != "__main__":
             _gw = self._viewer()
-            _gw.slider_update_event.subscribe(lambda val: self.lineEdit_num_frame.setText(str(val)))
+            _gw.slider_update_event.subscribe(lambda val: self.lineEdit_num_frame.setText(str(val))) # type: ignore
         self._pos: int = -1
         self.pushButton_save_frame.clicked.connect(self.pushButton_save_frame_handler)
 
@@ -56,7 +56,7 @@ class FilterViewerWidget(QtWidgets.QWidget):
 
     def pushButton_save_frame_handler(self):
         num_frame: int = int(self.lineEdit_num_frame.text())
-        self.save_desired_frame_hdf5(num_frame) # type: ignore
+        self._mw.graph_viewer_widget.save_desired_frame_hdf5(num_frame) # type: ignore
 
 
     def _viewer(self):

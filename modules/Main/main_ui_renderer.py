@@ -64,7 +64,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         super().__init__()
         loadUi(Path(__file__).parent.joinpath("main_ui_renderer.ui"), self)
         self.resize(1300, 800)
-        self.shared_bfr_update_event = Event() # общий буфер для обмена данными между процессами
+        self.shared_bfr_update_event = Event(str) # общий буфер для обмена данными между процессами
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
         self.logger = log_init()

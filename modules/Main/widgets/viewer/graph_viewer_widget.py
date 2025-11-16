@@ -128,7 +128,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         try:
             current_val = self.horizontalSlider_time_scale.value()
             self.slider_update_event.emit(current_val)
-            self.label_counter_data.setText(f"{current_val-1}/{self.amount_measurements-1}")
+            self.label_counter_data.setText(f"{current_val-1}/{self.amount_measurements}")
             time_str = self.time_formater(self.measure_time_list[current_val - 1])
             self.label_time_data.setText(f"{time_str}")
             if self.dataset_pips:
@@ -226,7 +226,11 @@ class GraphViewerWidget(QtWidgets.QWidget):
             ...
 
     def save_desired_frame_hdf5(self, index):
-        save_path: Path = Path("./log/scope").resolve()
+        match = re.search(r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})-(\d{3})", self.measure_time_list[index-1])
+        if match:
+            year, month, day, hour, minute, second, ms = match.groups()
+            time = f"{year}-{month}-{day}_{hour}-{minute}-{second}-{ms}"
+        save_path: Path = Path(self.parent_hdf5_path).parent / f'samples/{Path(self.parent_hdf5_path).stem}'
         if index > self.amount_measurements:
             self.massageBox.setText("Warning")
             self.massageBox.setInformativeText('The number of frames must be less than the total number of frames.')
@@ -250,11 +254,13 @@ class GraphViewerWidget(QtWidgets.QWidget):
                 data_h_counter = list(self.dataset_h_counter.values())[index//len(self.dataset_h_counter.values())-1][-1].T
         except Exception as e:
             self.logger.error(e)
+        
         try:
-            write_to_hdf5_file(data_pips, self.name_pen_pips, save_path, self.measure_time_list[index-1], self.measure_time_list[index-1])
-            write_to_hdf5_file(data_sipm, self.name_pen_sipm, save_path, self.measure_time_list[index-1], self.measure_time_list[index-1])
-            write_to_hdf5_file(data_h_pips, self.name_pen_h_pips, save_path, self.measure_time_list[index-1], self.measure_time_list[index-1])
-            write_to_hdf5_file(data_h_sipm, self.name_pen_h_sipm, save_path, self.measure_time_list[index-1], self.measure_time_list[index-1])
+            write_to_hdf5_file(data_pips, self.name_pen_pips, save_path, time, time)
+            write_to_hdf5_file(data_sipm, self.name_pen_sipm, save_path, time, time)
+            write_to_hdf5_file(data_h_pips, self.name_pen_h_pips, save_path,time, time)
+            write_to_hdf5_file(data_h_sipm, self.name_pen_h_sipm, save_path, time, time)
+            self.logger.info(f"Файл сохранен: {str(save_path)}")
         except Exception as e:
             self.logger.error(e)
         

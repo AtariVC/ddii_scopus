@@ -288,8 +288,7 @@ class HistPen():
                     path_to_save: Optional[Path] = None,
                     clear: Optional[bool] = False,
                     data_is_hist: Optional[bool] = False,
-                    bin_count: int = 4096,
-                    threshold: int = 0) -> None:
+                    bin_count: int = 4096) -> None:
         """
         Отрисовывает гистограмму данных с возможностью фильтрации и сохранения
         Args:
@@ -315,13 +314,6 @@ class HistPen():
         if not data_is_hist:
             # Биннингуем сырые значения в bin_count бинов по диапазону [0, bin_count]
             values = np.asarray(list(map(float, data)))
-            # Фильтрация по порогу: исключаем значения ниже threshold
-            if threshold is not None:
-                try:
-                    thr = float(threshold)
-                except Exception:
-                    thr = 0.0
-                values = values[values >= thr]
             if values.size == 0:
                 return None
             bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
@@ -362,16 +354,6 @@ class HistPen():
                     # Сохраняем текущую накопленную гистограмму
                     y_save = np.asarray(self.accum_data)
                     write_to_hdf5_file([x[:-1], y_save], self.name_frame, self.path_to_save,
-                                       name_file_hdf5=name_file_save_data,
-                                       name_data=name_data)
-                elif data_is_hist and self._save_threshold is not None:
-                    # Threshold applies to bin counts in this mode; skip bins <= threshold
-                    xi = np.asarray(x[:-1])
-                    yi = np.asarray(y)
-                    mask = yi > self._save_threshold
-                    if not mask.any():
-                        return
-                    write_to_hdf5_file([xi[mask], yi[mask]], self.name_frame, self.path_to_save,
                                        name_file_hdf5=name_file_save_data,
                                        name_data=name_data)
                 else:
