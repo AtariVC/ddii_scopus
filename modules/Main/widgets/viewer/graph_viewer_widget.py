@@ -245,28 +245,22 @@ class GraphViewerWidget(QtWidgets.QWidget):
         try:
             if self.dataset_pips:
                 data_pips = list(self.dataset_pips.values())[index-1].T
+                write_to_hdf5_file(data_pips, self.name_pen_pips, save_path, time, time)
             if self.dataset_sipm:
                 data_sipm = list(self.dataset_sipm.values())[index-1].T
+                write_to_hdf5_file(data_sipm, self.name_pen_sipm, save_path, time, time)
             if self.dataset_h_pips:
                 data_h_pips = list(self.dataset_h_pips.values())[index-1].T
+                write_to_hdf5_file(data_h_pips, self.name_pen_h_pips, save_path,time, time)
             if self.dataset_h_sipm:
                 data_h_sipm = list(self.dataset_h_sipm.values())[index-1].T
+                write_to_hdf5_file(data_h_sipm, self.name_pen_h_sipm, save_path, time, time)
             if self.dataset_h_counter:
-                data_h_counter = list(self.dataset_h_counter.values())[index//len(self.dataset_h_counter.values())-1][-1].T
-        except Exception as e:
-            self.logger.error(e)
-        
-        try:
-            write_to_hdf5_file(data_pips, self.name_pen_pips, save_path, time, time)
-            write_to_hdf5_file(data_sipm, self.name_pen_sipm, save_path, time, time)
-            write_to_hdf5_file(data_h_pips, self.name_pen_h_pips, save_path,time, time)
-            write_to_hdf5_file(data_h_sipm, self.name_pen_h_sipm, save_path, time, time)
+                data_h_counter = list(self.dataset_h_counter.values())[index-1].T
+                write_to_hdf5_file(data_h_counter, self.name_pen_counter, save_path, time, time)
             self.logger.info(f"Файл сохранен: {str(save_path)}")
         except Exception as e:
             self.logger.error(e)
-        
-
-
 
 
 if __name__ == "__main__":
