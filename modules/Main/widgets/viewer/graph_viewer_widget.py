@@ -5,12 +5,15 @@ from dataclasses import dataclass
 
 # from save_config import ConfigSaver
 from pathlib import Path
+
 import qasync
 import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
-from src.log_config import get_logger, log_init
+
 from modules.Main.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget
+from src.log_config import get_logger, log_init
+
 ####### импорты из других директорий ######
 # /src
 
@@ -53,10 +56,10 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.massageBox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
         self.logger = log_init()
         self.slider_update_event = Event(int)
-        self.parent_hdf5_path = ''
+        self.parent_hdf5_path = ""
         if __name__ != "__main__":
             self.parent = args[0]
-            self.explorer: ExplorerHDF5Widget = self.parent.explorer_hdf5_widget # type: ignore
+            self.explorer: ExplorerHDF5Widget = self.parent.explorer_hdf5_widget  # type: ignore
             self.explorer.double_clicked_event.subscribe(self.open_graphs)
             self.horizontalSlider_time_scale.actionTriggered.connect(lambda: self.slider_graphs_updater())
         # External filter widget will control filtering/navigation
@@ -133,27 +136,27 @@ class GraphViewerWidget(QtWidgets.QWidget):
             time_str = self.time_formater(self.measure_time_list[current_val - 1])
             self.label_time_data.setText(f"{time_str}")
             if self.dataset_pips:
-                data_pips = list(self.dataset_pips.values())[current_val-1].T
+                data_pips = list(self.dataset_pips.values())[current_val - 1].T
                 await self.gp_pips.draw_graph(data_pips[1], clear=True)
             else:
                 self.gp_pips.plt_widget.clear()
             if self.dataset_sipm:
-                data_sipm = list(self.dataset_sipm.values())[current_val-1].T
+                data_sipm = list(self.dataset_sipm.values())[current_val - 1].T
                 await self.gp_sipm.draw_graph(data_sipm[1], clear=True)
             else:
                 self.gp_sipm.plt_widget.clear()
             if self.dataset_h_pips:
-                data_h_pips = list(self.dataset_h_pips.values())[current_val-1].T
+                data_h_pips = list(self.dataset_h_pips.values())[current_val - 1].T
                 await self.hp_pips.draw_hist(data_h_pips[1].tolist(), clear=True, data_is_hist=True)
             else:
                 self.hp_pips.hist_clear()
             if self.dataset_h_sipm:
-                data_h_sipm = list(self.dataset_h_sipm.values())[current_val-1].T
+                data_h_sipm = list(self.dataset_h_sipm.values())[current_val - 1].T
                 await self.hp_sipm.draw_hist(data_h_sipm[1].tolist(), clear=True, data_is_hist=True)
             else:
                 self.hp_sipm.hist_clear()
             if self.dataset_h_counter:
-                data_h_counter = list(self.dataset_h_counter.values())[current_val-1].T
+                data_h_counter = list(self.dataset_h_counter.values())[current_val - 1].T
                 await self.counter_h.draw_hist(data_h_counter[1].tolist(), clear=True, data_is_hist=True)
             else:
                 self.counter_h.hist_clear()
@@ -201,7 +204,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
                 matched_idx.append(i)
             if not matched_idx:
                 self.massageBox.setText("Warning")
-                self.massageBox.setInformativeText('No data found')
+                self.massageBox.setInformativeText("No data found")
                 self.massageBox.setWindowTitle("Warning")
                 self.massageBox.show()
         return matched_idx
@@ -227,36 +230,36 @@ class GraphViewerWidget(QtWidgets.QWidget):
             ...
 
     def save_desired_frame_hdf5(self, index):
-        match = re.search(r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})-(\d{3})", self.measure_time_list[index-1])
+        match = re.search(r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})-(\d{3})", self.measure_time_list[index - 1])
         if match:
             year, month, day, hour, minute, second, ms = match.groups()
             time = f"{year}-{month}-{day}_{hour}-{minute}-{second}-{ms}"
-        save_path: Path = Path(self.parent_hdf5_path).parent / f'samples/{Path(self.parent_hdf5_path).stem}'
+        save_path: Path = Path(self.parent_hdf5_path).parent / f"samples/{Path(self.parent_hdf5_path).stem}"
         if index > self.amount_measurements:
             self.massageBox.setText("Warning")
-            self.massageBox.setInformativeText('The number of frames must be less than the total number of frames.')
+            self.massageBox.setInformativeText("The number of frames must be less than the total number of frames.")
             self.massageBox.setWindowTitle("Warning")
             self.massageBox.show()
         elif not index:
             self.massageBox.setText("Warning")
-            self.massageBox.setInformativeText('Error index')
+            self.massageBox.setInformativeText("Error index")
             self.massageBox.setWindowTitle("Warning")
             self.massageBox.show()
         try:
             if self.dataset_pips:
-                data_pips = list(self.dataset_pips.values())[index-1].T
+                data_pips = list(self.dataset_pips.values())[index - 1].T
                 write_to_hdf5_file(data_pips, self.name_pen_pips, save_path, time, time)
             if self.dataset_sipm:
-                data_sipm = list(self.dataset_sipm.values())[index-1].T
+                data_sipm = list(self.dataset_sipm.values())[index - 1].T
                 write_to_hdf5_file(data_sipm, self.name_pen_sipm, save_path, time, time)
             if self.dataset_h_pips:
-                data_h_pips = list(self.dataset_h_pips.values())[index-1].T
-                write_to_hdf5_file(data_h_pips, self.name_pen_h_pips, save_path,time, time)
+                data_h_pips = list(self.dataset_h_pips.values())[index - 1].T
+                write_to_hdf5_file(data_h_pips, self.name_pen_h_pips, save_path, time, time)
             if self.dataset_h_sipm:
-                data_h_sipm = list(self.dataset_h_sipm.values())[index-1].T
+                data_h_sipm = list(self.dataset_h_sipm.values())[index - 1].T
                 write_to_hdf5_file(data_h_sipm, self.name_pen_h_sipm, save_path, time, time)
             if self.dataset_h_counter:
-                data_h_counter = list(self.dataset_h_counter.values())[index-1].T
+                data_h_counter = list(self.dataset_h_counter.values())[index - 1].T
                 write_to_hdf5_file(data_h_counter, self.name_pen_counter, save_path, time, time)
             self.logger.info(f"Файл сохранен: {str(save_path)}")
         except Exception as e:
