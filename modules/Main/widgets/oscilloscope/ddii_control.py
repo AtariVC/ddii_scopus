@@ -7,7 +7,18 @@ import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
-from PyQt6.QtWidgets import QGroupBox, QLineEdit, QSizePolicy, QSpacerItem, QVBoxLayout
+from PyQt6.QtWidgets import (
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QScrollArea,
+    QSizePolicy,
+    QSpacerItem,
+    QVBoxLayout,
+    QWidget,
+)
 from qtpy.uic import loadUi
 
 ####### импорты из других директорий ######
@@ -38,16 +49,8 @@ class DDIIControlWidget(QtWidgets.QWidget):
     lineEdit_pwm_sipm: QtWidgets.QLineEdit
     lineEdit_pwm_pips: QtWidgets.QLineEdit
     lineEdit_pwm_ch: QtWidgets.QLineEdit
-
     lineEdit_lvl_0_1: QtWidgets.QLineEdit
-    lineEdit_lvl_0_5: QtWidgets.QLineEdit
-    lineEdit_lvl_0_8: QtWidgets.QLineEdit
-    lineEdit_lvl_1_6: QtWidgets.QLineEdit
-    lineEdit_lvl_3: QtWidgets.QLineEdit
-    lineEdit_lvl_5: QtWidgets.QLineEdit
-    lineEdit_lvl_10: QtWidgets.QLineEdit
-    lineEdit_lvl_30: QtWidgets.QLineEdit
-    lineEdit_lvl_60: QtWidgets.QLineEdit
+    hh_line_edits: list[QtWidgets.QLineEdit]
 
     pushButton_lvl_update: QtWidgets.QPushButton
     pushButton_lvl_apply: QtWidgets.QPushButton
@@ -69,6 +72,8 @@ class DDIIControlWidget(QtWidgets.QWidget):
     def __init__(self, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).parent / "ddii_control.ui", self)
+        self.hh_line_edits = []
+        self._rebuild_levels_tab()
         # Core helpers
         self.mw = ModbusWorker()
         self.parser = Parsers()
@@ -131,14 +136,8 @@ class DDIIControlWidget(QtWidgets.QWidget):
         d_validator = QDoubleValidator()
         try:
             self.lineEdit_lvl_0_1.setValidator(i_validator)
-            self.lineEdit_lvl_0_5.setValidator(i_validator)
-            self.lineEdit_lvl_0_8.setValidator(i_validator)
-            self.lineEdit_lvl_1_6.setValidator(i_validator)
-            self.lineEdit_lvl_3.setValidator(i_validator)
-            self.lineEdit_lvl_5.setValidator(i_validator)
-            self.lineEdit_lvl_10.setValidator(i_validator)
-            self.lineEdit_lvl_30.setValidator(i_validator)
-            self.lineEdit_lvl_60.setValidator(i_validator)
+            for line_edit in self.hh_line_edits:
+                line_edit.setValidator(i_validator)
         except Exception:
             # Some fields may be absent if UI changes
             ...
@@ -156,6 +155,110 @@ class DDIIControlWidget(QtWidgets.QWidget):
     def filter_combobox_init(self) -> None:
         filters: list = ["нет", "медианный", "ФНЧ", "ФВЧ"]
         self.comboBox_filter.addItems(filters)
+
+    def _clear_layout(self, layout: QtWidgets.QLayout) -> None:
+        while layout.count():
+            item = layout.takeAt(0)
+            child_layout = item.layout()
+            child_widget = item.widget()
+            if child_layout is not None:
+                self._clear_layout(child_layout)
+            elif child_widget is not None:
+                child_widget.setParent(None)
+
+    def _rebuild_levels_tab(self) -> None:
+        tab_levels = self.findChild(QtWidgets.QWidget, "tab_3")
+        if tab_levels is None:
+            self.logger.error("Не найдена вкладка уровней tab_3")
+            return
+        tab_layout = tab_levels.layout()
+        if tab_layout is None:
+            return
+        self._clear_layout(tab_layout)
+
+        levels_wrap = QWidget(tab_levels)
+        levels_layout = QVBoxLayout(levels_wrap)
+        levels_layout.setContentsMargins(7, 7, 7, 7)
+        levels_layout.setSpacing(7)
+
+        level_layout = QHBoxLayout()
+        level_label = QLabel("Level", levels_wrap)
+        level_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        level_label.setMinimumSize(QtCore.QSize(100, 25))
+        self.lineEdit_lvl_0_1 = QLineEdit(levels_wrap)
+        self.lineEdit_lvl_0_1.setMinimumSize(QtCore.QSize(90, 25))
+        self.lineEdit_lvl_0_1.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.lineEdit_lvl_0_1.setObjectName("lineEdit_lvl_0_1")
+        level_layout.addWidget(level_label)
+        level_layout.addWidget(self.lineEdit_lvl_0_1)
+        level_layout.addStretch(1)
+        levels_layout.addLayout(level_layout)
+
+        hh_scroll = QScrollArea(levels_wrap)
+        hh_scroll.setObjectName("scrollArea_hh")
+        hh_scroll.setWidgetResizable(True)
+        hh_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        hh_scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        hh_scroll.setMinimumHeight(180)
+
+        hh_container = QWidget()
+        hh_layout = QGridLayout(hh_container)
+        hh_layout.setContentsMargins(0, 0, 0, 0)
+        hh_layout.setHorizontalSpacing(10)
+        hh_layout.setVerticalSpacing(10)
+        self.hh_line_edits = []
+        for idx in range(32):
+            row = idx // 4
+            col = (idx % 4) * 3
+            hh_label = QLabel(f"HH{idx + 1}", hh_container)
+            hh_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            hh_label.setMinimumSize(QtCore.QSize(55, 25))
+            hh_edit = QLineEdit(hh_container)
+            hh_edit.setObjectName(f"lineEdit_hh_{idx + 1}")
+            hh_edit.setMinimumSize(QtCore.QSize(80, 25))
+            hh_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self.hh_line_edits.append(hh_edit)
+            hh_layout.addWidget(hh_label, row, col)
+            hh_layout.addWidget(hh_edit, row, col + 1)
+            if (idx % 4) != 3:
+                hh_layout.setColumnMinimumWidth(col + 2, 18)
+        hh_scroll.setWidget(hh_container)
+        levels_layout.addWidget(hh_scroll, 1)
+        levels_layout.addItem(
+            QSpacerItem(
+                20,
+                16,
+                QSizePolicy.Policy.Minimum,
+                QSizePolicy.Policy.Fixed,
+            )
+        )
+
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setContentsMargins(0, 4, 0, 0)
+        buttons_layout.addStretch(1)
+        self.pushButton_lvl_update = QtWidgets.QPushButton("Обновить", levels_wrap)
+        self.pushButton_lvl_update.setObjectName("pushButton_lvl_update")
+        self.pushButton_lvl_update.setMinimumSize(QtCore.QSize(120, 25))
+        self.pushButton_lvl_apply = QtWidgets.QPushButton("Применить", levels_wrap)
+        self.pushButton_lvl_apply.setObjectName("pushButton_lvl_apply")
+        self.pushButton_lvl_apply.setMinimumSize(QtCore.QSize(120, 25))
+        buttons_layout.addWidget(self.pushButton_lvl_update)
+        buttons_layout.addWidget(self.pushButton_lvl_apply)
+        levels_layout.addLayout(buttons_layout)
+
+        tab_layout.addWidget(levels_wrap)
+
+    def _parse_u16_registers(self, answer: bytes, count: int) -> list[int]:
+        payload = answer[1:] if len(answer) > 1 else b""
+        values: list[int] = []
+        for i in range(0, min(len(payload), count * 2), 2):
+            chunk = payload[i:i + 2]
+            if len(chunk) < 2:
+                break
+            values.append(int.from_bytes(chunk, byteorder="big", signed=False))
+        if len(values) < count:
+            values.extend([0] * (count - len(values)))
+        return values[:count]
 
     @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:
@@ -200,26 +303,16 @@ class DDIIControlWidget(QtWidgets.QWidget):
             answ_lvl: bytes = await self.mpp_cmd.get_level()
             tel_dict_lvl: dict[str, str] = await self.parser.pars_mpp_lvl(answ_lvl)
             answer_hh: bytes = await self.mpp_cmd.get_hh()
-            tel_dict_hh: dict[str, str] = await self.parser.pars_mpp_hh(answer_hh)
+            hh_values: list[int] = self._parse_u16_registers(answer_hh, 32)
 
             # Map values into UI fields
             try:
                 self.lineEdit_lvl_0_1.setText(str(tel_dict_lvl.get("01_hh_l", "0")))
             except Exception:
                 ...
-            mapping = [
-                ("05_hh_l", self.lineEdit_lvl_0_5),
-                ("08_hh_l", self.lineEdit_lvl_0_8),
-                ("1_6_hh_l", self.lineEdit_lvl_1_6),
-                ("3_hh_l", self.lineEdit_lvl_3),
-                ("5_hh_l", self.lineEdit_lvl_5),
-                ("10_hh_l", self.lineEdit_lvl_10),
-                ("30_hh_l", self.lineEdit_lvl_30),
-                ("60_hh_l", self.lineEdit_lvl_60),
-            ]
-            for key, widget in mapping:
+            for idx, widget in enumerate(self.hh_line_edits):
                 try:
-                    widget.setText(str(tel_dict_hh.get(key, "0")))
+                    widget.setText(str(hh_values[idx]))
                 except Exception:
                     ...
         except Exception as e:
@@ -234,16 +327,7 @@ class DDIIControlWidget(QtWidgets.QWidget):
                 return
             # Build payloads: level (0.1) is separate, the rest are HH thresholds
             lvl_01 = self._get_int(self.lineEdit_lvl_0_1)
-            hh_values: list[int] = [
-                self._get_int(self.lineEdit_lvl_0_5),
-                self._get_int(self.lineEdit_lvl_0_8),
-                self._get_int(self.lineEdit_lvl_1_6),
-                self._get_int(self.lineEdit_lvl_3),
-                self._get_int(self.lineEdit_lvl_5),
-                self._get_int(self.lineEdit_lvl_10),
-                self._get_int(self.lineEdit_lvl_30),
-                self._get_int(self.lineEdit_lvl_60),
-            ]
+            hh_values: list[int] = [self._get_int(le) for le in self.hh_line_edits]
             await self.mpp_cmd.set_level(lvl_01)
             await self.mpp_cmd.set_hh(hh_values)
         except Exception as e:

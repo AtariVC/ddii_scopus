@@ -614,8 +614,8 @@ class ModbusMPPCommand(EnvironmentVar):
             return b'-1'
 
     async def set_hh(self, hh: list[int]) -> bytes:
-        if len(hh) != 8:
-            self.logger.error("Len hh[8] не равно 8")
+        if len(hh) not in (8, 32):
+            self.logger.error("Len hh должен быть 8 или 32")
             return b'-1'
         try:
             result: ModbusResponse = await self.client.write_registers(self.REG_MPP_HH, 
@@ -657,7 +657,7 @@ class ModbusMPPCommand(EnvironmentVar):
     async def get_hh(self) -> bytes:
         try:
             result: ModbusResponse = await self.client.read_holding_registers(self.REG_MPP_HH, 
-                                                                            8,
+                                                                            32,
                                                                             slave=self.MPP_ID)
             await log_s(self.mw.send_handler.mess)
             return result.encode()
