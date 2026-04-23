@@ -40,6 +40,14 @@ from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
 
 
 class DDIIControlWidget(QtWidgets.QWidget):
+    HH_COUNT = 32
+    # HH с коэффициентом ППД: HH1-HH6, ряды от HH7/HH9/HH10 с шагом +4 до HH19, HH30.
+    PPD_HH_NUMBERS = (
+        frozenset(range(1, 7))
+        | frozenset(hh for start in (7, 9, 10) for hh in range(start, 20, 4))
+        | {30}
+    )
+
     lineEdit_hvip_pips: QtWidgets.QLineEdit
     lineEdit_hvip_sipm: QtWidgets.QLineEdit
     lineEdit_hvip_ch: QtWidgets.QLineEdit
@@ -50,7 +58,13 @@ class DDIIControlWidget(QtWidgets.QWidget):
     lineEdit_pwm_pips: QtWidgets.QLineEdit
     lineEdit_pwm_ch: QtWidgets.QLineEdit
     lineEdit_lvl_0_1: QtWidgets.QLineEdit
+    lineEdit_lvl_ppd_lsb_mev: QtWidgets.QLineEdit
+    lineEdit_lvl_scd_lsb_mev: QtWidgets.QLineEdit
     hh_line_edits: list[QtWidgets.QLineEdit]
+    hh_lsb_values: list[int]
+    lvl_coeff_widgets: list[QtWidgets.QWidget]
+    radioButton_lvl_lsb: QtWidgets.QRadioButton
+    radioButton_lvl_mev: QtWidgets.QRadioButton
 
     pushButton_lvl_update: QtWidgets.QPushButton
     pushButton_lvl_apply: QtWidgets.QPushButton
@@ -73,6 +87,9 @@ class DDIIControlWidget(QtWidgets.QWidget):
         super().__init__()
         loadUi(Path(__file__).parent / "ddii_control.ui", self)
         self.hh_line_edits = []
+        self.hh_lsb_values = [0] * self.HH_COUNT
+        self.lvl_coeff_widgets = []
+        self._levels_display_mev = False
         self._rebuild_levels_tab()
         # Core helpers
         self.mw = ModbusWorker()
@@ -132,12 +149,16 @@ class DDIIControlWidget(QtWidgets.QWidget):
         self.filter_combobox_init()
 
     def _init_validators(self) -> None:
-        i_validator = QIntValidator()
+        self._u16_validator = QIntValidator(0, 65535, self)
+        self._coeff_validator = QIntValidator(1, 1000000, self)
+        self._hh_mev_validator = QDoubleValidator(0.0, 1000000.0, 1, self)
+        self._hh_mev_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
         d_validator = QDoubleValidator()
         try:
-            self.lineEdit_lvl_0_1.setValidator(i_validator)
-            for line_edit in self.hh_line_edits:
-                line_edit.setValidator(i_validator)
+            self.lineEdit_lvl_0_1.setValidator(self._u16_validator)
+            self.lineEdit_lvl_ppd_lsb_mev.setValidator(self._coeff_validator)
+            self.lineEdit_lvl_scd_lsb_mev.setValidator(self._coeff_validator)
+            self._set_hh_display_validators()
         except Exception:
             # Some fields may be absent if UI changes
             ...
@@ -166,34 +187,93 @@ class DDIIControlWidget(QtWidgets.QWidget):
             elif child_widget is not None:
                 child_widget.setParent(None)
 
+    def _make_center_label(self, text: str, parent: QWidget, width: int) -> QLabel:
+        label = QLabel(text, parent)
+        label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        label.setMinimumSize(QtCore.QSize(width, 23))
+        return label
+
+    def _make_center_line_edit(
+        self,
+        parent: QWidget,
+        object_name: str,
+        width: int,
+        text: str = "",
+    ) -> QLineEdit:
+        line_edit = QLineEdit(parent)
+        line_edit.setObjectName(object_name)
+        line_edit.setText(text)
+        line_edit.setMinimumSize(QtCore.QSize(width, 23))
+        line_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        return line_edit
+
     def _rebuild_levels_tab(self) -> None:
         tab_levels = self.findChild(QtWidgets.QWidget, "tab_3")
         if tab_levels is None:
-            self.logger.error("Не найдена вкладка уровней tab_3")
+            logger = getattr(self, "logger", None)
+            if logger is not None:
+                logger.error("Не найдена вкладка уровней tab_3")
             return
         tab_layout = tab_levels.layout()
         if tab_layout is None:
             return
         self._clear_layout(tab_layout)
 
+        # Обертка вкладки.
         levels_wrap = QWidget(tab_levels)
         levels_layout = QVBoxLayout(levels_wrap)
-        levels_layout.setContentsMargins(7, 7, 7, 7)
-        levels_layout.setSpacing(7)
+        levels_layout.setContentsMargins(6, 6, 6, 6)
+        levels_layout.setSpacing(6)
 
-        level_layout = QHBoxLayout()
-        level_label = QLabel("Level", levels_wrap)
-        level_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        level_label.setMinimumSize(QtCore.QSize(100, 25))
-        self.lineEdit_lvl_0_1 = QLineEdit(levels_wrap)
-        self.lineEdit_lvl_0_1.setMinimumSize(QtCore.QSize(90, 25))
-        self.lineEdit_lvl_0_1.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.lineEdit_lvl_0_1.setObjectName("lineEdit_lvl_0_1")
-        level_layout.addWidget(level_label)
-        level_layout.addWidget(self.lineEdit_lvl_0_1)
-        level_layout.addStretch(1)
-        levels_layout.addLayout(level_layout)
+        # Управление отображением и коэффициентами.
+        controls_layout = QGridLayout()
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.setHorizontalSpacing(6)
+        controls_layout.setVerticalSpacing(4)
+        self.lineEdit_lvl_0_1 = self._make_center_line_edit(levels_wrap, "lineEdit_lvl_0_1", 78)
+        self.lineEdit_lvl_ppd_lsb_mev = self._make_center_line_edit(
+            levels_wrap,
+            "lineEdit_lvl_ppd_lsb_mev",
+            70,
+            "1",
+        )
+        self.lineEdit_lvl_scd_lsb_mev = self._make_center_line_edit(
+            levels_wrap,
+            "lineEdit_lvl_scd_lsb_mev",
+            70,
+            "1",
+        )
+        self.radioButton_lvl_lsb = QtWidgets.QRadioButton("lsb", levels_wrap)
+        self.radioButton_lvl_mev = QtWidgets.QRadioButton("MeV", levels_wrap)
+        self.radioButton_lvl_lsb.setObjectName("radioButton_lvl_lsb")
+        self.radioButton_lvl_mev.setObjectName("radioButton_lvl_mev")
+        self.radioButton_lvl_lsb.setChecked(True)
 
+        self.levels_unit_group = QtWidgets.QButtonGroup(levels_wrap)
+        self.levels_unit_group.addButton(self.radioButton_lvl_lsb)
+        self.levels_unit_group.addButton(self.radioButton_lvl_mev)
+
+        ppd_label = self._make_center_label("ППД (lsb/MeV)", levels_wrap, 105)
+        scd_label = self._make_center_label("СцД (lsb/MeV)", levels_wrap, 105)
+        self.lvl_coeff_widgets = [
+            ppd_label,
+            self.lineEdit_lvl_ppd_lsb_mev,
+            scd_label,
+            self.lineEdit_lvl_scd_lsb_mev,
+        ]
+
+        controls_layout.addWidget(self._make_center_label("Level", levels_wrap, 55), 0, 0)
+        controls_layout.addWidget(self.lineEdit_lvl_0_1, 0, 1)
+        controls_layout.addWidget(self.radioButton_lvl_lsb, 0, 2)
+        controls_layout.addWidget(self.radioButton_lvl_mev, 0, 3)
+        controls_layout.addWidget(ppd_label, 1, 0)
+        controls_layout.addWidget(self.lineEdit_lvl_ppd_lsb_mev, 1, 1)
+        controls_layout.addWidget(scd_label, 1, 2)
+        controls_layout.addWidget(self.lineEdit_lvl_scd_lsb_mev, 1, 3)
+        controls_layout.setColumnStretch(4, 1)
+        levels_layout.addLayout(controls_layout)
+
+        # Сетка HH.
         hh_scroll = QScrollArea(levels_wrap)
         hh_scroll.setObjectName("scrollArea_hh")
         hh_scroll.setWidgetResizable(True)
@@ -204,37 +284,34 @@ class DDIIControlWidget(QtWidgets.QWidget):
         hh_container = QWidget()
         hh_layout = QGridLayout(hh_container)
         hh_layout.setContentsMargins(0, 0, 0, 0)
-        hh_layout.setHorizontalSpacing(10)
-        hh_layout.setVerticalSpacing(10)
+        hh_layout.setHorizontalSpacing(7)
+        hh_layout.setVerticalSpacing(5)
         self.hh_line_edits = []
-        for idx in range(32):
+        for idx in range(self.HH_COUNT):
             row = idx // 4
             col = (idx % 4) * 3
-            hh_label = QLabel(f"HH{idx + 1}", hh_container)
-            hh_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            hh_label.setMinimumSize(QtCore.QSize(55, 25))
-            hh_edit = QLineEdit(hh_container)
-            hh_edit.setObjectName(f"lineEdit_hh_{idx + 1}")
-            hh_edit.setMinimumSize(QtCore.QSize(80, 25))
-            hh_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            hh_label = self._make_center_label(f"HH{idx + 1}", hh_container, 45)
+            hh_edit = self._make_center_line_edit(hh_container, f"lineEdit_hh_{idx + 1}", 72)
+            hh_edit.textEdited.connect(lambda _text, edit=hh_edit: self._mark_hh_dirty(edit))
             self.hh_line_edits.append(hh_edit)
             hh_layout.addWidget(hh_label, row, col)
             hh_layout.addWidget(hh_edit, row, col + 1)
             if (idx % 4) != 3:
-                hh_layout.setColumnMinimumWidth(col + 2, 18)
+                hh_layout.setColumnMinimumWidth(col + 2, 10)
         hh_scroll.setWidget(hh_container)
         levels_layout.addWidget(hh_scroll, 1)
         levels_layout.addItem(
             QSpacerItem(
                 20,
-                16,
+                8,
                 QSizePolicy.Policy.Minimum,
                 QSizePolicy.Policy.Fixed,
             )
         )
 
+        # Команды МПП.
         buttons_layout = QHBoxLayout()
-        buttons_layout.setContentsMargins(0, 4, 0, 0)
+        buttons_layout.setContentsMargins(0, 2, 0, 0)
         buttons_layout.addStretch(1)
         self.pushButton_lvl_update = QtWidgets.QPushButton("Обновить", levels_wrap)
         self.pushButton_lvl_update.setObjectName("pushButton_lvl_update")
@@ -247,6 +324,99 @@ class DDIIControlWidget(QtWidgets.QWidget):
         levels_layout.addLayout(buttons_layout)
 
         tab_layout.addWidget(levels_wrap)
+        self.radioButton_lvl_lsb.toggled.connect(self._levels_mode_changed)
+        self.radioButton_lvl_mev.toggled.connect(self._levels_mode_changed)
+        self.lineEdit_lvl_ppd_lsb_mev.editingFinished.connect(self._levels_coeff_changed)
+        self.lineEdit_lvl_scd_lsb_mev.editingFinished.connect(self._levels_coeff_changed)
+        self._set_levels_coeff_visible()
+        self._render_hh_values(self.hh_lsb_values)
+
+    def _levels_in_mev(self) -> bool:
+        return bool(getattr(self, "radioButton_lvl_mev", None) and self.radioButton_lvl_mev.isChecked())
+
+    def _set_levels_coeff_visible(self) -> None:
+        visible = self._levels_in_mev()
+        for widget in getattr(self, "lvl_coeff_widgets", []):
+            widget.setVisible(visible)
+
+    def _set_hh_display_validators(self) -> None:
+        validator = getattr(
+            self,
+            "_hh_mev_validator" if self._levels_in_mev() else "_u16_validator",
+            None,
+        )
+        if validator is None:
+            return
+        for line_edit in self.hh_line_edits:
+            line_edit.setValidator(validator)
+
+    def _mark_hh_dirty(self, line_edit: QLineEdit) -> None:
+        line_edit.setProperty("dirty", True)
+
+    def _levels_mode_changed(self, checked: bool) -> None:
+        if not checked:
+            return
+        self._commit_hh_display_to_lsb()
+        self._set_levels_coeff_visible()
+        self._render_hh_values(self.hh_lsb_values)
+
+    def _levels_coeff_changed(self) -> None:
+        if self._levels_in_mev():
+            self._commit_hh_display_to_lsb()
+            self._render_hh_values(self.hh_lsb_values)
+
+    def _get_float(self, le: QLineEdit) -> float:
+        try:
+            return float(le.text().replace(",", "."))
+        except Exception:
+            return 0.0
+
+    def _hh_coeff(self, hh_number: int) -> int:
+        coeff_edit = (
+            self.lineEdit_lvl_ppd_lsb_mev
+            if hh_number in self.PPD_HH_NUMBERS
+            else self.lineEdit_lvl_scd_lsb_mev
+        )
+        return max(1, self._get_int(coeff_edit))
+
+    def _format_hh_value(self, hh_number: int, lsb_value: int) -> str:
+        if self._levels_in_mev():
+            return f"{lsb_value / self._hh_coeff(hh_number):.1f}"
+        return str(lsb_value)
+
+    def _hh_edit_to_lsb(self, hh_number: int, line_edit: QLineEdit, display_mev: bool) -> int:
+        if display_mev:
+            return int(round(self._get_float(line_edit) * self._hh_coeff(hh_number)))
+        return self._get_int(line_edit)
+
+    def _collect_hh_lsb_values(self, display_mev: bool | None = None) -> list[int]:
+        display_mev = self._levels_display_mev if display_mev is None else display_mev
+        values: list[int] = []
+        for idx, line_edit in enumerate(self.hh_line_edits):
+            saved_value = line_edit.property("lsb_value")
+            if display_mev and not line_edit.property("dirty") and saved_value is not None:
+                values.append(int(saved_value))
+            else:
+                values.append(self._hh_edit_to_lsb(idx + 1, line_edit, display_mev))
+        return values
+
+    def _commit_hh_display_to_lsb(self) -> None:
+        self.hh_lsb_values = self._collect_hh_lsb_values(self._levels_display_mev)
+        for idx, line_edit in enumerate(self.hh_line_edits):
+            line_edit.setProperty("lsb_value", self.hh_lsb_values[idx])
+            line_edit.setProperty("dirty", False)
+
+    def _render_hh_values(self, values: list[int]) -> None:
+        self._set_hh_display_validators()
+        self.hh_lsb_values = values[: self.HH_COUNT] + [0] * max(0, self.HH_COUNT - len(values))
+        for idx, line_edit in enumerate(self.hh_line_edits):
+            lsb_value = self.hh_lsb_values[idx]
+            line_edit.blockSignals(True)
+            line_edit.setProperty("lsb_value", lsb_value)
+            line_edit.setProperty("dirty", False)
+            line_edit.setText(self._format_hh_value(idx + 1, lsb_value))
+            line_edit.blockSignals(False)
+        self._levels_display_mev = self._levels_in_mev()
 
     def _parse_u16_registers(self, answer: bytes, count: int) -> list[int]:
         payload = answer[1:] if len(answer) > 1 else b""
@@ -310,11 +480,7 @@ class DDIIControlWidget(QtWidgets.QWidget):
                 self.lineEdit_lvl_0_1.setText(str(tel_dict_lvl.get("01_hh_l", "0")))
             except Exception:
                 ...
-            for idx, widget in enumerate(self.hh_line_edits):
-                try:
-                    widget.setText(str(hh_values[idx]))
-                except Exception:
-                    ...
+            self._render_hh_values(hh_values)
         except Exception as e:
             self.logger.error(f"Ошибка обновления уровней: {e}")
 
@@ -327,7 +493,8 @@ class DDIIControlWidget(QtWidgets.QWidget):
                 return
             # Build payloads: level (0.1) is separate, the rest are HH thresholds
             lvl_01 = self._get_int(self.lineEdit_lvl_0_1)
-            hh_values: list[int] = [self._get_int(le) for le in self.hh_line_edits]
+            self._commit_hh_display_to_lsb()
+            hh_values: list[int] = self.hh_lsb_values[: self.HH_COUNT]
             await self.mpp_cmd.set_level(lvl_01)
             await self.mpp_cmd.set_hh(hh_values)
         except Exception as e:

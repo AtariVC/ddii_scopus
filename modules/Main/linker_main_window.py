@@ -86,8 +86,6 @@ class MainUIRenderer(QtWidgets.QMainWindow):
                 "Файл менеджер": self.explorer_hdf5_widget,
                 "Фильтр кадров": self.graph_filter_widget,
             },
-            "Парсер": {
-                "Чтение памяти": self.cmd_wind_read_mem},
             "Отладка": {
                 "": DebugTableWidget(),
             },
