@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>734</width>
-    <height>645</height>
+     <width>734</width>
+     <height>560</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,8 +18,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>734</width>
-    <height>645</height>
+     <width>734</width>
+     <height>560</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -89,6 +89,9 @@
           </property>
           <item row="5" column="0">
            <widget class="QLabel" name="label_pips_b_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>b_u:</string>
             </property>
@@ -96,6 +99,9 @@
           </item>
           <item row="4" column="0">
            <widget class="QLabel" name="label_pips_a_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>a_u:</string>
             </property>
@@ -126,6 +132,9 @@
           </item>
           <item row="6" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_pips_a_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -191,6 +200,9 @@
           </item>
           <item row="6" column="0">
            <widget class="QLabel" name="label_pips_a_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>a_i:</string>
             </property>
@@ -198,6 +210,9 @@
           </item>
           <item row="7" column="0">
            <widget class="QLabel" name="label_pips_b_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>b_i:</string>
             </property>
@@ -205,6 +220,9 @@
           </item>
           <item row="4" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_pips_a_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -318,6 +336,9 @@
           </item>
           <item row="7" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_pips_b_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -354,6 +375,9 @@
           </item>
           <item row="5" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_pips_b_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -376,6 +400,9 @@
           </item>
           <item row="8" column="0">
            <widget class="Line" name="line">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -383,6 +410,9 @@
           </item>
           <item row="8" column="1">
            <widget class="Line" name="line_4">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -498,6 +528,9 @@
           </item>
           <item row="6" column="0">
            <widget class="QLabel" name="label_sipm_b_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>b_u:</string>
             </property>
@@ -577,6 +610,9 @@
           </item>
           <item row="8" column="0">
            <widget class="QLabel" name="label_sipm_b_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>b_i:</string>
             </property>
@@ -604,6 +640,9 @@
           </item>
           <item row="7" column="0">
            <widget class="QLabel" name="label_sipm_a_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>a_i:</string>
             </property>
@@ -642,6 +681,9 @@
           </item>
           <item row="5" column="0">
            <widget class="QLabel" name="label_sipm_a_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>a_u:</string>
             </property>
@@ -649,6 +691,9 @@
           </item>
           <item row="6" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_sipm_b_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -668,6 +713,9 @@
           </item>
           <item row="7" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_sipm_a_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -687,6 +735,9 @@
           </item>
           <item row="8" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_sipm_b_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -706,6 +757,9 @@
           </item>
           <item row="9" column="0">
            <widget class="Line" name="line_2">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -713,6 +767,9 @@
           </item>
           <item row="5" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_sipm_a_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -742,6 +799,9 @@
           </item>
           <item row="9" column="1">
            <widget class="Line" name="line_5">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -848,6 +908,9 @@
           </item>
           <item row="4" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_ch_a_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -910,6 +973,9 @@
           </item>
           <item row="7" column="0">
            <widget class="QLabel" name="label_ch_b_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>b_i:</string>
             </property>
@@ -917,6 +983,9 @@
           </item>
           <item row="4" column="0">
            <widget class="QLabel" name="label_ch_a_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>a_u:</string>
             </property>
@@ -924,6 +993,9 @@
           </item>
           <item row="8" column="1">
            <widget class="Line" name="line_6">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -983,6 +1055,9 @@
           </item>
           <item row="5" column="0">
            <widget class="QLabel" name="label_ch_b_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>b_u:</string>
             </property>
@@ -990,6 +1065,9 @@
           </item>
           <item row="6" column="0">
            <widget class="QLabel" name="label_ch_a_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>a_i:</string>
             </property>
@@ -997,6 +1075,9 @@
           </item>
           <item row="5" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_ch_b_u">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -1016,6 +1097,9 @@
           </item>
           <item row="7" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_ch_b_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>
@@ -1055,6 +1139,9 @@
           </item>
           <item row="8" column="0">
            <widget class="Line" name="line_3">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -1062,6 +1149,9 @@
           </item>
           <item row="6" column="1">
            <widget class="QDoubleSpinBox" name="spinBox_ch_a_i">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="minimumSize">
              <size>
               <width>80</width>

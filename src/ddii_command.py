@@ -1,4 +1,5 @@
 import asyncio
+import struct
 from copy import copy
 from typing import Any, Awaitable, Callable, Coroutine, Optional
 
@@ -21,205 +22,267 @@ class ModbusCMCommand(EnvironmentVar):
         # Apply global serial log flag for TX/RX dumps
         set_serial_log_enabled(serial_log_enabled)
 
-    
+    def _cm_hvip_app_ch_to_fw_ch(self, ch: int) -> int:
+        ch_map = {
+            self.CHERENKOV_CH_VOLTAGE: 0,
+            self.PIPS_CH_VOLTAGE: 1,
+            self.SIPM_CH_VOLTAGE: 2,
+        }
+        return ch_map.get(ch, max(0, min(2, ch)))
+
+    def _parse_u16_response(self, answer: bytes) -> list[int]:
+        payload = answer[1:] if len(answer) > 1 else b""
+        return [
+            int.from_bytes(payload[i:i + 2], byteorder="big", signed=False)
+            for i in range(0, len(payload) - 1, 2)
+        ]
+
+    def _legacy_float_bytes(self, value: float) -> bytes:
+        return struct.pack("<f", float(value))
+
+    def _legacy_regs_to_float(self, regs: list[int]) -> float:
+        payload = b"".join((reg & 0xFFFF).to_bytes(2, "big") for reg in regs[:2])
+        if len(payload) < 4:
+            return 0.0
+        return struct.unpack("!f", int(payload.hex(), 16).to_bytes(4, byteorder="little"))[0]
+
+    async def read_cm_registers(self, address: int, count: int) -> bytes:
+        """Read raw CM holding registers."""
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(address, count, slave=self.CM_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
+
+    async def read_cm_u16_registers(self, address: int, count: int) -> list[int]:
+        return self._parse_u16_response(await self.read_cm_registers(address, count))
+
+    async def write_cm_registers(self, address: int, values: list[int] | int) -> bytes:
+        """Write raw CM holding registers."""
+        try:
+            result: ModbusResponse = await self.client.write_registers(address=address, values=values, slave=self.CM_ID)
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
+
+    async def cm_legacy_debug_command(self, command_addr: int, value: int = 0) -> bytes:
+        return await self.write_cm_registers(command_addr, value)
+
+    async def cm_legacy_switch_debug(self, enabled: int) -> bytes:
+        return await self.cm_legacy_debug_command(self.CM_DBG_CMD_SWITCH_ON_OFF, enabled & 0x01)
+
+    async def cm_legacy_reset(self) -> bytes:
+        return await self.cm_legacy_debug_command(self.CM_DBG_CMD_CM_RESET)
+
+    async def cm_legacy_check_memory(self) -> bytes:
+        return await self.cm_legacy_debug_command(self.CM_DBG_CMD_CM_CHECK_MEM)
+
+    async def cm_legacy_init(self) -> bytes:
+        return await self.cm_legacy_debug_command(self.CM_DBG_CMD_CM_INIT, 0xAA55)
+
+    async def cm_legacy_request_archive_frame(self) -> bytes:
+        return await self.cm_legacy_debug_command(self.CM_DBG_CMD_ARCH_REQUEST)
+
+    async def read_cm_debug_map(self) -> bytes:
+        return await self.read_cm_registers(self.MB_DBG_REG_BASE, self.MB_DBG_REG_NUMBER)
+
+    async def write_cm_debug_register(self, reg_offset: int, value: int) -> bytes:
+        return await self.write_cm_registers(self.MB_DBG_REG_BASE + reg_offset, value)
+
+    async def run_cm_debug_command(self, command_mask: int) -> bytes:
+        return await self.write_cm_debug_register(self.MB_DBG_REG_COMMAND, command_mask)
+
+    async def cm_debug_init(self) -> bytes:
+        return await self.run_cm_debug_command(self.MB_DBG_CMD_CM_INIT)
+
+    async def cm_format_memory(self) -> bytes:
+        return await self.run_cm_debug_command(self.MB_DBG_CMD_MEM_FORMAT)
+
+    async def cm_clear_frame_fifo(self) -> bytes:
+        return await self.run_cm_debug_command(self.MB_DBG_CMD_FIFO_CLEAR)
+
+    async def cm_reset_memory_read_pointer(self) -> bytes:
+        return await self.run_cm_debug_command(self.MB_DBG_CMD_MEM_RD_PTR_ZERO)
+
+    async def cm_prepare_ddii_frame(self) -> bytes:
+        return await self.run_cm_debug_command(self.MB_DBG_CMD_PREPARE_FRAME)
+
+    async def cm_prepare_sys_frame(self) -> bytes:
+        return await self.run_cm_debug_command(self.MB_DBG_CMD_PREPARE_SYS_FRAME)
+
+    async def cm_ctrl_command(self, ctrl_cmd: int, ctrl_data: list[int] | None = None) -> bytes:
+        payload = [ctrl_cmd] + (ctrl_data or [])
+        return await self.write_cm_registers(self.CM_DBG_CMD_CTRL, payload)
+
+    async def read_cm_ddii_frame(self) -> bytes:
+        return await self.read_cm_registers(self.MB_DDII_FRAME_REG_BASE, self.MB_DDII_FRAME_REG_NUMBER)
+
+    async def read_cm_sys_frame(self) -> bytes:
+        return await self.read_cm_registers(self.MB_SYS_FRAME_REG_BASE, self.MB_SYS_FRAME_REG_NUMBER)
+
+    async def read_cm_cfg_report(self) -> bytes:
+        return await self.read_cm_registers(self.MB_CFG_REG_BASE, self.MB_CFG_REG_NUMBER)
+
+    async def write_cm_cfg_report(self, data: list[int]) -> bytes:
+        if data and data[0] == self.HEAD:
+            data = data[1:]
+        return await self.write_cm_registers(self.MB_CFG_REG_BASE, data)
+
+    async def select_cm_hvip_channel(self, ch: int) -> bytes:
+        return await self.write_cm_registers(self.REG_CM_HVIP_CH_SELECT, self._cm_hvip_app_ch_to_fw_ch(ch))
+
+    async def read_cm_hvip_debug(self, ch: int | None = None) -> bytes:
+        if ch is not None:
+            await self.select_cm_hvip_channel(ch)
+        return await self.read_cm_registers(self.MB_HVIP_REG_BASE, self.MB_HVIP_REG_NUMBER)
+
+    async def read_cm_hvip_debug_values(self, ch: int | None = None) -> list[int]:
+        return self._parse_u16_response(await self.read_cm_hvip_debug(ch))
+
+    async def write_cm_hvip_debug_register(self, reg_offset: int, value: int, ch: int | None = None) -> bytes:
+        if ch is not None:
+            await self.select_cm_hvip_channel(ch)
+        return await self.write_cm_registers(self.MB_HVIP_REG_BASE + reg_offset, value)
+
+    async def set_cm_debug_enabled(self, enabled: int) -> bytes:
+        return await self.write_cm_registers(self.REG_CM_DBG_ENABLE, enabled & 0x01)
+
+    async def set_cm_const_mode(self, enabled: int) -> bytes:
+        return await self.write_cm_registers(self.REG_CM_DBG_CONST_MODE, enabled & 0x01)
+
+    async def set_cm_meas_interval_ms(self, interval_ms: int) -> bytes:
+        return await self.write_cm_registers(self.REG_CM_DBG_MEAS_INTERVAL_MS, interval_ms)
+
+    async def set_cm_ddii_interval_ms(self, interval_ms: int) -> bytes:
+        return await self.write_cm_registers(self.REG_CM_DBG_DDII_INTERVAL_MS, interval_ms)
+
+    async def get_cm_command_result(self) -> bytes:
+        return await self.read_cm_registers(self.REG_CM_DBG_COMMAND_RESULT, 1)
+
+    async def get_cm_status(self) -> bytes:
+        return await self.read_cm_registers(self.REG_CM_DBG_STATUS, 1)
+
+    async def set_cm_hvip_voltage(self, ch: int, voltage: float) -> bytes:
+        return await self.write_cm_hvip_debug_register(
+            self.MB_HVIP_REG_V_HV_DESIRED_X100,
+            int(round(voltage * 100.0)),
+            ch,
+        )
+
+    async def set_cm_hvip_pwm(self, ch: int, pwm: float) -> bytes:
+        return await self.write_cm_hvip_debug_register(self.MB_HVIP_REG_PWM_X100, int(round(pwm * 100.0)), ch)
+
+    async def set_cm_hvip_mode(self, ch: int, mode: int) -> bytes:
+        return await self.write_cm_hvip_debug_register(self.MB_HVIP_REG_MODE, mode, ch)
+
+    async def _read_hvip_channels(self) -> dict[int, list[int]]:
+        channels = (self.CHERENKOV_CH_VOLTAGE, self.PIPS_CH_VOLTAGE, self.SIPM_CH_VOLTAGE)
+        return {ch: await self.read_cm_hvip_debug_values(ch) for ch in channels}
+
+    def _hvip_value_x100(self, regs: list[int], offset: int) -> float:
+        return (regs[offset] if len(regs) > offset else 0) / 100.0
+
     async def get_cfg_voltage(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG_VOLTAGE, 
-                                                                            6, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
-        
+        channels = await self._read_hvip_channels()
+        payload = b"".join(
+            self._legacy_float_bytes(self._hvip_value_x100(channels[ch], self.MB_HVIP_REG_V_HV_DESIRED_X100))
+            for ch in (self.CHERENKOV_CH_VOLTAGE, self.PIPS_CH_VOLTAGE, self.SIPM_CH_VOLTAGE)
+        )
+        return bytes([len(payload)]) + payload
+
     async def write_mem_ptr(self, rad_ptr: int) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.write_registers(self.CM_SET_READ_POINTER, 
-                                                                            rad_ptr, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
-        
+        return await self.write_cm_registers(self.REG_CM_DBG_MEM_RD_PTR, rad_ptr)
+
     async def read_mem(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.READ_MEM_FRAME, 
-                                                                            32, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
-    
+        return await self.read_cm_sys_frame()
+
     async def set_csa_test_enable(self, state) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
-                                                                        values = state,
-                                                                        slave = self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
+        return await self.set_cm_debug_enabled(int(state))
 
-    
     async def set_mode(self, mode) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.write_registers(address = self.DDII_SWITCH_MODE,
-                                                                        values = mode,
-                                                                        slave = self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
-        
-    
+        if mode == self.CONSTANT_MODE:
+            await self.set_cm_debug_enabled(1)
+            return await self.set_cm_const_mode(1)
+        if mode == self.DEBUG_MODE:
+            await self.set_cm_const_mode(0)
+            return await self.set_cm_debug_enabled(1)
+        await self.set_cm_const_mode(0)
+        return await self.set_cm_debug_enabled(0)
+
     async def get_desired_voltage(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.CM_DBG_GET_DESIRED_HVIP, 
-                                                                            6, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
+        channels = await self._read_hvip_channels()
+        return b"".join(
+            struct.pack(">f", self._hvip_value_x100(channels[ch], self.MB_HVIP_REG_V_HV_DESIRED_X100))
+            for ch in (self.CHERENKOV_CH_VOLTAGE, self.PIPS_CH_VOLTAGE, self.SIPM_CH_VOLTAGE)
+        )
 
-    
     async def get_cfg_pwm(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG_PWM,
-                                                                            6, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
-        
-    
+        channels = await self._read_hvip_channels()
+        payload = b"".join(
+            self._legacy_float_bytes(self._hvip_value_x100(channels[ch], self.MB_HVIP_REG_PWM_X100))
+            for ch in (self.CHERENKOV_CH_VOLTAGE, self.PIPS_CH_VOLTAGE, self.SIPM_CH_VOLTAGE)
+        )
+        return bytes([len(payload)]) + payload
+
     async def get_term(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.CM_GET_TERM,
-                                                                            4, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
+        return b'-1'
 
-    
     async def get_cfg_a_b(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.CM_DBG_GET_HVIP_AB,
-                                                                            24, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает') 
-            return b'-1'
-    
-    
+        return b'-1'
+
     async def get_telemetry(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_TELEMETRY, 
-                                                                            58, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
-        
-    
+        return await self.read_cm_debug_map()
+
     async def get_cfg_ddii(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_CFG, 
-                                                                            32, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
+        return await self.read_cm_cfg_report()
 
-    
-    async def set_cfg_ddii(self, data: list[int] | int)  -> None:
-        try:
-            await self.client.write_registers(address = self.CMD_DBG_SET_CFG, values = data, slave = self.CM_ID)
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
+    async def set_cfg_ddii(self, data: list[int] | int) -> bytes:
+        if isinstance(data, int):
+            data = [data]
+        return await self.write_cm_cfg_report(data)
 
-    
     async def get_voltage(self) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.read_holding_registers(self.CMD_DBG_GET_VOLTAGE, 
-                                                                            21, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
-        
-    
-    async def switch_power(self, data: list[int]) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.write_registers(self.CMD_DBG_HVIP_ON_OFF, 
-                                                                            data, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
+        channels = await self._read_hvip_channels()
+        payload = bytearray()
+        for ch in (self.CHERENKOV_CH_VOLTAGE, self.PIPS_CH_VOLTAGE, self.SIPM_CH_VOLTAGE):
+            regs = channels[ch]
+            payload.extend(self._legacy_float_bytes(self._hvip_value_x100(regs, self.MB_HVIP_REG_V_HV_X100)))
+            payload.extend(self._legacy_float_bytes(self._hvip_value_x100(regs, self.MB_HVIP_REG_PWM_X100)))
+            payload.extend(self._legacy_float_bytes(self._hvip_value_x100(regs, self.MB_HVIP_REG_CURRENT_X100)))
+            payload.extend(bytes([regs[self.MB_HVIP_REG_MODE] if len(regs) > self.MB_HVIP_REG_MODE else 0, 0]))
+        return bytes([len(payload)]) + bytes(payload)
 
-    
+    async def switch_power(self, data: list[int]) -> bytes:
+        if len(data) < 2:
+            self.logger.error("switch_power ожидает [channel, state]")
+            return b'-1'
+        ch, state = data[0], data[1]
+        return await self.set_cm_hvip_mode(ch, state)
+
     async def set_voltage_pwm(self, data: list[int]) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.write_registers(self.CMD_DBG_SET_VOLTAGE, 
-                                                                            data, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
+        if len(data) < 12:
+            self.logger.error("set_voltage_pwm ожидает 12 регистров: 3 float U + 3 float PWM")
             return b'-1'
-    
-    
+        ch_order = (self.CHERENKOV_CH_VOLTAGE, self.PIPS_CH_VOLTAGE, self.SIPM_CH_VOLTAGE)
+        result = b'-1'
+        for idx, ch in enumerate(ch_order):
+            voltage = self._legacy_regs_to_float(data[idx * 2: idx * 2 + 2])
+            result = await self.set_cm_hvip_voltage(ch, voltage)
+        pwm_offset = 6
+        for idx, ch in enumerate(ch_order):
+            pwm = self._legacy_regs_to_float(data[pwm_offset + idx * 2: pwm_offset + idx * 2 + 2])
+            result = await self.set_cm_hvip_pwm(ch, pwm)
+        return result
+
     async def set_cfg_a_b(self, data: list[int]) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.write_registers(self.CM_DBG_SET_HVIP_AB, 
-                                                                            data, 
-                                                                            slave=self.CM_ID)
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
+        return b'-1'
+
 
 class _NoopLogger:
     def error(self, *args, **kwargs):

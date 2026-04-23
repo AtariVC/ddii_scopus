@@ -25,10 +25,8 @@ from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E4
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.craft_custom_widget import add_serial_widget  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from src.log_config import log_init, log_s  # noqa: E402
+from src.log_config import log_init  # noqa: E402
 from src.modbus_worker import ModbusWorker  # noqa: E402
-from src.parsers import Parsers  # noqa: E402
-from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
 # from src.print_logger import PrintLogger  # noqa: E402
 
 
@@ -55,20 +53,9 @@ class MainHvipDialog(QtWidgets.QDialog):
 
     label_status: QtWidgets.QLabel
 
-    spinBox_ch_a_u: QtWidgets.QDoubleSpinBox
-    spinBox_ch_b_u: QtWidgets.QDoubleSpinBox
-    spinBox_ch_a_i: QtWidgets.QDoubleSpinBox
-    spinBox_ch_b_i: QtWidgets.QDoubleSpinBox
-
-    spinBox_pips_a_u: QtWidgets.QDoubleSpinBox
-    spinBox_pips_b_u: QtWidgets.QDoubleSpinBox
-    spinBox_pips_a_i: QtWidgets.QDoubleSpinBox
-    spinBox_pips_b_i: QtWidgets.QDoubleSpinBox
-
-    spinBox_sipm_a_u: QtWidgets.QDoubleSpinBox
-    spinBox_sipm_b_u: QtWidgets.QDoubleSpinBox
-    spinBox_sipm_a_i: QtWidgets.QDoubleSpinBox
-    spinBox_sipm_b_i: QtWidgets.QDoubleSpinBox
+    doubleSpinBox_ch_pwm_max: QtWidgets.QDoubleSpinBox
+    doubleSpinBox_pips_pwm_max: QtWidgets.QDoubleSpinBox
+    doubleSpinBox_sipm_pwm_max: QtWidgets.QDoubleSpinBox
 
     pushButton_ok: QtWidgets.QPushButton
     pushButton_apply: QtWidgets.QPushButton
@@ -98,7 +85,6 @@ class MainHvipDialog(QtWidgets.QDialog):
         super().__init__()
         loadUi(Path(__file__).resolve().parent.joinpath("HVIP_window.ui"), self)
         self.mw = ModbusWorker()
-        self.parser = Parsers()
         self.init_QObjects()
         self.config = ConfigSaver()
         self.flg_get_rst = 0
@@ -178,94 +164,68 @@ class MainHvipDialog(QtWidgets.QDialog):
             "doubleSpinBox_pips_pwm": self.doubleSpinBox_pips_pwm,
             "doubleSpinBox_sipm_pwm": self.doubleSpinBox_sipm_pwm,
         }
-        self.spin_box_cfg_pwm: dict[str, QtWidgets.QDoubleSpinBox] = {
-            "doubleSpinBox_ch_pwm": self.doubleSpinBox_ch_pwm,
-            "doubleSpinBox_pips_pwm": self.doubleSpinBox_pips_pwm,
-            "doubleSpinBox_sipm_pwm": self.doubleSpinBox_sipm_pwm,
+        self.spin_box_cfg_pwm_max: dict[str, QtWidgets.QDoubleSpinBox] = {
+            "doubleSpinBox_ch_pwm_max": self.doubleSpinBox_ch_pwm_max,
+            "doubleSpinBox_pips_pwm_max": self.doubleSpinBox_pips_pwm_max,
+            "doubleSpinBox_sipm_pwm_max": self.doubleSpinBox_sipm_pwm_max,
         }
-        self.label_meas: dict[str, QtWidgets.QLabel | int] = {
-            "label_ch_v_mes": self.label_ch_v_mes,
-            "label_ch_pwm_mes": self.label_ch_pwm_mes,
-            "label_ch_cur": self.label_ch_cur,
-            "hvip_mode_ch": 1,
-            "label_pips_v_mes": self.label_pips_v_mes,
-            "label_pips_pwm_mes": self.label_pips_pwm_mes,
-            "label_pips_cur": self.label_pips_cur,
-            "hvip_mode_pips": 1,
-            "label_sipm_v_mes": self.label_sipm_v_mes,
-            "label_sipm_pwm_mes": self.label_sipm_pwm_mes,
-            "label_sipm_cur": self.label_sipm_cur,
-            "hvip_mode_sipm": 1,
+        self.hvip_channels: dict[int, dict[str, Any]] = {
+            self.CHERENKOV_CH_VOLTAGE: {
+                "cfg_volt": self.spinBox_ch_volt,
+                "cfg_pwm": self.doubleSpinBox_ch_pwm,
+                "cfg_pwm_max": self.doubleSpinBox_ch_pwm_max,
+                "desired": self.label_desired_v_ch,
+                "meas_v": self.label_ch_v_mes,
+                "meas_pwm": self.label_ch_pwm_mes,
+                "meas_cur": self.label_ch_cur,
+            },
+            self.PIPS_CH_VOLTAGE: {
+                "cfg_volt": self.spinBox_pips_volt,
+                "cfg_pwm": self.doubleSpinBox_pips_pwm,
+                "cfg_pwm_max": self.doubleSpinBox_pips_pwm_max,
+                "desired": self.label_desired_v_pips,
+                "meas_v": self.label_pips_v_mes,
+                "meas_pwm": self.label_pips_pwm_mes,
+                "meas_cur": self.label_pips_cur,
+            },
+            self.SIPM_CH_VOLTAGE: {
+                "cfg_volt": self.spinBox_sipm_volt,
+                "cfg_pwm": self.doubleSpinBox_sipm_pwm,
+                "cfg_pwm_max": self.doubleSpinBox_sipm_pwm_max,
+                "desired": self.label_desired_v_sipm,
+                "meas_v": self.label_sipm_v_mes,
+                "meas_pwm": self.label_sipm_pwm_mes,
+                "meas_cur": self.label_sipm_cur,
+            },
+        }
+        self.pips_on = 0
+        self.sipm_on = 0
+        self.ch_on = 0
+
+    async def _read_hvip_channels(self) -> dict[int, list[int]]:
+        return {
+            ch: await self.cm_cmd.read_cm_hvip_debug_values(ch)
+            for ch in (self.CHERENKOV_CH_VOLTAGE, self.PIPS_CH_VOLTAGE, self.SIPM_CH_VOLTAGE)
         }
 
-        self.label_desired_v: dict[str, QtWidgets.QLabel] = {
-            "label_desired_v_ch": self.label_desired_v_ch,
-            "label_desired_v_pips": self.label_desired_v_pips,
-            "label_desired_v_sipm": self.label_desired_v_sipm,
-        }
-        self.label_desired_v_T: list[LineEObj] = [
-            LineEObj(key=key, lineobj_txt=value.text(), tp="f") for (key, value) in self.label_desired_v.items()
-        ]
-
-        self.spin_box_A_B: dict[str, QtWidgets.QDoubleSpinBox] = {
-            "spinBox_ch_a_u": self.spinBox_ch_a_u,
-            "spinBox_pips_a_u": self.spinBox_pips_a_u,
-            "spinBox_sipm_a_u": self.spinBox_sipm_a_u,
-            "spinBox_ch_b_u": self.spinBox_ch_b_u,
-            "spinBox_pips_b_u": self.spinBox_pips_b_u,
-            "spinBox_sipm_b_u": self.spinBox_sipm_b_u,
-            "spinBox_ch_a_i": self.spinBox_ch_a_i,
-            "spinBox_pips_a_i": self.spinBox_pips_a_i,
-            "spinBox_sipm_a_i": self.spinBox_sipm_a_i,
-            "spinBox_ch_b_i": self.spinBox_ch_b_i,
-            "spinBox_pips_b_i": self.spinBox_pips_b_i,
-            "spinBox_sipm_b_i": self.spinBox_sipm_b_i,
-        }
-
-    @qasync.asyncSlot()
-    async def get_cfg_data_from_widget(self, d_struct: dict, tp: str) -> list[int]:
-        pack: list[LineEObj] = [
-            LineEObj(key=key, lineobj_txt=value.value(), tp=tp) for i, (key, value) in enumerate(d_struct.items())
-        ]
-        get_data_widget = LineEditPack()
-        return get_data_widget(pack, "little")
+    @staticmethod
+    def _reg_x100_to_float(regs: list[int], offset: int) -> float:
+        return (regs[offset] if len(regs) > offset else 0) / 100.0
 
     @qasync.asyncSlot()
     async def update_gui_data_spinbox(self) -> None:
         if not await self.w_ser_dialog.check_connection():
             await self.on_serial_disconnected()
             return
-        err_cfg_volt = 0
-        err_cfg_pwm = 0
-        err_cfg_a_b = 0
         try:
-            answ_cfg_volt: bytes = await self.cm_cmd.get_cfg_voltage()
-            data_cfg_volt: dict[str, str] = await self.parser.pars_cfg_volt(answ_cfg_volt)
+            channels = await self._read_hvip_channels()
+            for ch, widgets in self.hvip_channels.items():
+                regs = channels[ch]
+                widgets["cfg_volt"].setValue(self._reg_x100_to_float(regs, self.cm_cmd.MB_HVIP_REG_V_HV_DESIRED_X100))
+                widgets["cfg_pwm"].setValue(self._reg_x100_to_float(regs, self.cm_cmd.MB_HVIP_REG_PWM_X100))
+                widgets["cfg_pwm_max"].setValue(self._reg_x100_to_float(regs, self.cm_cmd.MB_HVIP_REG_PWM_MAX_X100))
         except Exception as e:
-            err_cfg_volt = 1
             self.logger.error(str(e))
-        try:
-            answ_cfg_pwm: bytes = await self.cm_cmd.get_cfg_pwm()
-            data_cfg_pwm: dict[str, str] = await self.parser.pars_cfg_pwm(answ_cfg_pwm)
-        except Exception as e:
-            err_cfg_pwm = 1
-            self.logger.error(str(e))
-        try:
-            await asyncio.sleep(0.1)
-            answ_cfg_a_b: bytes = await self.cm_cmd.get_cfg_a_b()
-            data_cfg_a_b: dict[str, str] = await self.parser.pars_cfg_a_b(answ_cfg_a_b)
-        except Exception as e:
-            err_cfg_a_b = 1
-            self.logger.error(str(e))
-        if err_cfg_volt == 0:
-            for key, val in self.spin_box_cfg_volt.items():
-                val.setValue(float(data_cfg_volt.get(key)))  # type: ignore
-        if err_cfg_pwm == 0:
-            for key, val in self.spin_box_cfg_pwm.items():
-                val.setValue(float(data_cfg_pwm.get(key)))  # type: ignore
-        if err_cfg_a_b == 0:
-            for key, val in self.spin_box_A_B.items():
-                val.setValue(float(data_cfg_a_b.get(key)))  # type: ignore
 
     @qasync.asyncSlot()
     async def update_gui_data_label(self) -> None:
@@ -273,24 +233,23 @@ class MainHvipDialog(QtWidgets.QDialog):
             await self.on_serial_disconnected()
             return
         try:
-            answer: bytes = await self.cm_cmd.get_voltage()
-            desired_v: bytes = await self.cm_cmd.get_desired_voltage()
-            data: dict[str, str] = await self.parser.pars_voltage(answer)
-            data_desired_v: dict[str, str] = await self.parser.pars_everything(
-                self.label_desired_v_T, desired_v, endian="big"
-            )
-            for key, val in self.label_desired_v.items():
-                val.setText(data_desired_v[key])
-            for i, (key, val) in enumerate(self.label_meas.items()):
-                if "mode" in key:
-                    if key == "hvip_mode_ch":
-                        self.update_power_status([self.CHERENKOV_CH_VOLTAGE, int(data[key])])
-                    if key == "hvip_mode_pips":
-                        self.update_power_status([self.PIPS_CH_VOLTAGE, int(data[key])])
-                    if key == "hvip_mode_sipm":
-                        self.update_power_status([self.SIPM_CH_VOLTAGE, int(data[key])])
-                else:
-                    val.setText("{:.2f}".format(float(list(data.values())[i])))  # type: ignore
+            channels = await self._read_hvip_channels()
+            for ch, widgets in self.hvip_channels.items():
+                regs = channels[ch]
+                widgets["desired"].setText(
+                    "{:.2f}".format(self._reg_x100_to_float(regs, self.cm_cmd.MB_HVIP_REG_V_HV_DESIRED_X100))
+                )
+                widgets["meas_v"].setText(
+                    "{:.2f}".format(self._reg_x100_to_float(regs, self.cm_cmd.MB_HVIP_REG_V_HV_X100))
+                )
+                widgets["meas_pwm"].setText(
+                    "{:.2f}".format(self._reg_x100_to_float(regs, self.cm_cmd.MB_HVIP_REG_PWM_X100))
+                )
+                widgets["meas_cur"].setText(
+                    "{:.2f}".format(self._reg_x100_to_float(regs, self.cm_cmd.MB_HVIP_REG_CURRENT_X100))
+                )
+                mode = regs[self.cm_cmd.MB_HVIP_REG_MODE] if len(regs) > self.cm_cmd.MB_HVIP_REG_MODE else 0
+                self.update_power_status([ch, mode])
         except Exception as e:
             self.logger.error(str(e))
 
@@ -300,13 +259,13 @@ class MainHvipDialog(QtWidgets.QDialog):
         if not await self.w_ser_dialog.check_connection():
             return
         if self.pips_on == 1:
-            await self.cm_cmd.switch_power([self.PIPS_CH_VOLTAGE, 0])
+            await self.cm_cmd.set_cm_hvip_mode(self.PIPS_CH_VOLTAGE, 0)
             self.pips_on = 0
             self.pushButton_pips_on.setText("Включить")
             self.led_pips.setStyleSheet(widget_led_off())
 
         else:
-            await self.cm_cmd.switch_power([self.PIPS_CH_VOLTAGE, 1])
+            await self.cm_cmd.set_cm_hvip_mode(self.PIPS_CH_VOLTAGE, 1)
             self.pips_on = 1
             self.pushButton_pips_on.setText("Отключить")
             self.led_pips.setStyleSheet(widget_led_on())
@@ -316,13 +275,13 @@ class MainHvipDialog(QtWidgets.QDialog):
         if not await self.w_ser_dialog.check_connection():
             return
         if self.sipm_on == 1:
-            await self.cm_cmd.switch_power([self.SIPM_CH_VOLTAGE, 0])
+            await self.cm_cmd.set_cm_hvip_mode(self.SIPM_CH_VOLTAGE, 0)
             self.sipm_on = 0
             self.pushButton_sipm_on.setText("Включить")
             self.led_sipm.setStyleSheet(widget_led_off())
 
         else:
-            await self.cm_cmd.switch_power([self.SIPM_CH_VOLTAGE, 1])
+            await self.cm_cmd.set_cm_hvip_mode(self.SIPM_CH_VOLTAGE, 1)
             self.sipm_on = 1
             self.pushButton_sipm_on.setText("Отключить")
             self.led_sipm.setStyleSheet(widget_led_on())
@@ -332,13 +291,13 @@ class MainHvipDialog(QtWidgets.QDialog):
         if not await self.w_ser_dialog.check_connection():
             return
         if self.ch_on == 1:
-            await self.cm_cmd.switch_power([self.CHERENKOV_CH_VOLTAGE, 0])
+            await self.cm_cmd.set_cm_hvip_mode(self.CHERENKOV_CH_VOLTAGE, 0)
             self.ch_on = 0
             self.pushButton_ch_on.setText("Включить")
             self.led_ch.setStyleSheet(widget_led_off())
 
         else:
-            await self.cm_cmd.switch_power([self.CHERENKOV_CH_VOLTAGE, 1])
+            await self.cm_cmd.set_cm_hvip_mode(self.CHERENKOV_CH_VOLTAGE, 1)
             self.ch_on = 1
             self.pushButton_ch_on.setText("Отключить")
             self.led_ch.setStyleSheet(widget_led_on())
@@ -347,20 +306,24 @@ class MainHvipDialog(QtWidgets.QDialog):
     async def pushButton_apply_handler(self) -> None:
         if not await self.w_ser_dialog.check_connection():
             return
-        vlt_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_volt, "f")
-        pwm_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, "f")
-        pwm_max_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_cfg_pwm, "i")
-        await self.cm_cmd.set_voltage_pwm(vlt_data + pwm_data)
-        cfg_a_b_data: list[int] = await self.get_cfg_data_from_widget(self.spin_box_A_B, "f")
-        await asyncio.sleep(0.1)
-        await self.cm_cmd.set_cfg_a_b(cfg_a_b_data)
-        self.label_status.setText("Status: cfg was written")
-        # self.save_gui_data()
+        try:
+            for ch, widgets in self.hvip_channels.items():
+                await self.cm_cmd.set_cm_hvip_voltage(ch, widgets["cfg_volt"].value())
+                await self.cm_cmd.set_cm_hvip_pwm(ch, widgets["cfg_pwm"].value())
+                await self.cm_cmd.write_cm_hvip_debug_register(
+                    self.cm_cmd.MB_HVIP_REG_PWM_MAX_X100,
+                    int(round(widgets["cfg_pwm_max"].value() * 100.0)),
+                    ch,
+                )
+            self.label_status.setText("Status: cfg was written")
+        except Exception as e:
+            self.logger.error(str(e))
+            self.label_status.setText("Status: write error")
 
     def save_gui_data(self):
         loaded_cfg: list[dict[str, float | int | str]] = [
             {key: spin_box.value() for key, spin_box in item.items()}
-            for item in [self.spin_box_cfg_volt, self.spin_box_cfg_pwm, self.spin_box_A_B]
+            for item in [self.spin_box_cfg_volt, self.spin_box_cfg_pwm, self.spin_box_cfg_pwm_max]
         ]
         # Объединение всех словарей в один
         combined_cfg: dict[str, float | int | str] = {}
@@ -381,7 +344,7 @@ class MainHvipDialog(QtWidgets.QDialog):
             for_updt: list[dict[str, QtWidgets.QDoubleSpinBox]] = [
                 self.spin_box_cfg_volt,
                 self.spin_box_cfg_pwm,
-                self.spin_box_A_B,
+                self.spin_box_cfg_pwm_max,
             ]
             for item in for_updt:
                 self.config.load_from_config(item)
@@ -400,7 +363,7 @@ class MainHvipDialog(QtWidgets.QDialog):
     def update_power_status(self, data) -> None:
         try:
             if data[0] == self.PIPS_CH_VOLTAGE:
-                if data[1] == 1:
+                if data[1] > 0:
                     self.pips_on = 1
                     self.pushButton_pips_on.setText("Отключить")
                     self.led_pips.setStyleSheet(widget_led_on())
@@ -409,7 +372,7 @@ class MainHvipDialog(QtWidgets.QDialog):
                     self.pushButton_pips_on.setText("Включить")
                     self.led_pips.setStyleSheet(widget_led_off())
             elif data[0] == self.SIPM_CH_VOLTAGE:
-                if data[1] == 1:
+                if data[1] > 0:
                     self.sipm_on = 1
                     self.pushButton_sipm_on.setText("Отключить")
                     self.led_sipm.setStyleSheet(widget_led_on())
@@ -418,7 +381,7 @@ class MainHvipDialog(QtWidgets.QDialog):
                     self.pushButton_sipm_on.setText("Включить")
                     self.led_sipm.setStyleSheet(widget_led_off())
             elif data[0] == self.CHERENKOV_CH_VOLTAGE:
-                if data[1] == 1:
+                if data[1] > 0:
                     self.ch_on = 1
                     self.pushButton_ch_on.setText("Отключить")
                     self.led_ch.setStyleSheet(widget_led_on())
