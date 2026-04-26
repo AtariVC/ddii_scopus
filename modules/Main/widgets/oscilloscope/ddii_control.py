@@ -6,7 +6,7 @@ import qasync
 import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
-from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
+from PyQt6.QtGui import QDoubleValidator, QFont, QIcon, QIntValidator
 from PyQt6.QtWidgets import (
     QGridLayout,
     QGroupBox,
@@ -29,6 +29,7 @@ modules_path = Path(__file__).resolve().parents[3]
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
+from Main.widgets.oscilloscope.ddii_control_defaults_loader import DDIIControlDefaults  # noqa: E402
 from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
 from src.async_task_manager import AsyncTaskManager  # noqa: E402
 from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
@@ -41,12 +42,9 @@ from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
 
 class DDIIControlWidget(QtWidgets.QWidget):
     HH_COUNT = 32
+    ICON_DIR = Path(__file__).resolve().parents[4] / "icon"
     # HH с коэффициентом ППД: HH1-HH6, ряды от HH7/HH9/HH10 с шагом +4 до HH19, HH30.
-    PPD_HH_NUMBERS = (
-        frozenset(range(1, 7))
-        | frozenset(hh for start in (7, 9, 10) for hh in range(start, 20, 4))
-        | {30}
-    )
+    PPD_HH_NUMBERS = frozenset(range(1, 7)) | frozenset(hh for start in (7, 9, 10) for hh in range(start, 20, 4)) | {30}
 
     lineEdit_hvip_pips: QtWidgets.QLineEdit
     lineEdit_hvip_sipm: QtWidgets.QLineEdit
@@ -58,14 +56,14 @@ class DDIIControlWidget(QtWidgets.QWidget):
     lineEdit_pwm_pips: QtWidgets.QLineEdit
     lineEdit_pwm_ch: QtWidgets.QLineEdit
     lineEdit_lvl_0_1: QtWidgets.QLineEdit
-    lineEdit_lvl_ppd_lsb_mev: QtWidgets.QLineEdit
-    lineEdit_lvl_scd_lsb_mev: QtWidgets.QLineEdit
+    lineEdit_lvl_ppd_lsb_kev: QtWidgets.QLineEdit
+    lineEdit_lvl_scd_lsb_kev: QtWidgets.QLineEdit
     hh_line_edits: list[QtWidgets.QLineEdit]
     hh_lsb_values: list[int]
     lvl_coeff_widgets: list[QtWidgets.QWidget]
     lvl_coeff_line_edits: list[QtWidgets.QLineEdit]
     radioButton_lvl_lsb: QtWidgets.QRadioButton
-    radioButton_lvl_mev: QtWidgets.QRadioButton
+    radioButton_lvl_kev: QtWidgets.QRadioButton
 
     pushButton_lvl_update: QtWidgets.QPushButton
     pushButton_lvl_apply: QtWidgets.QPushButton
@@ -87,15 +85,16 @@ class DDIIControlWidget(QtWidgets.QWidget):
     def __init__(self, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).parent / "ddii_control.ui", self)
+        self.logger = log_init()
+        self.defaults = DDIIControlDefaults.load(self.logger)
         self.hh_line_edits = []
-        self.hh_lsb_values = [0] * self.HH_COUNT
+        self.hh_lsb_values = self.defaults.hh_default_lsb_values(self.HH_COUNT, self.PPD_HH_NUMBERS)
         self.lvl_coeff_widgets = []
-        self._levels_display_mev = False
+        self._levels_display_kev = self.defaults.levels_in_kev()
         self._rebuild_levels_tab()
         # Core helpers
         self.mw = ModbusWorker()
         self.parser = Parsers()
-        self.logger = log_init()
 
         # Optional context from args: either SerialConnect or parent providing it
         self.w_ser_dialog: SerialConnect | None = None
@@ -148,17 +147,65 @@ class DDIIControlWidget(QtWidgets.QWidget):
         self.mpp_cmd: ModbusMPPCommand
 
         self.filter_combobox_init()
+        self._apply_defaults_to_static_fields()
+        self._configure_action_buttons()
+
+    def _coerce_int(self, value: object, fallback: int, minimum: int | None = None) -> int:
+        try:
+            result = int(value)
+        except Exception:
+            result = fallback
+        if minimum is not None:
+            result = max(minimum, result)
+        return result
+
+    def _coerce_float(self, value: object, fallback: float) -> float:
+        try:
+            return float(value)
+        except Exception:
+            return fallback
+
+    def _apply_defaults_to_static_fields(self) -> None:
+        self.lineEdit_interval_request.setText(self.defaults.interval_text)
+        self.lineEdit_hvip_ch.setText(self.defaults.float_text("voltage", "ch"))
+        self.lineEdit_hvip_pips.setText(self.defaults.float_text("voltage", "pips"))
+        self.lineEdit_hvip_sipm.setText(self.defaults.float_text("voltage", "sipm"))
+        self.lineEdit_pwm_sipm_2.setText(self.defaults.float_text("pwm", "ch"))
+        self.lineEdit_pwm_pips.setText(self.defaults.float_text("pwm", "pips"))
+        self.lineEdit_pwm_sipm.setText(self.defaults.float_text("pwm", "sipm"))
+        self.lineEdit_hvip_m_ch.setText(self.defaults.float_text("measured_voltage", "ch"))
+        self.lineEdit_hvip_m_pips.setText(self.defaults.float_text("measured_voltage", "pips"))
+        self.lineEdit_hvip_m_sipm.setText(self.defaults.float_text("measured_voltage", "sipm"))
+
+    # Компактные action-кнопки с material-style иконками.
+    def _icon(self, icon_name: str) -> QIcon:
+        return QIcon(str(self.ICON_DIR / icon_name))
+
+    def _configure_action_button(self, button: QtWidgets.QPushButton, icon_name: str, tooltip: str) -> None:
+        button.setText("")
+        button.setToolTip(tooltip)
+        button.setStatusTip(tooltip)
+        button.setIcon(self._icon(icon_name))
+        button.setIconSize(QtCore.QSize(18, 18))
+        button.setFixedSize(QtCore.QSize(34, 28))
+
+    def _configure_action_buttons(self) -> None:
+        self._configure_action_button(self.pushButton_lvl_update, "refresh.svg", "Обновить уровни")
+        self._configure_action_button(self.pushButton_lvl_apply, "save.svg", "Применить уровни")
+        self._configure_action_button(self.pushButton_hvip_update, "refresh.svg", "Обновить питание")
+        self._configure_action_button(self.pushButton_hvip_apply, "save.svg", "Применить питание")
+        self._configure_action_button(self.pushButton_update, "refresh.svg", "Обновить настройки")
+        self._configure_action_button(self.pushButton_apply, "save.svg", "Применить настройки")
 
     def _init_validators(self) -> None:
         self._u16_validator = QIntValidator(0, 65535, self)
         self._coeff_validator = QIntValidator(1, 1000000, self)
-        self._hh_mev_validator = QDoubleValidator(0.0, 1000000.0, 1, self)
-        self._hh_mev_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        self._hh_kev_validator = QIntValidator(0, 1000000, self)
         d_validator = QDoubleValidator()
         try:
             self.lineEdit_lvl_0_1.setValidator(self._u16_validator)
-            self.lineEdit_lvl_ppd_lsb_mev.setValidator(self._coeff_validator)
-            self.lineEdit_lvl_scd_lsb_mev.setValidator(self._coeff_validator)
+            self.lineEdit_lvl_ppd_lsb_kev.setValidator(self._coeff_validator)
+            self.lineEdit_lvl_scd_lsb_kev.setValidator(self._coeff_validator)
             self._set_hh_display_validators()
         except Exception:
             # Some fields may be absent if UI changes
@@ -175,8 +222,13 @@ class DDIIControlWidget(QtWidgets.QWidget):
             ...
 
     def filter_combobox_init(self) -> None:
-        filters: list = ["нет", "медианный", "ФНЧ", "ФВЧ"]
-        self.comboBox_filter.addItems(filters)
+        self.comboBox_filter.clear()
+        for filter_item in self.defaults.filter_items():
+            self.comboBox_filter.addItem(filter_item["label"], filter_item["id"])
+        default_filter_id = self.defaults.default_filter_id
+        default_index = self.comboBox_filter.findData(default_filter_id)
+        default_index = max(default_index, 0)
+        self.comboBox_filter.setCurrentIndex(default_index)
 
     def _clear_layout(self, layout: QtWidgets.QLayout) -> None:
         while layout.count():
@@ -230,50 +282,56 @@ class DDIIControlWidget(QtWidgets.QWidget):
         controls_layout.setContentsMargins(0, 0, 0, 0)
         controls_layout.setHorizontalSpacing(6)
         controls_layout.setVerticalSpacing(4)
-        self.lineEdit_lvl_0_1 = self._make_center_line_edit(levels_wrap, "lineEdit_lvl_0_1", 78)
-        self.lineEdit_lvl_ppd_lsb_mev = self._make_center_line_edit(
+        self.lineEdit_lvl_0_1 = self._make_center_line_edit(
             levels_wrap,
-            "lineEdit_lvl_ppd_lsb_mev",
-            70,
-            "1",
+            "lineEdit_lvl_0_1",
+            78,
+            str(self.defaults.level_01),
         )
-        self.lineEdit_lvl_scd_lsb_mev = self._make_center_line_edit(
+        self.lineEdit_lvl_ppd_lsb_kev = self._make_center_line_edit(
             levels_wrap,
-            "lineEdit_lvl_scd_lsb_mev",
+            "lineEdit_lvl_ppd_lsb_kev",
             70,
-            "1",
+            str(self.defaults.coeff_value("ppd")),
+        )
+        self.lineEdit_lvl_scd_lsb_kev = self._make_center_line_edit(
+            levels_wrap,
+            "lineEdit_lvl_scd_lsb_kev",
+            70,
+            str(self.defaults.coeff_value("scd")),
         )
         self.radioButton_lvl_lsb = QtWidgets.QRadioButton("lsb", levels_wrap)
-        self.radioButton_lvl_mev = QtWidgets.QRadioButton("MeV", levels_wrap)
+        self.radioButton_lvl_kev = QtWidgets.QRadioButton("keV", levels_wrap)
         self.radioButton_lvl_lsb.setObjectName("radioButton_lvl_lsb")
-        self.radioButton_lvl_mev.setObjectName("radioButton_lvl_mev")
-        self.radioButton_lvl_lsb.setChecked(True)
+        self.radioButton_lvl_kev.setObjectName("radioButton_lvl_kev")
+        self.radioButton_lvl_lsb.setChecked(not self.defaults.levels_in_kev())
+        self.radioButton_lvl_kev.setChecked(self.defaults.levels_in_kev())
 
         self.levels_unit_group = QtWidgets.QButtonGroup(levels_wrap)
         self.levels_unit_group.addButton(self.radioButton_lvl_lsb)
-        self.levels_unit_group.addButton(self.radioButton_lvl_mev)
+        self.levels_unit_group.addButton(self.radioButton_lvl_kev)
 
-        ppd_label = self._make_center_label("ППД (lsb/MeV)", levels_wrap, 105)
-        scd_label = self._make_center_label("СцД (lsb/MeV)", levels_wrap, 105)
+        ppd_label = self._make_center_label("ППД (lsb/keV)", levels_wrap, 105)
+        scd_label = self._make_center_label("СцД (lsb/keV)", levels_wrap, 105)
         self.lvl_coeff_widgets = [
             ppd_label,
-            self.lineEdit_lvl_ppd_lsb_mev,
+            self.lineEdit_lvl_ppd_lsb_kev,
             scd_label,
-            self.lineEdit_lvl_scd_lsb_mev,
+            self.lineEdit_lvl_scd_lsb_kev,
         ]
         self.lvl_coeff_line_edits = [
-            self.lineEdit_lvl_ppd_lsb_mev,
-            self.lineEdit_lvl_scd_lsb_mev,
+            self.lineEdit_lvl_ppd_lsb_kev,
+            self.lineEdit_lvl_scd_lsb_kev,
         ]
 
         controls_layout.addWidget(self._make_center_label("Level", levels_wrap, 55), 0, 0)
         controls_layout.addWidget(self.lineEdit_lvl_0_1, 0, 1)
         controls_layout.addWidget(self.radioButton_lvl_lsb, 0, 2)
-        controls_layout.addWidget(self.radioButton_lvl_mev, 0, 3)
+        controls_layout.addWidget(self.radioButton_lvl_kev, 0, 3)
         controls_layout.addWidget(ppd_label, 1, 0)
-        controls_layout.addWidget(self.lineEdit_lvl_ppd_lsb_mev, 1, 1)
+        controls_layout.addWidget(self.lineEdit_lvl_ppd_lsb_kev, 1, 1)
         controls_layout.addWidget(scd_label, 1, 2)
-        controls_layout.addWidget(self.lineEdit_lvl_scd_lsb_mev, 1, 3)
+        controls_layout.addWidget(self.lineEdit_lvl_scd_lsb_kev, 1, 3)
         controls_layout.setColumnStretch(4, 1)
         levels_layout.addLayout(controls_layout)
 
@@ -319,35 +377,37 @@ class DDIIControlWidget(QtWidgets.QWidget):
         buttons_layout.addStretch(1)
         self.pushButton_lvl_update = QtWidgets.QPushButton("Обновить", levels_wrap)
         self.pushButton_lvl_update.setObjectName("pushButton_lvl_update")
-        self.pushButton_lvl_update.setMinimumSize(QtCore.QSize(120, 25))
+        self.pushButton_lvl_update.setMinimumSize(QtCore.QSize(34, 28))
         self.pushButton_lvl_apply = QtWidgets.QPushButton("Применить", levels_wrap)
         self.pushButton_lvl_apply.setObjectName("pushButton_lvl_apply")
-        self.pushButton_lvl_apply.setMinimumSize(QtCore.QSize(120, 25))
+        self.pushButton_lvl_apply.setMinimumSize(QtCore.QSize(34, 28))
         buttons_layout.addWidget(self.pushButton_lvl_update)
         buttons_layout.addWidget(self.pushButton_lvl_apply)
         levels_layout.addLayout(buttons_layout)
 
         tab_layout.addWidget(levels_wrap)
         self.radioButton_lvl_lsb.toggled.connect(self._levels_mode_changed)
-        self.radioButton_lvl_mev.toggled.connect(self._levels_mode_changed)
-        self.lineEdit_lvl_ppd_lsb_mev.editingFinished.connect(self._levels_coeff_changed)
-        self.lineEdit_lvl_scd_lsb_mev.editingFinished.connect(self._levels_coeff_changed)
+        self.radioButton_lvl_kev.toggled.connect(self._levels_mode_changed)
+        self.lineEdit_lvl_ppd_lsb_kev.editingFinished.connect(self._levels_coeff_changed)
+        self.lineEdit_lvl_scd_lsb_kev.editingFinished.connect(self._levels_coeff_changed)
+        self._configure_action_button(self.pushButton_lvl_update, "refresh.svg", "Обновить уровни")
+        self._configure_action_button(self.pushButton_lvl_apply, "save.svg", "Применить уровни")
         self._set_levels_coeff_visible()
         self._render_hh_values(self.hh_lsb_values)
 
-    def _levels_in_mev(self) -> bool:
-        return bool(getattr(self, "radioButton_lvl_mev", None) and self.radioButton_lvl_mev.isChecked())
+    def _levels_in_kev(self) -> bool:
+        return bool(getattr(self, "radioButton_lvl_kev", None) and self.radioButton_lvl_kev.isChecked())
 
     def _set_levels_coeff_visible(self) -> None:
         for widget in getattr(self, "lvl_coeff_widgets", []):
             widget.setVisible(True)
         for line_edit in getattr(self, "lvl_coeff_line_edits", []):
-            line_edit.setEnabled(self._levels_in_mev())
+            line_edit.setEnabled(self._levels_in_kev())
 
     def _set_hh_display_validators(self) -> None:
         validator = getattr(
             self,
-            "_hh_mev_validator" if self._levels_in_mev() else "_u16_validator",
+            "_hh_kev_validator" if self._levels_in_kev() else "_u16_validator",
             None,
         )
         if validator is None:
@@ -360,53 +420,45 @@ class DDIIControlWidget(QtWidgets.QWidget):
 
     def _levels_mode_changed(self, checked: bool) -> None:
         if not checked:
+            self._set_levels_coeff_visible()
             return
         self._commit_hh_display_to_lsb()
-        self._set_levels_coeff_visible()
         self._render_hh_values(self.hh_lsb_values)
 
     def _levels_coeff_changed(self) -> None:
-        if self._levels_in_mev():
+        if self._levels_in_kev():
             self._commit_hh_display_to_lsb()
             self._render_hh_values(self.hh_lsb_values)
 
-    def _get_float(self, le: QLineEdit) -> float:
-        try:
-            return float(le.text().replace(",", "."))
-        except Exception:
-            return 0.0
-
     def _hh_coeff(self, hh_number: int) -> int:
         coeff_edit = (
-            self.lineEdit_lvl_ppd_lsb_mev
-            if hh_number in self.PPD_HH_NUMBERS
-            else self.lineEdit_lvl_scd_lsb_mev
+            self.lineEdit_lvl_ppd_lsb_kev if hh_number in self.PPD_HH_NUMBERS else self.lineEdit_lvl_scd_lsb_kev
         )
         return max(1, self._get_int(coeff_edit))
 
     def _format_hh_value(self, hh_number: int, lsb_value: int) -> str:
-        if self._levels_in_mev():
-            return f"{lsb_value / self._hh_coeff(hh_number):.1f}"
+        if self._levels_in_kev():
+            return str(int(round(lsb_value * self._hh_coeff(hh_number))))
         return str(lsb_value)
 
-    def _hh_edit_to_lsb(self, hh_number: int, line_edit: QLineEdit, display_mev: bool) -> int:
-        if display_mev:
-            return int(round(self._get_float(line_edit) * self._hh_coeff(hh_number)))
+    def _hh_edit_to_lsb(self, hh_number: int, line_edit: QLineEdit, display_kev: bool) -> int:
+        if display_kev:
+            return self._get_int(line_edit) // self._hh_coeff(hh_number)
         return self._get_int(line_edit)
 
-    def _collect_hh_lsb_values(self, display_mev: bool | None = None) -> list[int]:
-        display_mev = self._levels_display_mev if display_mev is None else display_mev
+    def _collect_hh_lsb_values(self, display_kev: bool | None = None) -> list[int]:
+        display_kev = self._levels_display_kev if display_kev is None else display_kev
         values: list[int] = []
         for idx, line_edit in enumerate(self.hh_line_edits):
             saved_value = line_edit.property("lsb_value")
-            if display_mev and not line_edit.property("dirty") and saved_value is not None:
+            if display_kev and not line_edit.property("dirty") and saved_value is not None:
                 values.append(int(saved_value))
             else:
-                values.append(self._hh_edit_to_lsb(idx + 1, line_edit, display_mev))
+                values.append(self._hh_edit_to_lsb(idx + 1, line_edit, display_kev))
         return values
 
     def _commit_hh_display_to_lsb(self) -> None:
-        self.hh_lsb_values = self._collect_hh_lsb_values(self._levels_display_mev)
+        self.hh_lsb_values = self._collect_hh_lsb_values(self._levels_display_kev)
         for idx, line_edit in enumerate(self.hh_line_edits):
             line_edit.setProperty("lsb_value", self.hh_lsb_values[idx])
             line_edit.setProperty("dirty", False)
@@ -421,13 +473,13 @@ class DDIIControlWidget(QtWidgets.QWidget):
             line_edit.setProperty("dirty", False)
             line_edit.setText(self._format_hh_value(idx + 1, lsb_value))
             line_edit.blockSignals(False)
-        self._levels_display_mev = self._levels_in_mev()
+        self._levels_display_kev = self._levels_in_kev()
 
     def _parse_u16_registers(self, answer: bytes, count: int) -> list[int]:
         payload = answer[1:] if len(answer) > 1 else b""
         values: list[int] = []
         for i in range(0, min(len(payload), count * 2), 2):
-            chunk = payload[i:i + 2]
+            chunk = payload[i : i + 2]
             if len(chunk) < 2:
                 break
             values.append(int.from_bytes(chunk, byteorder="big", signed=False))
@@ -482,7 +534,8 @@ class DDIIControlWidget(QtWidgets.QWidget):
 
             # Map values into UI fields
             try:
-                self.lineEdit_lvl_0_1.setText(str(tel_dict_lvl.get("01_hh_l", "0")))
+                level_value = tel_dict_lvl.get("01_hh_l", self.defaults.level_01)
+                self.lineEdit_lvl_0_1.setText(str(level_value))
             except Exception:
                 ...
             self._render_hh_values(hh_values)
@@ -516,27 +569,90 @@ class DDIIControlWidget(QtWidgets.QWidget):
             answer_meas: bytes = await self.cm_cmd.get_voltage()  # type: ignore[union-attr]
             data_meas: dict[str, str] = await self.parser.pars_voltage(answer_meas)
             try:
-                self.lineEdit_hvip_m_ch.setText("{:.2f}".format(float(data_meas.get("label_ch_v_mes", "0"))))
-                self.lineEdit_hvip_m_pips.setText("{:.2f}".format(float(data_meas.get("label_pips_v_mes", "0"))))
-                self.lineEdit_hvip_m_sipm.setText("{:.2f}".format(float(data_meas.get("label_sipm_v_mes", "0"))))
+                self.lineEdit_hvip_m_ch.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_meas.get("label_ch_v_mes"),
+                            self.defaults.float_value("measured_voltage", "ch"),
+                        )
+                    )
+                )
+                self.lineEdit_hvip_m_pips.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_meas.get("label_pips_v_mes"),
+                            self.defaults.float_value("measured_voltage", "pips"),
+                        )
+                    )
+                )
+                self.lineEdit_hvip_m_sipm.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_meas.get("label_sipm_v_mes"),
+                            self.defaults.float_value("measured_voltage", "sipm"),
+                        )
+                    )
+                )
             except Exception:
                 ...
             # Config voltages
             answ_cfg_volt: bytes = await self.cm_cmd.get_cfg_voltage()  # type: ignore[union-attr]
             data_cfg_volt: dict[str, str] = await self.parser.pars_cfg_volt(answ_cfg_volt)
             try:
-                self.lineEdit_hvip_ch.setText("{:.2f}".format(float(data_cfg_volt.get("spinBox_ch_volt", "0"))))
-                self.lineEdit_hvip_pips.setText("{:.2f}".format(float(data_cfg_volt.get("spinBox_pips_volt", "0"))))
-                self.lineEdit_hvip_sipm.setText("{:.2f}".format(float(data_cfg_volt.get("spinBox_sipm_volt", "0"))))
+                self.lineEdit_hvip_ch.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_cfg_volt.get("spinBox_ch_volt"),
+                            self.defaults.float_value("voltage", "ch"),
+                        )
+                    )
+                )
+                self.lineEdit_hvip_pips.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_cfg_volt.get("spinBox_pips_volt"),
+                            self.defaults.float_value("voltage", "pips"),
+                        )
+                    )
+                )
+                self.lineEdit_hvip_sipm.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_cfg_volt.get("spinBox_sipm_volt"),
+                            self.defaults.float_value("voltage", "sipm"),
+                        )
+                    )
+                )
             except Exception:
                 ...
             # Config PWM
             answ_cfg_pwm: bytes = await self.cm_cmd.get_cfg_pwm()  # type: ignore[union-attr]
             data_cfg_pwm: dict[str, str] = await self.parser.pars_cfg_pwm(answ_cfg_pwm)
             try:
-                self.lineEdit_pwm_sipm_2.setText("{:.2f}".format(float(data_cfg_pwm.get("doubleSpinBox_ch_pwm", "0"))))
-                self.lineEdit_pwm_pips.setText("{:.2f}".format(float(data_cfg_pwm.get("doubleSpinBox_pips_pwm", "0"))))
-                self.lineEdit_pwm_sipm.setText("{:.2f}".format(float(data_cfg_pwm.get("doubleSpinBox_sipm_pwm", "0"))))
+                self.lineEdit_pwm_sipm_2.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_cfg_pwm.get("doubleSpinBox_ch_pwm"),
+                            self.defaults.float_value("pwm", "ch"),
+                        )
+                    )
+                )
+                self.lineEdit_pwm_pips.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_cfg_pwm.get("doubleSpinBox_pips_pwm"),
+                            self.defaults.float_value("pwm", "pips"),
+                        )
+                    )
+                )
+                self.lineEdit_pwm_sipm.setText(
+                    "{:.2f}".format(
+                        self._coerce_float(
+                            data_cfg_pwm.get("doubleSpinBox_sipm_pwm"),
+                            self.defaults.float_value("pwm", "sipm"),
+                        )
+                    )
+                )
             except Exception:
                 ...
         except Exception as e:
@@ -571,7 +687,9 @@ class DDIIControlWidget(QtWidgets.QWidget):
             cfg: bytes = await self.cm_cmd.get_cfg_ddii()  # type: ignore[union-attr]
             d_cfg: dict[str, str] = await self.parser.pars_cfg_ddii(cfg)
             try:
-                self.lineEdit_interval_request.setText(d_cfg.get("interval_measure", "0"))
+                self.lineEdit_interval_request.setText(
+                    str(d_cfg.get("interval_measure", self.defaults.interval_text))
+                )
             except Exception:
                 ...
         except Exception as e:
@@ -582,18 +700,19 @@ class DDIIControlWidget(QtWidgets.QWidget):
         """Отправить интервал из UI в конфигурацию ЦМ."""
         try:
             # interval: int = self._get_int(self.lineEdit_interval_request)
-            filter_name: str = self.comboBox_filter.currentText()
+            filter_id = str(self.comboBox_filter.currentData())
             # await self.cm_cmd.set_cfg_ddii_interval(interval)  # type: ignore[union-attr]
-            if filter_name == "нет":
+            if filter_id == "none":
                 await self.mpp_cmd.reset_filter()  # type: ignore[union-attr]
-            elif filter_name == "медианный":
+            elif filter_id == "median":
                 await self.mpp_cmd.set_median_filter()  # type: ignore[union-attr]
-            elif filter_name == "ФНЧ": 
+            elif filter_id == "bypass_lp":
                 await self.mpp_cmd.set_bypass_lp_filter()  # type: ignore[union-attr]
-            elif filter_name == "ФВЧ":
-                await self.mpp_cmd.set_bypass_hp_filter() # type: ignore[union-attr]
+            elif filter_id == "bypass_hp":
+                await self.mpp_cmd.set_bypass_hp_filter()  # type: ignore[union-attr]
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

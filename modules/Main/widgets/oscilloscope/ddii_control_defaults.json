@@ -1,0 +1,59 @@
+{
+  "levels": {
+    "display_unit": "lsb",
+    "level_0_1": 80,
+    "coefficients_lsb_per_kev": {
+      "ppd": 154,
+      "scd": 34
+    },
+    "hh_default_kev": [
+      100, 500, 800, 1600, 3000, 5000,
+      1200, 8000,
+      1100, 4500, 8000, 30000,
+      700, 1100, 17000, 40000,
+      450, 700, 11000, 40000,
+      300, 450, 8000, 12000,
+      150, 300, 4500, 9000,
+      100, 300, 3000, 5000
+    ]
+  },
+  "power": {
+    "voltage": {
+      "ch": 0.0,
+      "pips": 0.0,
+      "sipm": 0.0
+    },
+    "pwm": {
+      "ch": 0.0,
+      "pips": 0.0,
+      "sipm": 0.0
+    },
+    "measured_voltage": {
+      "ch": 0.0,
+      "pips": 0.0,
+      "sipm": 0.0
+    }
+  },
+  "common": {
+    "interval_request": 0,
+    "filters": [
+      {
+        "id": "none",
+        "label": "нет"
+      },
+      {
+        "id": "median",
+        "label": "медианный"
+      },
+      {
+        "id": "bypass_lp",
+        "label": "ФНЧ"
+      },
+      {
+        "id": "bypass_hp",
+        "label": "ФВЧ"
+      }
+    ],
+    "default_filter_id": "none"
+  }
+}
