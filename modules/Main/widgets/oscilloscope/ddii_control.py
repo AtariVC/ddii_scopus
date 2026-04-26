@@ -63,6 +63,7 @@ class DDIIControlWidget(QtWidgets.QWidget):
     hh_line_edits: list[QtWidgets.QLineEdit]
     hh_lsb_values: list[int]
     lvl_coeff_widgets: list[QtWidgets.QWidget]
+    lvl_coeff_line_edits: list[QtWidgets.QLineEdit]
     radioButton_lvl_lsb: QtWidgets.QRadioButton
     radioButton_lvl_mev: QtWidgets.QRadioButton
 
@@ -218,7 +219,6 @@ class DDIIControlWidget(QtWidgets.QWidget):
         if tab_layout is None:
             return
         self._clear_layout(tab_layout)
-
         # Обертка вкладки.
         levels_wrap = QWidget(tab_levels)
         levels_layout = QVBoxLayout(levels_wrap)
@@ -259,6 +259,10 @@ class DDIIControlWidget(QtWidgets.QWidget):
             ppd_label,
             self.lineEdit_lvl_ppd_lsb_mev,
             scd_label,
+            self.lineEdit_lvl_scd_lsb_mev,
+        ]
+        self.lvl_coeff_line_edits = [
+            self.lineEdit_lvl_ppd_lsb_mev,
             self.lineEdit_lvl_scd_lsb_mev,
         ]
 
@@ -335,9 +339,10 @@ class DDIIControlWidget(QtWidgets.QWidget):
         return bool(getattr(self, "radioButton_lvl_mev", None) and self.radioButton_lvl_mev.isChecked())
 
     def _set_levels_coeff_visible(self) -> None:
-        visible = self._levels_in_mev()
         for widget in getattr(self, "lvl_coeff_widgets", []):
-            widget.setVisible(visible)
+            widget.setVisible(True)
+        for line_edit in getattr(self, "lvl_coeff_line_edits", []):
+            line_edit.setEnabled(self._levels_in_mev())
 
     def _set_hh_display_validators(self) -> None:
         validator = getattr(
