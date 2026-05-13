@@ -16,3 +16,5 @@ poetry.lock
 *.pyc
 poetry.lock
 *.lock
+settings.json
+*.code-workspace
