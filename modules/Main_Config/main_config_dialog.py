@@ -19,17 +19,17 @@ modules_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 
-from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from src.env_var import EnvironmentVar  # noqa: E402
-from src.log_config import log_init  # noqa: E402
-from src.async_task_manager import AsyncTaskManager  # noqa: E402
-from src.modbus_worker import ModbusWorker  # noqa: E402
-from src.parsers import Parsers  # noqa: E402
-from src.parsers_pack import LineEditPack, LineEObj  # noqa: E402
+from app.plugins.connection.main_serial_dialog_tcp import SerialConnect  # noqa: E402
+from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from app.src.components.modbus.modbus_var import ModbusVar  # noqa: E402
+from app.src.components.log.config import log_init  # noqa: E402
+from app.src.util.async_task_manager import AsyncTaskManager  # noqa: E402
+from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
+from app.src.components.parsers.custom_parsers import Parsers  # noqa: E402
+from app.src.components.parsers.parsers_pack import LineEditPack, LineEObj  # noqa: E402
 
 
-class MainConfigDialog(QtWidgets.QDialog, EnvironmentVar):
+class MainConfigDialog(QtWidgets.QDialog, ModbusVar):
     lineEdit_interval: QtWidgets.QLineEdit
 
     lineEdit_hvip_pips: QtWidgets.QLineEdit

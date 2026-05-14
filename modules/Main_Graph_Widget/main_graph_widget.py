@@ -20,13 +20,13 @@ sys.path.append(str(src_path))
 sys.path.append(str(modules_path))
 sys.path.append(str(widgets_path))
 
-from modules.Main.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
-from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from src.log_config import log_init  # noqa: E402
-from src.modbus_worker import ModbusWorker  # noqa: E402
-from src.parsers import Parsers  # noqa: E402
-from src.parsers_pack import LineEObj  # noqa: E402
+from app.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
+from app.plugins.connection.main_serial_dialog_tcp import SerialConnect  # noqa: E402
+from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
+from app.src.components.log.config import log_init  # noqa: E402
+from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
+from app.src.components.parsers.custom_parsers import Parsers  # noqa: E402
+from app.src.components.parsers.parsers_pack import LineEObj  # noqa: E402
 
 
 class MainGraphWidget(QtWidgets.QDialog):
