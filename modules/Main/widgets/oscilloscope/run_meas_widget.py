@@ -15,7 +15,7 @@ from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
 
-from src.write_data_to_file import write_to_hdf5_file
+# from src.write_data_to_file import write_to_hdf5_file
 
 ####### импорты из других директорий ######
 # /src
