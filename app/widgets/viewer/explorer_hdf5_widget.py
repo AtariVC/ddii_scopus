@@ -5,7 +5,6 @@ import sys
 import time
 import platform
 
-# from save_config import ConfigSaver
 from pathlib import Path
 from typing import Awaitable, Callable, Dict, Optional, Sequence, Union
 
@@ -34,26 +33,10 @@ from PyQt6.QtWidgets import (
 from qtmodern.windows import ModernWindow
 from qtpy.uic import loadUi
 
-####### импорты из других директорий ######
-# /src
-if __name__ != "__main__":
-    src_path = Path(__file__).resolve().parents[4]
-    modules_path = Path(__file__).resolve().parents[3]
-else:
-    src_path = Path(__file__).resolve().parents[4]
-    modules_path = Path(__file__).resolve().parents[3]
-# Добавляем папку src в sys.path
-sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
+from app.src.event.event import Event
 
-# from modules.MainUIRenderer.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
-# from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-# from src.async_task_manager import AsyncTaskManager  # noqa: E402
-# from src.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-# from src.modbus_worker import ModbusWorker  # noqa: E402
-# from src.parsers import Parsers  # noqa: E402
-# from src.print_logger import PrintLogger  # noqa: E402
-from app.src.event.event import Event  # noqa: E402
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ExplorerHDF5Widget(QtWidgets.QDialog):
@@ -74,10 +57,10 @@ class ExplorerHDF5Widget(QtWidgets.QDialog):
         # self.hdf5_model = HDF5TreeModel()
         self.fs_model = QFileSystemModel()
         # Set custom icons for specific file types (e.g., HDF5)
-        self.fs_model.setIconProvider(_CustomIconProvider(base_path=Path(__file__).resolve().parents[4]))
+        self.fs_model.setIconProvider(_CustomIconProvider(base_path=PROJECT_ROOT))
         self.fs_model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
         self.current_model = None
-        self.current_folder = str(Path(__file__).parents[4].joinpath("log/scope"))  # Начинаем с домашней директории
+        self.current_folder = str(PROJECT_ROOT.joinpath("log/scope"))  # Начинаем с домашней директории
         self.load_folder(self.current_folder)
         self.init_widget()
 

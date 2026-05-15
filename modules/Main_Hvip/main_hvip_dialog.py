@@ -10,26 +10,17 @@ from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QSizePolicy, QSpacerItem
 from qtpy.uic import loadUi
-from save_config import ConfigSaver
+from modules.Main_Hvip.save_config import ConfigSaver
 
-####### импорты из других директорий ######
-# /src
-src_path = Path(__file__).resolve().parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent
-# Добавляем папку src в sys.path
-sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
-
-from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from app.src.util.async_task_manager import AsyncTaskManager  # noqa: E402
-from app.src.components.ui.craft_custom_widget import add_serial_widget  # noqa: E402
-from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from app.src.components.log.config import log_init, log_s  # noqa: E402
-from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
-from app.src.components.parsers.custom_parsers import Parsers  # noqa: E402
-from app.src.components.parsers.parsers_pack import LineEditPack, LineEObj  # noqa: E402
-# from src.print_logger import PrintLogger  # noqa: E402
+from custom.widgets import widget_led_off, widget_led_on
+from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.src.util.async_task_manager import AsyncTaskManager
+from app.src.components.ui.craft_custom_widget import add_serial_widget
+from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
+from app.src.components.log.config import log_init, log_s
+from app.src.components.modbus.worker import ModbusWorker
+from app.src.components.parsers.custom_parsers import Parsers
+from app.src.components.parsers.parsers_pack import LineEditPack, LineEObj
 
 
 class MainHvipDialog(QtWidgets.QDialog):

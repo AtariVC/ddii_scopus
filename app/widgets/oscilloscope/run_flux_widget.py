@@ -1,9 +1,7 @@
 import asyncio
 import datetime
 import struct
-import sys
 
-# from save_config import ConfigSaver
 from pathlib import Path
 from typing import Awaitable, Callable, Dict, Optional, Sequence, Union
 
@@ -14,22 +12,15 @@ from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
 
-####### импорты из других директорий ######
-# /src
-src_path = Path(__file__).resolve().parent.parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent.parent
-# Добавляем папку src в sys.path
-sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
 
-from app.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from app.src.util.async_task_manager import AsyncTaskManager  # noqa: E402
-from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from app.src.event.event import Event  # noqa: E402
-from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
-from app.src.components.parsers.custom_parsers import Parsers  # noqa: E402
-from app.src.components.log.print_logger import PrintLogger  # noqa: E402
+from app.widgets.oscilloscope.graph_widget import GraphWidget
+from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.src.util.async_task_manager import AsyncTaskManager
+from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
+from app.src.event.event import Event
+from app.src.components.modbus.worker import ModbusWorker
+from app.src.components.parsers.custom_parsers import Parsers
+from app.src.components.log.print_logger import PrintLogger
 
 
 class RunFluxWidget(QtWidgets.QDialog):

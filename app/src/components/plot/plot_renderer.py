@@ -1,7 +1,7 @@
 import asyncio
 import datetime
+import operator
 import os
-import sys
 from pathlib import Path
 from typing import Optional, Sequence, Callable, Union
 
@@ -10,20 +10,11 @@ import pyqtgraph as pg
 import qasync
 import qtmodern
 from PyQt6 import QtCore, QtWidgets
+
 from app.src.components.log.config import get_logger
-import operator
-
 from app.src.util.write_data_to_file import write_to_hdf5_file
+from app.src.components.log.print_logger import PrintLogger
 
-####### импорты из других директорий ######
-# /src
-src_path = Path(__file__).resolve().parent.parent.parent.parent
-
-# from src.signal_manager import SignalManager  # noqa: E402
-
-sys.path.append(str(src_path))
-
-from app.src.components.log.print_logger import PrintLogger  # noqa: E402
 
 class GraphPen():
     '''Отрисовщик графиков

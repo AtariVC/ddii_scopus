@@ -9,24 +9,16 @@ from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
 from qtpy.uic import loadUi
-from save_config import ConfigSaver
+from modules.Main_Config.save_config import ConfigSaver
 
-####### импорты из других директорий ######
-# /src
-src_path = Path(__file__).resolve().parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent
-# Добавляем папку src в sys.path
-sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
-
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from app.src.components.modbus.modbus_var import ModbusVar  # noqa: E402
-from app.src.components.log.config import log_init  # noqa: E402
-from app.src.util.async_task_manager import AsyncTaskManager  # noqa: E402
-from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
-from app.src.components.parsers.custom_parsers import Parsers  # noqa: E402
-from app.src.components.parsers.parsers_pack import LineEditPack, LineEObj  # noqa: E402
+from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
+from app.src.components.modbus.modbus_var import ModbusVar
+from app.src.components.log.config import log_init
+from app.src.util.async_task_manager import AsyncTaskManager
+from app.src.components.modbus.worker import ModbusWorker
+from app.src.components.parsers.custom_parsers import Parsers
+from app.src.components.parsers.parsers_pack import LineEditPack, LineEObj
 
 
 class MainConfigDialog(QtWidgets.QDialog, ModbusVar):

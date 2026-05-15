@@ -4,31 +4,20 @@ from pathlib import Path
 
 import qasync
 import qtmodern.styles
-from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
-from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import (
-    QGroupBox,
-    QScrollArea,
     QSizePolicy,
     QSpacerItem,
-    QSplitter,
-    QTabWidget,
     QVBoxLayout,
-    QWidget,
 )
 from qtmodern.windows import ModernWindow
 from qtpy.uic import loadUi
 
-from app.src.components.ui.craft_custom_widget import add_serial_widget
-from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from app.src.components.log.config import log_init, log_s  # noqa: E402
+from app.src.components.log.config import log_init
 from app.src.components.ui.main_window_maker import create_split_widget, create_tab_widget_items, replace_left_widget
-from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
-from app.src.components.parsers.custom_parsers import Parsers  # noqa: E402
-from app.src.components.parsers.parsers_pack import LineEditPack, LineEObj  # noqa: E402
-from app.src.event.event import Event  # noqa: E402
+from app.src.components.modbus.worker import ModbusWorker
+from app.src.components.parsers.custom_parsers import Parsers
+from app.src.event.event import Event
 from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
 from app.widgets.debug.debug_graph import DebugGraphWidget
 from app.widgets.debug.debug_table import DebugTableWidget

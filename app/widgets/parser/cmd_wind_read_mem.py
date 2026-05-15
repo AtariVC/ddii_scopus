@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -9,16 +8,11 @@ import qasync
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
 
-####### импорты из других директорий ######
-src_path = Path(__file__).resolve().parent.parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
 
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from app.src.components.modbus.ddii_command import ModbusCMCommand  # noqa: E402
-from app.src.components.log.print_logger import PrintLogger  # noqa: E402
-from app.widgets.parser.parse_table import DDIIFrameParser  # noqa: E402
+from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.src.components.modbus.ddii_command import ModbusCMCommand
+from app.src.components.log.print_logger import PrintLogger
+from app.widgets.parser.parse_table import DDIIFrameParser
 
 
 class CmdWindReadMemWidget(QtWidgets.QWidget):

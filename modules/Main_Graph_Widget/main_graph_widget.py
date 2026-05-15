@@ -10,23 +10,14 @@ from PyQt6.QtGui import QDoubleValidator, QFont, QIntValidator
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QSpacerItem
 from qtpy.uic import loadUi
 
-####### импорты из других директорий ######
-# /src
-src_path = Path(__file__).resolve().parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent
-widgets_path = Path(__file__).resolve().parent.joinpath("MainUIRenderer/widgets")
-# Добавляем папку src в sys.path
-sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
-sys.path.append(str(widgets_path))
 
-from app.widgets.oscilloscope.graph_widget import GraphWidget  # noqa: E402
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from app.src.components.log.config import log_init  # noqa: E402
-from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
-from app.src.components.parsers.custom_parsers import Parsers  # noqa: E402
-from app.src.components.parsers.parsers_pack import LineEObj  # noqa: E402
+from app.widgets.oscilloscope.graph_widget import GraphWidget
+from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
+from app.src.components.log.config import log_init
+from app.src.components.modbus.worker import ModbusWorker
+from app.src.components.parsers.custom_parsers import Parsers
+from app.src.components.parsers.parsers_pack import LineEObj
 
 
 class MainGraphWidget(QtWidgets.QDialog):

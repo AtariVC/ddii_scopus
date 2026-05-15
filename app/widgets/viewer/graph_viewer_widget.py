@@ -3,7 +3,6 @@ import re
 import sys
 from dataclasses import dataclass
 
-# from save_config import ConfigSaver
 from pathlib import Path
 
 import qasync
@@ -14,24 +13,9 @@ from qtpy.uic import loadUi
 from app.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget
 from app.src.components.log.config import get_logger, log_init
 
-####### импорты из других директорий ######
-# /src
-
-src_path = Path(__file__).resolve().parents[4]
-# modules_path = Path(__file__).resolve().parent
-# Добавляем папку src в sys.path
-sys.path.append(str(src_path))
-# sys.path.append(str(modules_path))
-
-# from src.modbus_worker import ModbusWorker                          # noqa: E402
-# from src.ddii_command import ModbusCMCommand, ModbusMPPCommand      # noqa: E402
-# from src.parsers import  Parsers                                    # noqa: E402
-# from modules.Main_Serial.main_serial_dialog_tcp import SerialConnect    # noqa: E402
-# from src.log_config import log_init, log_s                          # noqa: E402
-# from src.parsers_pack import LineEObj, LineEditPack                 # noqa: E402
-from app.src.event.event import Event  # noqa: E402
-from app.src.components.plot.plot_renderer import GraphPen, HistPen  # noqa: E402
-from app.src.util.write_data_to_file import read_hdf5_file, write_to_hdf5_file  # noqa: E402
+from app.src.event.event import Event
+from app.src.components.plot.plot_renderer import GraphPen, HistPen
+from app.src.util.write_data_to_file import read_hdf5_file, write_to_hdf5_file
 
 
 class GraphViewerWidget(QtWidgets.QWidget):

@@ -15,20 +15,12 @@ from PyQt6.QtWidgets import QSizePolicy
 from qtmodern.windows import ModernWindow
 from qtpy.uic import loadUi
 
-####### импорты из других директорий ######
-# /src
-src_path = Path(__file__).resolve().parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent
-# Добавляем папку src в sys.path
-sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
-
-from custom.widgets import widget_led_off, widget_led_on  # noqa: E402
-from app.plugins.connection.customComboBox_COMport import CustomComboBox_COMport  # noqa: E402
-from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand  # noqa: E402
-from app.src.components.modbus.modbus_var import ModbusVar  # noqa: E402
-from app.src.components.log.config import log_init, log_s, get_logger  # noqa: E402
-from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
+from custom.widgets import widget_led_off, widget_led_on
+from app.plugins.connection.customComboBox_COMport import CustomComboBox_COMport
+from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
+from app.src.components.modbus.modbus_var import ModbusVar
+from app.src.components.log.config import log_init, log_s, get_logger
+from app.src.components.modbus.worker import ModbusWorker
 
 BAUDRATE = 125000
 

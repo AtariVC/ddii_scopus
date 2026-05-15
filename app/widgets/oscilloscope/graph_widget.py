@@ -2,7 +2,6 @@ import asyncio
 import sys
 from dataclasses import dataclass
 
-# from save_config import ConfigSaver
 from pathlib import Path
 
 import qasync
@@ -10,18 +9,11 @@ import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
 
-####### импорты из других директорий ######
-# /src
-src_path = Path(__file__).resolve().parent.parent.parent.parent
-modules_path = Path(__file__).resolve().parent.parent.parent
-# Добавляем папку src в sys.path
-sys.path.append(str(src_path))
-sys.path.append(str(modules_path))
 
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect  # noqa: E402
-from app.src.components.modbus.worker import ModbusWorker  # noqa: E402
-from app.src.components.parsers.custom_parsers import Parsers  # noqa: E402
-from app.src.components.plot.plot_renderer import GraphPen, HistPen  # noqa: E402
+from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.src.components.modbus.worker import ModbusWorker
+from app.src.components.parsers.custom_parsers import Parsers
+from app.src.components.plot.plot_renderer import GraphPen, HistPen
 
 
 class GraphWidget(QtWidgets.QWidget):

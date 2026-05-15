@@ -683,7 +683,7 @@
   <customwidget>
    <class>AutoSizeLineEdit</class>
    <extends>QLineEdit</extends>
-   <header>QLineEdit_custom_resize</header>
+   <header>app.plugins.connection.QLineEdit_custom_resize</header>
   </customwidget>
  </customwidgets>
  <resources/>
