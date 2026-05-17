@@ -27,6 +27,9 @@ from app.widgets.oscilloscope.graph_widget import GraphWidget
 from app.widgets.oscilloscope.run_flux_widget import RunFluxWidget
 from app.widgets.oscilloscope.run_meas_widget import RunMeasWidget
 from app.widgets.parser.cmd_wind_read_mem import CmdWindReadMemWidget
+from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
+from app.widgets.tests.runner_widget import TestRunnerWidget
+from app.widgets.tests.tables_widget import TestTablesWidget
 from app.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget
 from app.widgets.viewer.filter_viewer_widget import FilterViewerWidget
 from app.widgets.viewer.graph_viewer_widget import GraphViewerWidget
@@ -69,6 +72,10 @@ class MainUIRenderer(QtWidgets.QMainWindow):
             "Отладка": {
                 "": DebugTableWidget(),
             },
+            "Тесты": {
+                "Опрос телеметрии": self.telemetry_poll_widget,
+                "Тестирование": self.test_runner_widget,
+            },
         }
 
     def on_tab_widget_handler(self, index: int):
@@ -81,6 +88,8 @@ class MainUIRenderer(QtWidgets.QMainWindow):
             replace_left_widget(self.w_graph_widget)
         elif tab_text == "Отладка":
             replace_left_widget(self.graph_debug_widget)
+        elif tab_text == "Тесты":
+            replace_left_widget(self.test_tables_widget)
 
         # if tab_text == "Вьюер":
         #     self.current_left_widget = self.graph_viewer_widget
@@ -103,6 +112,9 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.graph_filter_widget: FilterViewerWidget = FilterViewerWidget(self)
         self.graph_debug_widget: DebugGraphWidget = DebugGraphWidget()
         self.cmd_wind_read_mem: CmdWindReadMemWidget = CmdWindReadMemWidget(self)
+        self.test_tables_widget: TestTablesWidget = TestTablesWidget()
+        self.telemetry_poll_widget: TelemetryPollWidget = TelemetryPollWidget()
+        self.test_runner_widget: TestRunnerWidget = TestRunnerWidget()
         model = self.widget_model()
         self.tab_widget = create_tab_widget_items(model, self.on_tab_widget_handler)
         #### отдельно добавляем SerialConnectWidget
