@@ -27,6 +27,13 @@ class ModbusVar():
     CM_DBG_GET_HVIP_AB              = 0x000E
     CM_GET_TERM                     = 0x000F
     CM_DBG_GET_DESIRED_HVIP         = 0x0011
+    MB_DBG_REG_BASE                 = 100
+    MB_DDII_FRAME_REG_BASE          = 200
+    MB_SYS_FRAME_REG_BASE           = 240
+    MB_DDII_FRAME_REG_NUMBER        = 32
+    MB_SYS_FRAME_REG_NUMBER         = 32
+    CM_DBG_CMD_CTRL                 = 0
+    CM_DBG_CMD_TEST_GPIO_IMPACT     = 6
     CM_SET_READ_POINTER             = 30
     CM_SET_WRITE_POINTER            = 32
     CM_GET_READ_POINTER             = 29

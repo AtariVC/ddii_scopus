@@ -113,7 +113,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.graph_debug_widget: DebugGraphWidget = DebugGraphWidget()
         self.cmd_wind_read_mem: CmdWindReadMemWidget = CmdWindReadMemWidget(self)
         self.test_tables_widget: TestTablesWidget = TestTablesWidget()
-        self.telemetry_poll_widget: TelemetryPollWidget = TelemetryPollWidget()
+        self.telemetry_poll_widget: TelemetryPollWidget = TelemetryPollWidget(self)
         self.test_runner_widget: TestRunnerWidget = TestRunnerWidget()
         model = self.widget_model()
         self.tab_widget = create_tab_widget_items(model, self.on_tab_widget_handler)

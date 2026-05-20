@@ -147,6 +147,48 @@ class ModbusCMCommand(ModbusVar):
             self.logger.error(e)
             self.logger.debug('ЦМ не отвечает')
             return b'-1'
+
+    async def read_debug_registers(self, address: int, count: int) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.read_holding_registers(
+                address,
+                count,
+                slave=self.CM_ID,
+            )
+            await log_s(self.mw.send_handler.mess)
+            if hasattr(result, "isError") and result.isError():
+                return b"-1"
+            registers = getattr(result, "registers", None)
+            if registers is None:
+                return result.encode()[1:]
+            raw = bytearray()
+            for reg in registers:
+                raw.extend(int(reg).to_bytes(2, "big", signed=False))
+            return bytes(raw)
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
+
+    async def read_system_frame(self) -> bytes:
+        return await self.read_debug_registers(self.MB_SYS_FRAME_REG_BASE, self.MB_SYS_FRAME_REG_NUMBER)
+
+    async def read_ddii_frame(self) -> bytes:
+        return await self.read_debug_registers(self.MB_DDII_FRAME_REG_BASE, self.MB_DDII_FRAME_REG_NUMBER)
+
+    async def set_test_gpio_impact(self, impulse_time_us: int) -> bytes:
+        try:
+            result: ModbusResponse = await self.client.write_registers(
+                self.CM_DBG_CMD_TEST_GPIO_IMPACT,
+                [int(impulse_time_us) & 0xFFFF],
+                slave=self.CM_ID,
+            )
+            await log_s(self.mw.send_handler.mess)
+            return result.encode()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug('ЦМ не отвечает')
+            return b'-1'
         
     
     async def get_cfg_ddii(self) -> bytes:
