@@ -177,8 +177,9 @@ class MainConfigDialog(QtWidgets.QDialog, ModbusVar):
             return
         try:
             answer: bytes = await self.cm_cmd.get_cfg_ddii()
+            payload = self.parser._normalize_modbus_payload(answer)
             tel_dict: dict = await self.parser.pars_everything(
-                self.pack + self.pack_pwm_max, answer[3:], "little"
+                self.pack + self.pack_pwm_max, payload[2:], "little"
             )  # отбрасываем 0x0FF1
             total_struct = self.le_obj | self.le_obj_pwm_max
             for i, (key, val) in enumerate(total_struct.items()):
@@ -253,8 +254,11 @@ class MainConfigDialog(QtWidgets.QDialog, ModbusVar):
         try:
             if device == "cm":  # для цм не работает из-за точности float
                 check_cfg_ddii: bytes = await self.cm_cmd.get_cfg_ddii()
+                payload = self.parser._normalize_modbus_payload(check_cfg_ddii)
+                if len(payload) >= 2:
+                    payload = payload[2:]
                 d_cheack_cfg_ddii: list[int] = [
-                    int.from_bytes(check_cfg_ddii[i * 2 : i * 2 + 2], "little") for i in range(2, 24)
+                    int.from_bytes(payload[i : i + 2], "little") for i in range(0, min(len(payload), 44), 2)
                 ]
                 if d_cheack_cfg_ddii == data[1:]:
                     return True

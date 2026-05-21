@@ -283,19 +283,22 @@ class RunFluxWidget(QtWidgets.QDialog):
             acq1: list[int]  = await self.parser.mpp_pars_16b(result_acq1)
             acq2: list[int]  = await self.parser.mpp_pars_16b(result_acq2)
             tmp_count: list[int]  = await self.parser.mpp_pars_16b(result_tmp_count)
-            self.get_acq_event.emit([str(acq1[1]), str(acq2[1])])
+            acq1_value = acq1[0] if acq1 else 0
+            acq2_value = acq2[0] if acq2 else 0
+            tmp_count_value = tmp_count[0] if tmp_count else 0
+            self.get_acq_event.emit([str(acq1_value), str(acq2_value)])
 
             try:
-                if self.TmpCount != tmp_count[1]:
-                    self.TmpCount = tmp_count[1]
-                    await self.graph_widget.hp_pips.draw_hist([acq1[1]], bin_count=4096,
+                if self.TmpCount != tmp_count_value:
+                    self.TmpCount = tmp_count_value
+                    await self.graph_widget.hp_pips.draw_hist([acq1_value], bin_count=4096,
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,
                         save_log=self.save_log_file,
                         data_is_hist=False
                         )
-                    await self.graph_widget.hp_sipm.draw_hist([acq2[1]], bin_count=4096,
+                    await self.graph_widget.hp_sipm.draw_hist([acq2_value], bin_count=4096,
                         name_file_save_data=self.name_file_save,
                         name_data=self.name_data,
                         path_to_save=self.path_to_save,

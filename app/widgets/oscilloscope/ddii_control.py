@@ -242,7 +242,7 @@ class DDIIControlWidget(QtWidgets.QWidget):
         tab_layout.addWidget(levels_wrap)
 
     def _parse_u16_registers(self, answer: bytes, count: int) -> list[int]:
-        payload = answer[1:] if len(answer) > 1 else b""
+        payload = answer
         values: list[int] = []
         for i in range(0, min(len(payload), count * 2), 2):
             chunk = payload[i:i + 2]
