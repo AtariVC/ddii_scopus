@@ -176,6 +176,20 @@ class ModbusCMCommand(ModbusVar):
     async def read_ddii_frame(self) -> bytes:
         return await self.read_debug_registers(self.MB_DDII_FRAME_REG_BASE, self.MB_DDII_FRAME_REG_NUMBER)
 
+    def cmd_encode():
+        def decorator(func):
+            async def wrapper(*args, **kwargs):
+                mw = getattr(args[0], "mw", None) if args else None
+                result = await func(*args, **kwargs)
+                if mw is not None:
+                    await log_s(mw.send_handler.mess)
+                else:
+                    return b'-1'
+            return wrapper
+        return decorator
+
+
+
     async def set_test_gpio_impact(self, impulse_time_us: int) -> bytes:
         try:
             result: ModbusResponse = await self.client.write_registers(
