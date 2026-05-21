@@ -6,20 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>460</width>
+    <width>620</width>
     <height>90</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Опрос телеметрии</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout">
-   <property name="sizeConstraint">
-    <enum>QLayout::SetDefaultConstraint</enum>
-   </property>
-   <property name="spacing">
-    <number>10</number>
-   </property>
+  <layout class="QVBoxLayout" name="verticalLayout_root">
    <property name="leftMargin">
     <number>6</number>
    </property>
@@ -33,190 +27,187 @@
     <number>6</number>
    </property>
    <item>
-    <spacer name="horizontalSpacer_left">
+    <spacer name="verticalSpacer_top">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Vertical</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
-       <width>40</width>
+       <width>20</width>
        <height>20</height>
       </size>
      </property>
     </spacer>
    </item>
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout_frame_checks">
+    <layout class="QHBoxLayout" name="horizontalLayout">
      <property name="spacing">
-      <number>4</number>
-     </property>
-     <property name="topMargin">
-      <number>0</number>
-     </property>
-     <property name="bottomMargin">
-      <number>0</number>
+      <number>10</number>
      </property>
      <item>
-      <widget class="QCheckBox" name="checkBox_system_frame">
-       <property name="text">
-        <string>Сис. кадр</string>
+      <spacer name="horizontalSpacer_left">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
        </property>
-       <property name="checked">
-        <bool>true</bool>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
        </property>
-      </widget>
-      <property name="alignment">
-       <set>Qt::AlignVCenter</set>
-      </property>
+      </spacer>
      </item>
      <item>
-      <widget class="QCheckBox" name="checkBox_ddii_frame">
-       <property name="text">
-        <string>Кадр ДДИИ</string>
+      <layout class="QVBoxLayout" name="verticalLayout_frame_checks">
+       <property name="spacing">
+        <number>4</number>
        </property>
-       <property name="checked">
-        <bool>true</bool>
+       <item>
+        <widget class="QCheckBox" name="checkBox_system_frame">
+         <property name="text">
+          <string>Сис. кадр</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkBox_ddii_frame">
+         <property name="text">
+          <string>Кадр ДДИИ</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="checkBox_period">
+       <property name="text">
+        <string>Период</string>
        </property>
       </widget>
-      <property name="alignment">
-       <set>Qt::AlignVCenter</set>
-      </property>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="spinBox_interval_ms">
+       <property name="minimumSize">
+        <size>
+         <width>100</width>
+         <height>24</height>
+        </size>
+       </property>
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>999999</number>
+       </property>
+       <property name="value">
+        <number>1000</number>
+       </property>
+       <property name="suffix">
+        <string> мс</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_run_poll">
+       <property name="minimumSize">
+        <size>
+         <width>92</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>120</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Запустить</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="Line" name="line_separator">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_impact_time">
+       <property name="text">
+        <string>T импл.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_impact_time_us">
+       <property name="minimumSize">
+        <size>
+         <width>72</width>
+         <height>24</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>90</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>1000</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_impact_time_unit">
+       <property name="text">
+        <string>мкс</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_impact">
+       <property name="minimumSize">
+        <size>
+         <width>92</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Включить</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_right">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
      </item>
     </layout>
    </item>
    <item>
-    <widget class="QCheckBox" name="checkBox_period">
-     <property name="text">
-      <string>Период</string>
-     </property>
-    </widget>
-    <property name="alignment">
-     <set>Qt::AlignVCenter</set>
-    </property>
-   </item>
-   <item>
-    <widget class="QSpinBox" name="spinBox_interval_ms">
-     <property name="minimumSize">
-      <size>
-       <width>100</width>
-       <height>24</height>
-      </size>
-     </property>
-     <property name="minimum">
-      <number>1</number>
-     </property>
-     <property name="maximum">
-      <number>999999</number>
-     </property>
-     <property name="value">
-      <number>1000</number>
-     </property>
-     <property name="suffix">
-      <string> мс</string>
-     </property>
-    </widget>
-    <property name="alignment">
-     <set>Qt::AlignVCenter</set>
-    </property>
-   </item>
-   <item>
-    <widget class="QPushButton" name="pushButton_run_poll">
-     <property name="minimumSize">
-      <size>
-       <width>92</width>
-       <height>28</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>120</width>
-       <height>28</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>Запустить</string>
-     </property>
-     <property name="flat">
-      <bool>false</bool>
-     </property>
-    </widget>
-    <property name="alignment">
-     <set>Qt::AlignVCenter</set>
-    </property>
-   </item>
-   <item>
-    <widget class="Line" name="line_separator">
+    <spacer name="verticalSpacer_bottom">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
      </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="label_impact_time">
-     <property name="text">
-      <string>T импл.</string>
-     </property>
-    </widget>
-    <property name="alignment">
-     <set>Qt::AlignVCenter</set>
-    </property>
-   </item>
-   <item>
-    <widget class="QLineEdit" name="lineEdit_impact_time_us">
-     <property name="minimumSize">
-      <size>
-       <width>72</width>
-       <height>24</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>90</width>
-       <height>16777215</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>1000</string>
-     </property>
-    </widget>
-    <property name="alignment">
-     <set>Qt::AlignVCenter</set>
-    </property>
-   </item>
-   <item>
-    <widget class="QLabel" name="label_impact_time_unit">
-     <property name="text">
-      <string>мкс</string>
-     </property>
-    </widget>
-    <property name="alignment">
-     <set>Qt::AlignVCenter</set>
-    </property>
-   </item>
-   <item>
-    <widget class="QPushButton" name="pushButton_impact">
-     <property name="minimumSize">
-      <size>
-       <width>92</width>
-       <height>28</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>Включить</string>
-     </property>
-    </widget>
-    <property name="alignment">
-     <set>Qt::AlignVCenter</set>
-    </property>
-   </item>
-   <item>
-    <spacer name="horizontalSpacer_right">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
      <property name="sizeHint" stdset="0">
       <size>
-       <width>40</width>
+       <width>20</width>
        <height>20</height>
       </size>
      </property>

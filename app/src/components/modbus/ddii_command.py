@@ -10,6 +10,29 @@ from app.src.components.modbus.modbus_var import ModbusVar
 from app.src.components.log.config import log_s, set_serial_log_enabled
 from app.src.components.modbus.worker import ModbusWorker
 
+from functools import wraps
+
+
+
+def mb_encode(func):
+    async def wrapper(*args, **kwargs):
+        try:
+            mw = getattr(args[0], "mw", None) if args else None
+            logger = getattr(args[0], "logger", None) if args else None
+            result = await func(*args, **kwargs)
+            if mw is not None:
+                await log_s(mw.send_handler.mess)
+                return result.encode()
+            else:
+                return b'-1'
+        except Exception as e:
+            if logger is not None:
+                logger.error(e)
+                logger.debug('ЦМ не отвечает')
+            else:
+                raise e
+            return b'-1'
+    return wrapper
 
 class ModbusCMCommand(ModbusVar):
     def __init__(self, client, logger, *, log_enabled: bool = True, serial_log_enabled: bool = True, **kwargs):
@@ -175,35 +198,16 @@ class ModbusCMCommand(ModbusVar):
 
     async def read_ddii_frame(self) -> bytes:
         return await self.read_debug_registers(self.MB_DDII_FRAME_REG_BASE, self.MB_DDII_FRAME_REG_NUMBER)
+    
 
-    def cmd_encode():
-        def decorator(func):
-            async def wrapper(*args, **kwargs):
-                mw = getattr(args[0], "mw", None) if args else None
-                result = await func(*args, **kwargs)
-                if mw is not None:
-                    await log_s(mw.send_handler.mess)
-                else:
-                    return b'-1'
-            return wrapper
-        return decorator
-
-
-
+    @mb_encode
     async def set_test_gpio_impact(self, impulse_time_us: int) -> bytes:
-        try:
-            result: ModbusResponse = await self.client.write_registers(
+        result: ModbusResponse = await self.client.write_registers(
                 self.CM_DBG_CMD_TEST_GPIO_IMPACT,
                 [int(impulse_time_us) & 0xFFFF],
                 slave=self.CM_ID,
             )
-            await log_s(self.mw.send_handler.mess)
-            return result.encode()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug('ЦМ не отвечает')
-            return b'-1'
-        
+        return result
     
     async def get_cfg_ddii(self) -> bytes:
         try:

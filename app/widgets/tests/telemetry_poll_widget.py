@@ -26,10 +26,7 @@ class TelemetryPollWidget(QtWidgets.QWidget):
         self._poll_task: Optional[asyncio.Task] = None
         loadUi(Path(__file__).parent.joinpath("telemetry_poll_widget.ui"), self)
         self.lineEdit_impact_time_us.setValidator(QtGui.QIntValidator(0, 65535, self))
-        self.pushButton_run_poll.setCheckable(True)
-        self.pushButton_run_poll.clicked.connect(self._on_run_poll_clicked)
-        self.pushButton_impact.setCheckable(True)
-        self.pushButton_impact.clicked.connect(self._on_impact_clicked)
+        self.pushButton_run_poll.clicked.connect(self.pushButton_run_poll_handler)
         self._set_run_button_state(False)
         if self._mw is not None:
             try:
@@ -47,7 +44,7 @@ class TelemetryPollWidget(QtWidgets.QWidget):
             self.cm_cmd = None
             self._log_error(ex)
 
-    def _on_run_poll_clicked(self, checked: bool) -> None:
+    def pushButton_run_poll_handler(self, checked: bool) -> None:
         if checked:
             self._poll_task = asyncio.create_task(self._poll())
             self._set_run_button_state(True)
@@ -55,7 +52,7 @@ class TelemetryPollWidget(QtWidgets.QWidget):
         self._stop_poll()
 
     @qasync.asyncSlot(bool)
-    async def _on_impact_clicked(self, checked: bool) -> None:
+    async def pushButton_impact_handler(self, checked: bool) -> None:
         await self._ensure_cm_cmd()
         if self.cm_cmd is None:
             self.pushButton_impact.setChecked(False)
@@ -111,9 +108,6 @@ class TelemetryPollWidget(QtWidgets.QWidget):
         self._poll_task = None
         self._set_run_button_state(False)
 
-    def _impact_time_us(self) -> int:
-        text = self.lineEdit_impact_time_us.text().strip()
-        return int(text) if text else 0
 
     def _log_error(self, ex: Exception) -> None:
         if self._mw is not None and getattr(self._mw, "logger", None) is not None:

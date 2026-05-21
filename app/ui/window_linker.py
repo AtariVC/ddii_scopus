@@ -30,9 +30,9 @@ from app.widgets.parser.cmd_wind_read_mem import CmdWindReadMemWidget
 from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
 from app.widgets.tests.runner_widget import TestRunnerWidget
 from app.widgets.tests.tables_widget import TestTablesWidget
-from app.widgets.viewer.explorer_hdf5_widget import ExplorerHDF5Widget
-from app.widgets.viewer.filter_viewer_widget import FilterViewerWidget
-from app.widgets.viewer.graph_viewer_widget import GraphViewerWidget
+from app.widgets.viewer_hdf5.explorer_hdf5_widget import ExplorerHDF5Widget
+from app.widgets.viewer_hdf5.filter_viewer_widget import FilterViewerWidget
+from app.widgets.viewer_hdf5.graph_viewer_widget import GraphViewerWidget
 
 
 class MainUIRenderer(QtWidgets.QMainWindow):
