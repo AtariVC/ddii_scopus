@@ -212,7 +212,7 @@ class ModbusMPPCommand(ModbusVar):
         set_serial_log_enabled(serial_log_enabled)
         self.MPP_ID = args[0] if args else self.MPP_ID_DEFAULT
 
-    async def read_oscill(self, ch: int = 0) -> Any:
+    async def read_oscill(self, ch: int = 0):
         all_data = bytearray()
         for offset in range(0, 512, 64):
             reg_addr = (self.REG_OSCILL_CH1 if ch == 1 else self.REG_OSCILL_CH0) + offset
