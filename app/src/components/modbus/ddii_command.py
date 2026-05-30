@@ -118,10 +118,10 @@ class ModbusCMCommand(ModbusVar):
             slave=self.CM_ID,
         )
 
-    async def read_system_frame(self) -> bytes:
+    async def read_system_frame(self) -> ModbusResponse:
         return await self.read_debug_registers(self.MB_SYS_FRAME_REG_BASE, self.MB_SYS_FRAME_REG_NUMBER)
 
-    async def read_ddii_frame(self) -> bytes:
+    async def read_ddii_frame(self) -> ModbusResponse:
         return await self.read_debug_registers(self.MB_DDII_FRAME_REG_BASE, self.MB_DDII_FRAME_REG_NUMBER)
     
 
@@ -212,7 +212,7 @@ class ModbusMPPCommand(ModbusVar):
         set_serial_log_enabled(serial_log_enabled)
         self.MPP_ID = args[0] if args else self.MPP_ID_DEFAULT
 
-    async def read_oscill(self, ch: int = 0) -> bytes:
+    async def read_oscill(self, ch: int = 0) -> Any:
         all_data = bytearray()
         for offset in range(0, 512, 64):
             reg_addr = (self.REG_OSCILL_CH1 if ch == 1 else self.REG_OSCILL_CH0) + offset
@@ -270,50 +270,6 @@ class ModbusMPPCommand(ModbusVar):
             slave=self.MPP_ID,
         )
 
-    async def reset_filter(self) -> bytes:
-        """_summary_
-
-        Args:
-            enable (int): 1 - включить, 0 - выключить
-
-        Returns:
-            result (bytes)
-        """
-        return await self.write_mpp_ctrl([10, 0x00])
-        
-    async def set_median_filter(self) -> bytes:
-        """_summary_
-
-        Args:
-            enable (int): 1 - включить, 0 - выключить
-
-        Returns:
-            result (bytes)
-        """
-        return await self.write_mpp_ctrl([10, (1 << 2) & 0x04])
-        
-    async def set_bypass_lp_filter(self) -> bytes:
-        """_summary_
-
-        Args:
-            enable (int): 1 - включить, 0 - выключить
-
-        Returns:
-            result (bytes)
-        """
-        return await self.write_mpp_ctrl([10, 0x07])
-        
-    async def set_bypass_hp_filter(self) -> bytes:
-        """_summary_
-
-        Args:
-            enable (int): 1 - включить, 0 - выключить
-
-        Returns:
-            result (bytes)
-        """
-        return await self.write_mpp_ctrl([10, (1 << 0) & 0x01])
-
     @mb_encode
     async def get_ddin(self) -> ModbusResponse:
         return await self.client.read_holding_registers(
@@ -346,17 +302,17 @@ class ModbusMPPCommand(ModbusVar):
             slave=self.MPP_ID,
         )
 
-    async def calibrate_ACQ(self) -> bytes:
+    async def calibrate_ACQ(self) -> ModbusResponse:
         return await self.write_mpp_ctrl(self.REG_CALIBR_ALL_CH)
     
-    async def issue_waveform(self) -> bytes:
+    async def issue_waveform(self) -> ModbusResponse:
         """Выдать waveform
         Returns:
             bytes
         """
         return await self.write_mpp_ctrl(self.REG_MPP_CTRL_ISSUE_WAVEFORM)
 
-    async def start_measure(self, ch: Optional[int] = None, on: Optional[int] = 1) -> bytes:
+    async def start_measure(self, ch: Optional[int] = None, on: Optional[int] = 1) -> ModbusResponse:
         if ch:
             state_measure = (self.MPP_START_MEASURE if on else self.MPP_STOP_MEASURE).copy()
             state_measure[0] = ch & 0xFF << 8 | state_measure[0] & 0xFFFF
@@ -420,11 +376,11 @@ class ModbusMPPCommand(ModbusVar):
     async def waveform_release(self):
         return await self.write_mpp_ctrl(0x09)
 
-    async def start_measure_forced(self, ch: Optional[int] = None) -> bytes:
+    async def start_measure_forced(self, ch: Optional[int] = None) -> ModbusResponse:
         cmd = ((ch << 8) & 0xFFFF | self.MPP_START_MEASURE_FORCED) if ch else self.MPP_START_MEASURE_FORCED
         return await self.write_mpp_ctrl(cmd)
 
-    async def stop_measure(self, ch: int|None = None) -> bytes:
+    async def stop_measure(self, ch: int|None = None) -> ModbusResponse:
         cmd = self.MPP_STOP_MEASURE.copy()
         if ch:
             cmd[0] = ch << 8 & 0xFFFF | cmd[0]
@@ -448,7 +404,7 @@ class ModbusMPPCommand(ModbusVar):
             slave=self.MPP_ID,
         )
 
-    async def set_level(self, lvl: int, ch: Optional[int] = None) -> bytes:
+    async def set_level(self, lvl: int, ch: Optional[int] = None) -> ModbusResponse:
         cmd: list[int] = [self.MPP_LEVEL_TRIG, lvl]
         if ch:
             cmd[0] = ch & 0xFFFF << 8 | cmd[0] & 0xFFFF
