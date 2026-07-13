@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CmSettingsWidget</class>
+ <widget class="QWidget" name="CmSettingsWidget">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>360</width><height>200</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>ЦМ: Питание</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_root">
+   <property name="spacing"><number>8</number></property>
+
+   <!-- Voltage / PWM table -->
+   <item>
+    <layout class="QGridLayout" name="gridLayout_cm">
+     <property name="horizontalSpacing"><number>8</number></property>
+     <property name="verticalSpacing"><number>6</number></property>
+
+     <!-- Header -->
+     <item row="0" column="0"><widget class="QLabel" name="label_col_ch"><property name="text"><string/></property></widget></item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="label_col_u_meas">
+       <property name="text"><string>U изм., В</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="QLabel" name="label_col_u_target">
+       <property name="text"><string>U задан., В</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item row="0" column="3">
+      <widget class="QLabel" name="label_col_pwm">
+       <property name="text"><string>PWM, %</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+
+     <!-- PIPS -->
+     <item row="1" column="0"><widget class="QLabel" name="label_pips"><property name="text"><string>PIPS</string></property></widget></item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="lineEdit_u_meas_pips">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="readOnly"><bool>true</bool></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QLineEdit" name="lineEdit_u_target_pips">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item row="1" column="3">
+      <widget class="QLineEdit" name="lineEdit_pwm_pips">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+
+     <!-- SiPM -->
+     <item row="2" column="0"><widget class="QLabel" name="label_sipm"><property name="text"><string>SiPM</string></property></widget></item>
+     <item row="2" column="1">
+      <widget class="QLineEdit" name="lineEdit_u_meas_sipm">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="readOnly"><bool>true</bool></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QLineEdit" name="lineEdit_u_target_sipm">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QLineEdit" name="lineEdit_pwm_sipm">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+
+     <!-- CH -->
+     <item row="3" column="0"><widget class="QLabel" name="label_ch"><property name="text"><string>CH</string></property></widget></item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="lineEdit_u_meas_ch">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="readOnly"><bool>true</bool></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QLineEdit" name="lineEdit_u_target_ch">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item row="3" column="3">
+      <widget class="QLineEdit" name="lineEdit_pwm_ch">
+       <property name="maximumSize"><size><width>75</width><height>16777215</height></size></property>
+       <property name="text"><string>0.00</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+
+    </layout>
+   </item>
+
+   <!-- Interval row -->
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_interval">
+     <property name="spacing"><number>6</number></property>
+     <item>
+      <widget class="QLabel" name="label_interval"><property name="text"><string>Интервал:</string></property></widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_interval">
+       <property name="maximumSize"><size><width>60</width><height>16777215</height></size></property>
+       <property name="text"><string>10</string></property>
+       <property name="readOnly"><bool>true</bool></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+       <property name="toolTip"><string>Только отображение</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_interval_unit"><property name="text"><string>с</string></property></widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_interval">
+       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+
+   <!-- Buttons -->
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_buttons">
+     <item>
+      <spacer name="horizontalSpacer_btn">
+       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_update">
+       <property name="minimumSize"><size><width>100</width><height>26</height></size></property>
+       <property name="text"><string>Обновить</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_apply">
+       <property name="minimumSize"><size><width>100</width><height>26</height></size></property>
+       <property name="text"><string>Применить</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
