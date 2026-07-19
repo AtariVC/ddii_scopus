@@ -14,7 +14,7 @@ from qtpy.uic import loadUi
 
 
 from app.widgets.oscilloscope.graph_widget import GraphWidget
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.plugins.connection.connection_bar import ConnectionBar
 from app.src.util.async_task_manager import AsyncTaskManager
 from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
 from app.src.event.event import Event
@@ -60,7 +60,7 @@ class RunFluxWidget(QtWidgets.QDialog):
         self.init_flags()
 
         if __name__ != "__main__":
-            self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog # type: ignore
+            self.w_ser_dialog: ConnectionBar = self.parent.w_ser_dialog # type: ignore
             self.logger = self.parent.logger # type: ignore
             self.w_ser_dialog.coroutine_finished.connect(self.init_mb_cmd)
             self.task_manager = AsyncTaskManager(self.logger)

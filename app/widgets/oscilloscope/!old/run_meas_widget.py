@@ -15,7 +15,7 @@ from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
 
 from app.widgets.oscilloscope.graph_widget import GraphWidget
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.plugins.connection.connection_bar import ConnectionBar
 from app.widgets.oscilloscope.run_flux_widget import RunFluxWidget
 from app.src.util.async_task_manager import AsyncTaskManager
 from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
@@ -117,7 +117,7 @@ class RunMeasWidget(QtWidgets.QDialog):
         self._counter_modulus = 4096
 
         if __name__ != "__main__":
-            self.w_ser_dialog: SerialConnect = self.parent.w_ser_dialog  # type: ignore
+            self.w_ser_dialog: ConnectionBar = self.parent.w_ser_dialog  # type: ignore
             self.logger = self.parent.logger  # type: ignore
             self.w_ser_dialog.coroutine_finished.connect(self.init_mb_cmd)
             # Остановка измерений при отключении Serial

@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 from qtpy.uic import loadUi
 
 
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.plugins.connection.connection_bar import ConnectionBar
 from app.src.util.async_task_manager import AsyncTaskManager
 from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
 from app.src.components.modbus.modbus_var import ModbusVar
@@ -72,11 +72,11 @@ class DDIIControlWidget(QtWidgets.QWidget):
         self.parser = Parsers()
         self.logger = log_init()
 
-        # Optional context from args: either SerialConnect or parent providing it
-        self.w_ser_dialog: SerialConnect | None = None
+        # Optional context from args: either ConnectionBar or parent providing it
+        self.w_ser_dialog: ConnectionBar | None = None
         if len(args) >= 1:
-            # If passed a SerialConnect directly
-            if isinstance(args[0], SerialConnect):
+            # If passed a ConnectionBar directly
+            if isinstance(args[0], ConnectionBar):
                 self.w_ser_dialog = args[0]
             else:
                 # If parent object provided with attributes
@@ -421,7 +421,7 @@ if __name__ == "__main__":
     qtmodern.styles.dark(app)
     # light(app)
     logger = log_init()
-    w_ser_dialog: SerialConnect = SerialConnect(logger)
+    w_ser_dialog: ConnectionBar = ConnectionBar(logger)
     w: DDIIControlWidget = DDIIControlWidget(w_ser_dialog)
     vLayout_ser_connect: QVBoxLayout = QVBoxLayout()
     w.setLayout(vLayout_ser_connect)

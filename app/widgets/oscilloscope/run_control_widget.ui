@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>RunControlWidget</class>
+ <widget class="QWidget" name="RunControlWidget">
+  <layout class="QVBoxLayout" name="root">
+   <property name="leftMargin"><number>0</number></property>
+   <property name="topMargin"><number>0</number></property>
+   <property name="rightMargin"><number>0</number></property>
+   <property name="bottomMargin"><number>0</number></property>
+   <property name="spacing"><number>14</number></property>
+
+   <!-- Тригер, lsb -->
+   <item>
+    <layout class="QHBoxLayout" name="row_trigger">
+     <item>
+      <widget class="QLabel" name="label_trigger">
+       <property name="text"><string>Тригер, lsb</string></property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="sp_trigger">
+       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       <property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_trigger">
+       <property name="minimumSize"><size><width>128</width><height>34</height></size></property>
+       <property name="maximumSize"><size><width>128</width><height>34</height></size></property>
+       <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+       <property name="text"><string>10</string></property>
+       <property name="toolTip"><string>Порог запуска измерения, lsb</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+   <!-- Интервал опроса, с -->
+   <item>
+    <layout class="QHBoxLayout" name="row_interval">
+     <item>
+      <widget class="QLabel" name="label_interval">
+       <property name="text"><string>Интервал опроса, с</string></property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="sp_interval">
+       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       <property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_interval">
+       <property name="minimumSize"><size><width>128</width><height>34</height></size></property>
+       <property name="maximumSize"><size><width>128</width><height>34</height></size></property>
+       <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+       <property name="text"><string>10</string></property>
+       <property name="toolTip"><string>Период опроса счётчиков частиц, с</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+   <!-- флаги -->
+   <item>
+    <widget class="QCheckBox" name="checkBox_trigger_start">
+     <property name="text"><string>Запуск по тригеру</string></property>
+     <property name="checked"><bool>true</bool></property>
+     <property name="toolTip"><string>Ждать превышения порога вместо принудительного запуска</string></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="checkBox_counters">
+     <property name="text"><string>Опрос счётчиков</string></property>
+     <property name="checked"><bool>true</bool></property>
+     <property name="toolTip"><string>Опрашивать гистограммы и счётчики частиц МПП</string></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="checkBox_waveform">
+     <property name="text"><string>Чтение осциллограмм</string></property>
+     <property name="checked"><bool>true</bool></property>
+     <property name="toolTip"><string>Читать осциллограммы каналов PIPS и SiPM</string></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="checkBox_write_log">
+     <property name="text"><string>Запись лог</string></property>
+     <property name="toolTip"><string>Сохранять измерения в HDF5</string></property>
+    </widget>
+   </item>
+
+   <item>
+    <widget class="_RunButton" name="pushButton_run">
+     <property name="minimumSize"><size><width>0</width><height>44</height></size></property>
+     <property name="text"><string>Начать измерение</string></property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>_RunButton</class>
+   <extends>QPushButton</extends>
+   <header>app.widgets.oscilloscope.run_control_widget</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

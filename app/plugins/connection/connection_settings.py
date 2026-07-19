@@ -6,8 +6,26 @@
 зависимостей и без лишних файлов в репозитории.
 
 Разметка диалога — ``connection_settings.ui`` (loadUi), как и везде в проекте.
+
+Запуск отдельно:
+
+    python app/plugins/connection/connection_settings.py
+    python -m app.plugins.connection.connection_settings
 """
 from __future__ import annotations
+
+# Прямой запуск файла: абсолютные импорты `app.*` и promoted-виджеты из .ui
+# работают только когда модуль исполняется в контексте пакета.
+if __name__ == "__main__" and __package__ in (None, ""):
+    import os
+    import runpy
+    import sys
+
+    _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    runpy.run_module("app.plugins.connection.connection_settings", run_name="__main__", alter_sys=True)
+    raise SystemExit(0)
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -255,3 +273,21 @@ class ConnectionSettingsDialog(QtWidgets.QDialog):
             if self.combo_port.findText(current) < 0:
                 self.combo_port.addItem(current)
             self.combo_port.setCurrentText(current)
+
+
+if __name__ == "__main__":
+    import sys
+
+    from dark_pro_widgets import qss
+
+    app = QtWidgets.QApplication(sys.argv)
+    app.setStyleSheet(qss.build_stylesheet())
+
+    dialog = ConnectionSettingsDialog(ConnectionSettings.load())
+    if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+        result = dialog.result_settings()
+        print(f"сохранено: {result.poll_label()}, порт={result.serial_port or '—'}, "
+              f"baudrate={result.baudrate}, ЦМ={result.cm_id}, МПП={result.mpp_id}")
+    else:
+        print("отменено")
+    sys.exit(0)

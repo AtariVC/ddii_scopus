@@ -9,7 +9,7 @@ from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
 
 
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.plugins.connection.connection_bar import ConnectionBar
 from app.src.components.modbus.ddii_command import ModbusCMCommand
 from app.src.components.log.print_logger import PrintLogger
 from app.widgets.parser.parse_table import DDIIFrameParser
@@ -38,7 +38,7 @@ class CmdWindReadMemWidget(QtWidgets.QWidget):
 
         self._parent: Optional[object] = args[0] if args else None
         self.logger = getattr(self._parent, "logger", PrintLogger())
-        self.w_ser_dialog: Optional[SerialConnect] = getattr(self._parent, "w_ser_dialog", None)
+        self.w_ser_dialog: Optional[ConnectionBar] = getattr(self._parent, "w_ser_dialog", None)
         self.cm_cmd: Optional[ModbusCMCommand] = None
         self.read_delay: float = 0.5  # задержка перед чтением кадра, с
 
