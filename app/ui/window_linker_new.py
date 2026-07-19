@@ -39,8 +39,7 @@ from app.plugins.connection.connection_bar import ConnectionBar
 from app.widgets.debug.debug_graph import DebugGraphWidget
 from app.widgets.oscilloscope.flux_widget import FluxWidget
 from app.widgets.oscilloscope.graph_widget import GraphWidget
-from app.widgets.oscilloscope.run_flux_widget import RunFluxWidget
-from app.widgets.oscilloscope.run_meas_widget import RunMeasWidget
+from app.widgets.oscilloscope.run_control_widget import RunControlWidget
 from app.widgets.parser.cmd_wind_read_mem import CmdWindReadMemWidget
 from app.widgets.settings.mpp_settings_widget import MppSettingsWidget
 from app.widgets.settings.cm_settings_widget import CmSettingsWidget
@@ -80,8 +79,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.w_graph_widget: GraphWidget = GraphWidget()
         self.w_ser_dialog: ConnectionBar = ConnectionBar(self.logger)
         self.flux_widget: FluxWidget = FluxWidget()
-        self.run_flux_widget: RunFluxWidget = RunFluxWidget(self)
-        self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
+        self.run_control_widget: RunControlWidget = RunControlWidget(self)
         self.client = self.w_ser_dialog.client
         self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget()
         self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self)
@@ -102,8 +100,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
                 "icon": "∿",
                 "breadcrumb": "2 детектора · телескоп совпадений",
                 "sidebar": {
-                    "Меню запуска": self.run_meas_widget,
-                    "Опрос счётчика частиц": self.run_flux_widget,
+                    "Меню запуска": self.run_control_widget,
                 },
                 "work": self.w_graph_widget,
                 "inspector": {"Счётчик частиц": self.flux_widget},
