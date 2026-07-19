@@ -18,7 +18,7 @@ from app.src.components.ui.main_window_maker import create_split_widget, create_
 from app.src.components.modbus.worker import ModbusWorker
 from app.src.components.parsers.custom_parsers import Parsers
 from app.src.event.event import Event
-from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
+from app.plugins.connection.connection_bar import ConnectionBar
 from app.widgets.debug.debug_graph import DebugGraphWidget
 from app.widgets.oscilloscope.flux_widget import FluxWidget
 from app.widgets.oscilloscope.graph_widget import GraphWidget
@@ -88,7 +88,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
 
     def init_widgets(self) -> None:
         self.w_graph_widget: GraphWidget = GraphWidget()
-        self.w_ser_dialog: SerialConnect = SerialConnect(self.logger)
+        self.w_ser_dialog: ConnectionBar = ConnectionBar(self.logger)
         self.flux_widget: FluxWidget = FluxWidget()
         self.run_flux_widget: RunFluxWidget = RunFluxWidget(self)
         self.run_meas_widget: RunMeasWidget = RunMeasWidget(self)
