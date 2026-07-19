@@ -1,5 +1,5 @@
 [project]
-name = "virtual-ddii"
+name = "ddii_scopus"
 version = "0.1.0"
 description = ""
 authors = [
@@ -39,6 +39,8 @@ dependencies = [
     "bs4>=0.0.2",
     "pymyip0>=0.1",
     "requests>=2.32.5",
+    "dark-pro-widgets",
+    "qcustomwidgets",
 ]
 
 [build-system]
@@ -61,3 +63,17 @@ allow-direct-references = true
 line-length = 120
 select = ["E", "F", "PL"]
 ignore = ["PLR2004", "PLR0913"]
+
+[tool.uv]
+# QCustomWidgets тянет qcustomwindow -> pywin32 (колёса только под Windows).
+# Нам из пакета нужны только SVG-ассеты (icon-set), сами виджеты не импортируются,
+# поэтому ограничиваем эту транзитивную зависимость Windows — как и в dependencies выше.
+override-dependencies = [
+    "qcustomwindow @ git+https://github.com/CrinitusFeles/QCustomWindow.git ; sys_platform == 'win32'",
+]
+
+[tool.uv.sources]
+dark-pro-widgets = { git = "https://github.com/AtariVC/dark_pro_widgets.git" }
+# Пин на конкретный коммит: если в репозитории переименуют/удалят иконки,
+# набор здесь останется прежним до осознанного обновления rev.
+qcustomwidgets = { git = "https://github.com/AtariVC/QCustomWidgets.git", rev = "7a26278128eeebfdf0b7ef37335b54a1cf8baac2" }
