@@ -7,7 +7,7 @@ import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
 from qtmodern.windows import ModernWindow
 
-from app.ui.window_linker import MainUIRenderer
+from app.ui.window_linker_new import MainUIRenderer
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
