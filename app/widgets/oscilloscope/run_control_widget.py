@@ -43,6 +43,7 @@ import qasync
 from PyQt6 import QtWidgets
 from qtpy.uic import loadUi
 
+from dark_pro_widgets import theme
 from dark_pro_widgets.buttons import PrimaryButton
 
 from app.plugins.connection.connection_bar import ConnectionBar
@@ -140,6 +141,7 @@ class RunControlWidget(QtWidgets.QDialog):
         self._prev_hcp = self._acc_hcp = None
         self._counter_modulus = _COUNTER_MODULUS
 
+        self._apply_theme()
         self.init_flags()
         self.lineEdit_trigger.editingFinished.connect(self._on_trigger_changed)
         self._on_trigger_changed()
@@ -148,6 +150,30 @@ class RunControlWidget(QtWidgets.QDialog):
         self.w_ser_dialog.disconnected.connect(self.on_serial_disconnected)
         self.pushButton_run.clicked.connect(self.pushButton_run_handler)
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+
+    # ===== оформление =====
+    def _apply_theme(self) -> None:
+        """Тема заливает отмеченный чекбокс цветом, но глифа ✓ не рисует —
+        подставляем свою галочку (в наборе иконок подходящей нет).
+        """
+        check = (Path(__file__).resolve().parents[3] / "icon" / "check.svg").as_posix()
+        self.setStyleSheet(
+            f"""
+            QCheckBox {{ spacing: 8px; background: transparent; }}
+            QCheckBox::indicator {{
+                width: 18px; height: 18px;
+                border: 1px solid {theme.BORDER};
+                border-radius: 5px;
+                background: {theme.FIELD_BG};
+            }}
+            QCheckBox::indicator:hover {{ border: 1px solid {theme.ACCENT}; }}
+            QCheckBox::indicator:checked {{
+                background: {theme.ACCENT};
+                border: 1px solid {theme.ACCENT};
+                image: url("{check}");
+            }}
+            """
+        )
 
     # ===== флаги =====
     def init_flags(self) -> None:

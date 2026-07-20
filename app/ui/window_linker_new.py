@@ -1,51 +1,66 @@
-"""Новый window_linker — ваша архитектура + компоновка из схемы (ТЗ §2).
+"""Главное окно консоли ддии.
 
     [рельс] [ Заголовок экрана · хлебная крошка          ]
     [рельс] [ сайдбар | рабочая область | инспектор      ]
-    [ ● Подключено · Serial · MPP 14 · [btn] · State: RUN ]
+    [ ● Подключено │ Serial TCP │ ⚙ │ Подключить … State ]
 
-Что сохранено из вашего window_linker.py:
-  * класс MainUIRenderer(QMainWindow), сигналы и общие поля;
-  * init_widgets() — те же виджеты, с тем же `self` в конструкторе;
-  * декларативная модель (widget_model → screen_model) вместо ручной вёрстки;
-  * bootstrap на qasync в __main__.
+Оболочка окна поднимается из ``window_linker_new.ui`` через ``loadUi`` — как и
+в прежнем ``window_linker.py``: .ui даёт QMainWindow, меню, статусбар и пустые
+слоты, а код наполняет их по ``screen_model()``. Динамика (рельс, страницы
+стека, колонки экрана) собирается в Python, потому что зависит от модели.
 
-Что изменилось по ТЗ:
-  * вместо табов — рельс иконок + QStackedWidget (§3: единственный способ
-    переключения экранов);
-  * loadUi/.ui больше не нужен — центральный виджет строится кодом;
-  * подключение переехало из секции сайдбара в постоянную нижнюю панель (§8);
-    детальные параметры связи остались на экране «Настройка → Соединение»;
-  * тема — глобальный QSS палитры ddii (§9/§10) вместо qtmodern.
+Слоты из .ui: ``layout_rail``, ``label_title``/``label_crumb``, ``stack``,
+``layout_connection``.
 
-Положить вместо app/window_linker.py (импорты app.* оставлены как у вас).
+Запуск:  python main.py  ·  python app/ui/window_linker_new.py  ·
+         python -m app.ui.window_linker_new
 """
+
+# Прямой запуск файла (кнопка Run в IDE / `python app/ui/window_linker_new.py`):
+# sys.path[0] — это app/ui, поэтому абсолютные импорты `app.*` не находятся.
+# Перезапускаем модуль в контексте пакета, добавив корень репозитория в sys.path.
+# NB: до корня отсюда два уровня (app/ui), а не три, как из виджетов.
+if __name__ == "__main__" and __package__ in (None, ""):
+    import os
+    import runpy
+    import sys
+
+    _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    runpy.run_module("app.ui.window_linker_new", run_name="__main__", alter_sys=True)
+    raise SystemExit(0)
+
 import asyncio
 import sys
+from pathlib import Path
 
 import qasync
 from PyQt6 import QtCore, QtWidgets
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QStackedWidget, QFrame
-)
+from PyQt6.QtCore import QSize
+from PyQt6.QtGui import QColor, QIcon
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QStackedWidget, QVBoxLayout, QWidget
+from qtpy.uic import loadUi
 
-from dark_pro_widgets import theme, qss, NavRail, configure_pyqtgraph
+from dark_pro_widgets import NavRail, qss, theme
 
+from custom.icons import load_svg_icon
+
+from app.plugins.connection.connection_bar import ConnectionBar
 from app.src.components.log.config import log_init
 from app.src.components.modbus.worker import ModbusWorker
 from app.src.components.parsers.custom_parsers import Parsers
 from app.src.event.event import Event
-from app.plugins.connection.connection_bar import ConnectionBar
 from app.widgets.debug.debug_graph import DebugGraphWidget
 from app.widgets.oscilloscope.flux_widget import FluxWidget
 from app.widgets.oscilloscope.graph_widget import GraphWidget
 from app.widgets.oscilloscope.run_control_widget import RunControlWidget
 from app.widgets.parser.cmd_wind_read_mem import CmdWindReadMemWidget
-from app.widgets.settings.mpp_settings_widget import MppSettingsWidget
 from app.widgets.settings.cm_settings_widget import CmSettingsWidget
-from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
+from app.widgets.settings.mpp_settings_widget import MppSettingsWidget
 from app.widgets.tests.runner_widget import TestRunnerWidget
 from app.widgets.tests.tables_widget import TestTablesWidget
+from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
 from app.widgets.viewer_hdf5.explorer_hdf5_widget import ExplorerHDF5Widget
 from app.widgets.viewer_hdf5.filter_viewer_widget import FilterViewerWidget
 from app.widgets.viewer_hdf5.graph_viewer_widget import GraphViewerWidget
@@ -55,27 +70,77 @@ _FONT = theme.FONT_FAMILY.split(",")[0].strip()
 SIDEBAR_WIDTH = 296
 INSPECTOR_WIDTH = 344
 
+# Рабочая область утоплена: темнее колонок, чтобы карточки графиков читались
+# как приподнятые над фоном.
+WORK_BG = theme.FIELD_BG
+
 
 class MainUIRenderer(QtWidgets.QMainWindow):
     coroutine_get_client_finished = QtCore.pyqtSignal()
 
     shared_bfr_update_event: Event
 
+    # слоты и виджеты из .ui
+    layout_rail: QVBoxLayout
+    layout_connection: QVBoxLayout
+    stack: QStackedWidget
+    action_quit: QtCore.QObject
+
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Консоль детектора ddii")
-        self.resize(1300, 820)
+        loadUi(Path(__file__).parent.joinpath("window_linker_new.ui"), self)
 
         self.shared_bfr_update_event = Event(str)  # общий буфер обмена данными
         self.mw: ModbusWorker = ModbusWorker()
         self.parser: Parsers = Parsers()
         self.logger = log_init()
 
+        self._titlebar_tinted = False
         self.init_widgets()
         self.build_ui()
 
-    # --- виджеты (как в вашем init_widgets) ----------------------------------
+    # --- системный заголовок ---------------------------------------------------
+    def showEvent(self, event) -> None:  # noqa: N802 - имя из Qt
+        super().showEvent(event)
+        self._tint_titlebar()
+
+    def _tint_titlebar(self) -> None:
+        """Красит системный заголовок в цвет приложения (только Windows).
+
+        Рамка у окна родная — иначе ломается изменение размера (это и было
+        с ``qtmodern.ModernWindow``). Но светлый заголовок рядом с тёмным окном
+        смотрится инородно, поэтому просим DWM: тёмный режим заголовка
+        (Windows 10 2004+) и его цвет (Windows 11 22000+).
+
+        На macOS/Linux и на старых сборках Windows вызовы просто не применяются —
+        останется системный заголовок, приложение от этого не страдает.
+        """
+        if sys.platform != "win32" or self._titlebar_tinted:
+            return
+        self._titlebar_tinted = True
+        try:
+            import ctypes
+
+            hwnd = int(self.winId())
+            dwm = ctypes.windll.dwmapi  # type: ignore[attr-defined]
+            flag = ctypes.c_int(1)
+            # DWMWA_USE_IMMERSIVE_DARK_MODE: 20 в свежих сборках, 19 в ранних
+            for attr in (20, 19):
+                if dwm.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(flag),
+                                             ctypes.sizeof(flag)) == 0:
+                    break
+            # DWMWA_CAPTION_COLOR ждёт COLORREF в порядке 0x00BBGGRR
+            rgb = QColor(theme.BG)
+            colorref = ctypes.c_uint((rgb.blue() << 16) | (rgb.green() << 8) | rgb.red())
+            dwm.DwmSetWindowAttribute(hwnd, 35, ctypes.byref(colorref),
+                                      ctypes.sizeof(colorref))
+        except Exception as e:  # noqa: BLE001 - косметика, падать из-за неё нельзя
+            self.logger.debug(f"Не удалось покрасить заголовок окна: {e}")
+
+    # --- виджеты -------------------------------------------------------------
     def init_widgets(self) -> None:
+        # порядок важен: панель запуска в конструкторе обращается к графикам,
+        # счётчику частиц и связи
         self.w_graph_widget: GraphWidget = GraphWidget()
         self.w_ser_dialog: ConnectionBar = ConnectionBar(self.logger)
         self.flux_widget: FluxWidget = FluxWidget()
@@ -92,33 +157,30 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.mpp_settings_widget: MppSettingsWidget = MppSettingsWidget(self)
         self.cm_settings_widget: CmSettingsWidget = CmSettingsWidget(self)
 
-    # --- модель экранов -----------------------
+    # --- модель экранов ------------------------------------------------------
     def screen_model(self) -> dict:
-        """экран -> {иконка, сайдбар: {секция: виджет}, рабочая область, инспектор}."""
+        """экран -> {иконка, крошка, сайдбар: {секция: виджет}, рабочая область, инспектор}."""
         return {
             "Осциллограф": {
-                "icon": "∿",
+                "icon": "board",
                 "breadcrumb": "2 детектора · телескоп совпадений",
-                "sidebar": {
-                    "Меню запуска": self.run_control_widget,
-                },
+                "sidebar": {"Меню запуска": self.run_control_widget},
                 "work": self.w_graph_widget,
                 "inspector": {"Счётчик частиц": self.flux_widget},
             },
             "Настройка": {
-                "icon": "⚙",
+                "icon": "settings",
                 "breadcrumb": "Параметры прибора и связи",
                 "sidebar": {
                     "МПП": self.mpp_settings_widget,
                     "ЦМ: Питание": self.cm_settings_widget,
                 },
-                # подключение вынесено в постоянную нижнюю панель (ТЗ §8);
-                # детальный экран «Соединение» появится здесь позже
+                # параметры связи — в нижней панели по кнопке ⚙ (ТЗ §8)
                 "work": None,
                 "inspector": None,
             },
             "Диагностика": {
-                "icon": "◷",
+                "icon": "bug-report",
                 "breadcrumb": "Телеметрия и журнал событий",
                 "sidebar": {
                     "Опрос телеметрии": self.telemetry_poll_widget,
@@ -129,7 +191,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
                 "inspector": None,
             },
             "Вьюер": {
-                "icon": "▤",
+                "icon": "history",
                 "breadcrumb": "Архив прогонов",
                 "sidebar": {"Файл менеджер": self.explorer_hdf5_widget},
                 "work": self.graph_viewer_widget,
@@ -141,89 +203,125 @@ class MainUIRenderer(QtWidgets.QMainWindow):
     def build_ui(self) -> None:
         self.model = self.screen_model()
 
-        central = QWidget()
-        self.setCentralWidget(central)
-        outer = QVBoxLayout(central)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-
-        # верхняя область: рельс | (заголовок + стек экранов)
-        top = QHBoxLayout()
-        top.setContentsMargins(0, 0, 0, 0)
-        top.setSpacing(0)
-
-        self.rail = NavRail([(cfg["icon"], name) for name, cfg in self.model.items()])
+        # рельс — единственный способ переключения экранов (ТЗ §3).
+        # Иконки — SVG из набора qcustomwidgets, перекрашенные под тему.
+        self.rail = NavRail(
+            [(self._rail_icon(cfg["icon"]), name) for name, cfg in self.model.items()]
+        )
         self.rail.currentChanged.connect(self.on_screen_changed)
-        top.addWidget(self.rail)
+        self.layout_rail.addWidget(self.rail)
 
-        content = QVBoxLayout()
-        content.setContentsMargins(0, 0, 0, 0)
-        content.setSpacing(0)
-        content.addWidget(self._build_header())
+        for name, cfg in self.model.items():
+            self.stack.addWidget(self._build_screen(name, cfg))
 
-        self.stack = QStackedWidget()
-        for cfg in self.model.values():
-            self.stack.addWidget(self._build_screen(cfg))
-        content.addWidget(self.stack, stretch=1)
-        top.addLayout(content, stretch=1)
-        outer.addLayout(top, stretch=1)
-
-        # постоянная нижняя панель связи (ТЗ §8) — она же w_ser_dialog: панель
-        # сама управляет подключением и отдаёт бэкенд-API потребителям.
+        # нижняя панель связи — она же w_ser_dialog: сама управляет подключением
+        # и отдаёт бэкенд-API остальным виджетам
         self.connection = self.w_ser_dialog
-        outer.addWidget(self.connection)
+        self.layout_connection.addWidget(self.connection)
 
+        self.action_quit.triggered.connect(self.close)
         self.on_screen_changed(0)
 
-    def _build_header(self) -> QFrame:
-        bar = QFrame()
-        bar.setStyleSheet(
-            f"background-color: {theme.BG}; border-bottom: 1px solid {theme.BORDER};"
-        )
-        lay = QVBoxLayout(bar)
-        lay.setContentsMargins(20, 12, 20, 12)
-        lay.setSpacing(2)
-        self._title = QLabel()
-        self._title.setStyleSheet(
-            f"color: {theme.TEXT}; font-family: '{_FONT}'; font-size: 20px; "
-            "font-weight: 700; background: transparent; border: none;"
-        )
-        self._crumb = QLabel()
-        self._crumb.setStyleSheet(
-            f"color: {theme.TEXT_DIM}; background: transparent; border: none;"
-        )
-        lay.addWidget(self._title)
-        lay.addWidget(self._crumb)
-        return bar
+    @staticmethod
+    def _rail_icon(name: str) -> QIcon:
+        """Иконка рельса в двух состояниях.
 
-    def _build_screen(self, cfg: dict) -> QWidget:
+        Глифы раньше красились через QSS, а ``QIcon`` цвет из стиля не берёт —
+        поэтому активный пункт держим отдельной картинкой в акценте: пункты
+        рельса checkable, значит Qt сам выберет State.On для выбранного экрана.
+        """
+        size = QSize(22, 22)
+        icon = QIcon()
+        icon.addPixmap(load_svg_icon(name, theme.TEXT_DIM).pixmap(size),
+                       QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addPixmap(load_svg_icon(name, theme.ACCENT).pixmap(size),
+                       QIcon.Mode.Normal, QIcon.State.On)
+        return icon
+
+    def _build_screen(self, name: str, cfg: dict) -> QWidget:
         screen = QWidget()
         row = QHBoxLayout(screen)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(0)
 
         if cfg.get("sidebar"):
-            row.addWidget(self._build_column(cfg["sidebar"], SIDEBAR_WIDTH))
+            row.addWidget(self._build_column(cfg["sidebar"], SIDEBAR_WIDTH, "left"))
+
+        # правее сайдбара: шапка во всю ширину, под ней рабочая область и инспектор
+        right = QWidget()
+        right_lay = QVBoxLayout(right)
+        right_lay.setContentsMargins(0, 0, 0, 0)
+        right_lay.setSpacing(0)
+        right_lay.addWidget(self._build_header(name, cfg.get("breadcrumb", "")))
+
+        body = QWidget()
+        body_lay = QHBoxLayout(body)
+        body_lay.setContentsMargins(0, 0, 0, 0)
+        body_lay.setSpacing(0)
+
+        # рабочая область на утопленном фоне — карточки читаются приподнятыми
+        holder = QWidget()
+        holder.setObjectName("WorkArea")
+        holder.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        holder.setStyleSheet(f"#WorkArea {{ background-color: {WORK_BG}; }}")
+        lay = QVBoxLayout(holder)
+        lay.setContentsMargins(16, 16, 16, 16)
 
         work = cfg.get("work")
         if work is not None:
-            holder = QWidget()
-            holder.setStyleSheet(f"background-color: {theme.BG};")
-            lay = QVBoxLayout(holder)
-            lay.setContentsMargins(16, 16, 16, 16)
-            lay.addWidget(work)
-            row.addWidget(holder, stretch=1)
+            lay.addWidget(work, stretch=1)
         else:
-            row.addStretch(1)
+            lay.addStretch(1)
+        body_lay.addWidget(holder, stretch=1)
 
         if cfg.get("inspector"):
-            row.addWidget(self._build_column(cfg["inspector"], INSPECTOR_WIDTH))
+            body_lay.addWidget(self._build_column(cfg["inspector"], INSPECTOR_WIDTH, "right"))
+
+        right_lay.addWidget(body, stretch=1)
+        row.addWidget(right, stretch=1)
         return screen
 
-    def _build_column(self, sections: dict, width: int) -> QWidget:
+    def _build_header(self, title: str, breadcrumb: str) -> QWidget:
+        """Шапка экрана: заголовок и хлебная крошка, во всю ширину над рабочей
+        областью и инспектором, отделённая линией."""
+        head = QWidget()
+        head.setObjectName("ScreenHeader")
+        head.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        head.setStyleSheet(
+            f"#ScreenHeader {{ background-color: {theme.BG}; "
+            f"border-bottom: 1px solid {theme.SEPARATOR}; }}"
+        )
+        lay = QVBoxLayout(head)
+        lay.setContentsMargins(20, 14, 20, 14)
+        lay.setSpacing(2)
+
+        label_title = QLabel(title)
+        label_title.setStyleSheet(
+            f"color: {theme.TEXT}; font-family: '{_FONT}'; font-size: 20px; "
+            "font-weight: 700; background: transparent; border: none;"
+        )
+        label_crumb = QLabel(breadcrumb)
+        label_crumb.setStyleSheet(
+            f"color: {theme.TEXT_DIM}; background: transparent; border: none;"
+        )
+        lay.addWidget(label_title)
+        lay.addWidget(label_crumb)
+        return head
+
+    def _build_column(self, sections: dict, width: int, side: str) -> QWidget:
+        """Боковая колонка. ``side`` задаёт, с какой стороны отделить её линией
+        от рабочей области: 'left' — сайдбар (линия справа), 'right' — инспектор.
+        """
         host = QWidget()
+        host.setObjectName("SideColumn")
+        # без WA_StyledBackground QWidget-подкласс не рисует рамку из QSS
+        host.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
         host.setFixedWidth(width)
-        host.setStyleSheet(f"background-color: {theme.BG};")
+        edge = "border-right" if side == "left" else "border-left"
+        host.setStyleSheet(
+            f"#SideColumn {{ background-color: {theme.BG}; "
+            f"{edge}: 1px solid {theme.SEPARATOR}; }}"
+        )
         lay = QVBoxLayout(host)
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(14)
@@ -244,14 +342,11 @@ class MainUIRenderer(QtWidgets.QMainWindow):
     # --- слоты ---------------------------------------------------------------
     def on_screen_changed(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
-        name = list(self.model.keys())[index]
-        self._title.setText(name)
-        self._crumb.setText(self.model[name].get("breadcrumb", ""))
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyleSheet(qss.build_stylesheet())   # тема ddii вместо qtmodern
-    configure_pyqtgraph()
+    app.setStyleSheet(qss.build_stylesheet())  # тема ddii
 
     w: MainUIRenderer = MainUIRenderer()
 

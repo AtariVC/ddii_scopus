@@ -19,15 +19,19 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from functools import lru_cache
 from pathlib import Path
 
 from PyQt6.QtCore import QByteArray, Qt
-from PyQt6.QtGui import QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 
-# Цвета, которыми залиты исходные SVG (SVG Repo отдаёт чёрный).
-_SOURCE_COLORS = ("#000000", "#000", "black")
+# hex-токен цвета в разметке SVG (в атрибуте или в CSS-блоке)
+_HEX_TOKEN = re.compile(r"#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b")
+# Насколько тёмный токен считаем «чернилами» иконки и перекрашиваем.
+# Исходники набора рисуют #000000 или почти чёрным (#010101, #020202).
+_INK_MAX = 32
 
 # Размер растра по умолчанию: с запасом под HiDPI, QIcon сам масштабирует вниз.
 _DEFAULT_SIZE = 64
@@ -52,6 +56,39 @@ def _resolve_icon_dir() -> Path | None:
 
 
 ICON_DIR = _resolve_icon_dir()
+
+
+def _recolour(markup: str, color: str) -> str:
+    """Перекрашивает монохромную иконку в ``color``.
+
+    Набор неоднороден, одного способа мало:
+
+    * ``fill="#000000"`` — цвет атрибутом (settings, tasks…);
+    * ``.st0{stroke:#000000}`` — цвет в CSS-блоке ``<style>`` без кавычек
+      (board, history…), поэтому заменяем сам токен, а не закавыченное значение;
+    * «почти чёрный» вместо чистого: bug-report — ``#020202``;
+    * цвет не объявлен вовсе — SVG по умолчанию чёрный, задаём заливку на
+      корневом ``<svg>``, потомки её наследуют.
+
+    Заменяются только тёмные токены: цветные иконки набора (folder, document,
+    json — они многоцветные по замыслу) остаются как есть.
+    """
+    def _swap(match: "re.Match[str]") -> str:
+        token = QColor(match.group(0))
+        if token.isValid() and max(token.red(), token.green(), token.blue()) <= _INK_MAX:
+            return color
+        return match.group(0)
+
+    recoloured = markup
+    markup = _HEX_TOKEN.sub(_swap, markup)
+    changed = markup != recoloured
+    for src, dst in (('"black"', f'"{color}"'), (":black", f":{color}")):
+        if src in markup:
+            markup = markup.replace(src, dst)
+            changed = True
+    if not changed:
+        markup = markup.replace("<svg", f'<svg fill="{color}"', 1)
+    return markup
 
 
 def icon_path(name: str) -> Path | None:
@@ -82,8 +119,7 @@ def load_svg_icon(name: str, color: str | None = None, size: int = _DEFAULT_SIZE
 
     markup = path.read_text(encoding="utf-8")
     if color:
-        for src in _SOURCE_COLORS:
-            markup = markup.replace(f'"{src}"', f'"{color}"')
+        markup = _recolour(markup, color)
 
     renderer = QSvgRenderer(QByteArray(markup.encode("utf-8")))
     pixmap = QPixmap(size, size)

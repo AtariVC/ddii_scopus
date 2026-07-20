@@ -1,28 +1,33 @@
+"""Точка входа консоли ддии.
+
+Окно показывается с системной рамкой. qtmodern намеренно не используется:
+его ``ModernWindow`` подменяет рамку своей (отсюда чужеродный заголовок) и сам
+реализует изменение размера, которое на Windows не работает. Тема — глобальный
+QSS палитры ddii, цвет системного заголовка на Windows подгоняется в
+``MainUIRenderer`` (см. ``_tint_titlebar``).
+"""
 import asyncio
 import sys
-from pathlib import Path
 
 import qasync
-import qtmodern.styles
-from PyQt6 import QtCore, QtWidgets
-from qtmodern.windows import ModernWindow
+from PyQt6 import QtWidgets
+
+from dark_pro_widgets import qss
 
 from app.ui.window_linker_new import MainUIRenderer
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    qtmodern.styles.dark(app)
-    # light(app)
+    app.setStyleSheet(qss.build_stylesheet())
+
     w: MainUIRenderer = MainUIRenderer()
-    # w.show()
-    mw: ModernWindow = ModernWindow(w)
-    mw.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)  # fix flickering on resize window
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
-    mw.show()
+
+    w.show()
 
     with event_loop:
         try:

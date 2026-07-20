@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>1300</width><height>820</height></rect>
+  </property>
+  <property name="windowTitle"><string>Консоль детектора ddii</string></property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="layout_central">
+    <property name="leftMargin"><number>0</number></property>
+    <property name="topMargin"><number>0</number></property>
+    <property name="rightMargin"><number>0</number></property>
+    <property name="bottomMargin"><number>0</number></property>
+    <property name="spacing"><number>0</number></property>
+
+    <!-- верхняя область: рельс | (шапка + стек экранов) -->
+    <item>
+     <layout class="QHBoxLayout" name="layout_top">
+      <property name="spacing"><number>0</number></property>
+      <!-- сюда код кладёт NavRail: пункты берутся из screen_model -->
+      <item>
+       <layout class="QVBoxLayout" name="layout_rail">
+        <property name="spacing"><number>0</number></property>
+       </layout>
+      </item>
+      <!-- экраны: страницы добавляет код по screen_model.
+           Шапка (заголовок + крошка) живёт внутри страницы — над рабочей
+           областью, правее сайдбара, как на макете. -->
+      <item>
+       <widget class="QStackedWidget" name="stack"/>
+      </item>
+     </layout>
+    </item>
+
+    <!-- постоянная нижняя панель связи (ТЗ §8): сюда код кладёт ConnectionBar -->
+    <item>
+     <layout class="QVBoxLayout" name="layout_connection">
+      <property name="spacing"><number>0</number></property>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect><x>0</x><y>0</y><width>1300</width><height>24</height></rect>
+   </property>
+   <widget class="QMenu" name="menu_file">
+    <property name="title"><string>Файл</string></property>
+    <addaction name="action_quit"/>
+   </widget>
+   <addaction name="menu_file"/>
+  </widget>
+  <!-- статусбара нет намеренно: он оставлял пустую полосу под панелью связи -->
+
+  <action name="action_quit">
+   <property name="text"><string>Выход</string></property>
+   <property name="shortcut"><string>Ctrl+Q</string></property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
