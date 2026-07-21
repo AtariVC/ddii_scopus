@@ -24,12 +24,13 @@ _COUNTER_MODULUS = 4096
 
 
 class _RunButton(ToggleButton):
-    """Акцентная кнопка запуска. Адаптер под загрузчик .ui, который создаёт
-    promoted-виджет как ``Class(parent)``."""
+    """Кнопка запуска: серая в покое, акцентная во время работы. Адаптер под
+    загрузчик .ui, который создаёт promoted-виджет как ``Class(parent)`` —
+    у ``ToggleButton`` первый позиционный аргумент это ``text``, поэтому
+    ``parent`` передаём именованным."""
 
     def __init__(self, parent=None):
-        super().__init__()
-
+        super().__init__(parent=parent)
 
 
 class RunControlWidget(QtWidgets.QDialog):
