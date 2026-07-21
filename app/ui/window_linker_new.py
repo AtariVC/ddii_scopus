@@ -12,24 +12,8 @@
 Слоты из .ui: ``layout_rail``, ``label_title``/``label_crumb``, ``stack``,
 ``layout_connection``.
 
-Запуск:  python main.py  ·  python app/ui/window_linker_new.py  ·
-         python -m app.ui.window_linker_new
+Запуск (из корня проекта):  python main.py  ·  python -m app.ui.window_linker_new
 """
-
-# Прямой запуск файла (кнопка Run в IDE / `python app/ui/window_linker_new.py`):
-# sys.path[0] — это app/ui, поэтому абсолютные импорты `app.*` не находятся.
-# Перезапускаем модуль в контексте пакета, добавив корень репозитория в sys.path.
-# NB: до корня отсюда два уровня (app/ui), а не три, как из виджетов.
-if __name__ == "__main__" and __package__ in (None, ""):
-    import os
-    import runpy
-    import sys
-
-    _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    if _root not in sys.path:
-        sys.path.insert(0, _root)
-    runpy.run_module("app.ui.window_linker_new", run_name="__main__", alter_sys=True)
-    raise SystemExit(0)
 
 import asyncio
 import sys
@@ -64,6 +48,7 @@ from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
 from app.widgets.viewer_hdf5.explorer_hdf5_widget import ExplorerHDF5Widget
 from app.widgets.viewer_hdf5.filter_viewer_widget import FilterViewerWidget
 from app.widgets.viewer_hdf5.graph_viewer_widget import GraphViewerWidget
+from app.widgets.oscilloscope.autotest_control import AutotestControl
 
 _FONT = theme.FONT_FAMILY.split(",")[0].strip()
 
@@ -105,15 +90,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self._tint_titlebar()
 
     def _tint_titlebar(self) -> None:
-        """Красит системный заголовок в цвет приложения (только Windows).
-
-        Рамка у окна родная — иначе ломается изменение размера (это и было
-        с ``qtmodern.ModernWindow``). Но светлый заголовок рядом с тёмным окном
-        смотрится инородно, поэтому просим DWM: тёмный режим заголовка
-        (Windows 10 2004+) и его цвет (Windows 11 22000+).
-
-        На macOS/Linux и на старых сборках Windows вызовы просто не применяются —
-        останется системный заголовок, приложение от этого не страдает.
+        """Красит системную рамку .
         """
         if sys.platform != "win32" or self._titlebar_tinted:
             return
@@ -156,6 +133,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.test_runner_widget: TestRunnerWidget = TestRunnerWidget()
         self.mpp_settings_widget: MppSettingsWidget = MppSettingsWidget(self)
         self.cm_settings_widget: CmSettingsWidget = CmSettingsWidget(self)
+        self.autotest_control: AutotestControl = AutotestControl(self)
 
     # --- модель экранов ------------------------------------------------------
     def screen_model(self) -> dict:
@@ -164,7 +142,8 @@ class MainUIRenderer(QtWidgets.QMainWindow):
             "Осциллограф": {
                 "icon": "board",
                 "breadcrumb": "2 детектора · телескоп совпадений",
-                "sidebar": {"Меню запуска": self.run_control_widget},
+                "sidebar": {"Меню запуска": self.run_control_widget,
+                            "Тестовые импульсы": self.autotest_control},
                 "work": self.w_graph_widget,
                 "inspector": {"Счётчик частиц": self.flux_widget},
             },
@@ -203,8 +182,6 @@ class MainUIRenderer(QtWidgets.QMainWindow):
     def build_ui(self) -> None:
         self.model = self.screen_model()
 
-        # рельс — единственный способ переключения экранов (ТЗ §3).
-        # Иконки — SVG из набора qcustomwidgets, перекрашенные под тему.
         self.rail = NavRail(
             [(self._rail_icon(cfg["icon"]), name) for name, cfg in self.model.items()]
         )
@@ -224,12 +201,6 @@ class MainUIRenderer(QtWidgets.QMainWindow):
 
     @staticmethod
     def _rail_icon(name: str) -> QIcon:
-        """Иконка рельса в двух состояниях.
-
-        Глифы раньше красились через QSS, а ``QIcon`` цвет из стиля не берёт —
-        поэтому активный пункт держим отдельной картинкой в акценте: пункты
-        рельса checkable, значит Qt сам выберет State.On для выбранного экрана.
-        """
         size = QSize(22, 22)
         icon = QIcon()
         icon.addPixmap(load_svg_icon(name, theme.TEXT_DIM).pixmap(size),

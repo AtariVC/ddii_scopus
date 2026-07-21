@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AutotestControl</class>
+ <widget class="QWidget" name="AutotestControl">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>208</width>
+    <height>108</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="root">
+   <property name="spacing">
+    <number>14</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <layout class="QGridLayout" name="grid_params" columnstretch="1,0">
+     <property name="horizontalSpacing">
+      <number>12</number>
+     </property>
+     <property name="verticalSpacing">
+      <number>14</number>
+     </property>
+     <item row="0" column="0">
+      <widget class="QLabel" name="label_trigger">
+       <property name="text">
+        <string>Длит-ть имп., мкс</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QSpinBox" name="spinBox_dur_imp_us">
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>5</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="_RunButton" name="pushButton_impact">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>44</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>Подать воздействие</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>_RunButton</class>
+   <extends>QPushButton</extends>
+   <header>app.widgets.oscilloscope.run_control_widget</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

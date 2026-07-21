@@ -2,12 +2,12 @@
 Парсер данных мпп
 Парсер log
 """
-from app.src.components.modbus.modbus_var import ModbusVar
+from app.src.components.modbus.modbus_var import ModbusReg
 from app.src.components.modbus.worker import ModbusWorker
 from app.src.components.parsers.parsers_pack import LineEObj
 import struct
 
-class Parsers(ModbusWorker, ModbusVar):
+class Parsers(ModbusWorker, ModbusReg):
     def __init__(self, **kwargs):
         super().__init__()
 

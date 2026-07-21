@@ -5,24 +5,10 @@
 живут фильтрация выбросов, биннинг и сохранение в HDF5, поэтому он не заменён
 виджетами из dark_pro_widgets; здесь только оформление и цвета из темы.
 
-Запуск отдельно, с демо-данными:
+Запуск отдельно, с демо-данными (из корня проекта):
 
-    python app/widgets/oscilloscope/graph_widget.py
     python -m app.widgets.oscilloscope.graph_widget
 """
-
-# Прямой запуск файла: абсолютные импорты `app.*` работают только когда модуль
-# исполняется в контексте пакета — перезапускаем его как модуль пакета.
-if __name__ == "__main__" and __package__ in (None, ""):
-    import os
-    import runpy
-    import sys
-
-    _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    if _root not in sys.path:
-        sys.path.insert(0, _root)
-    runpy.run_module("app.widgets.oscilloscope.graph_widget", run_name="__main__", alter_sys=True)
-    raise SystemExit(0)
 
 from pathlib import Path
 

@@ -2,175 +2,283 @@
 <ui version="4.0">
  <class>FluxWidget</class>
  <widget class="QWidget" name="FluxWidget">
-  <property name="windowTitle"><string>Счётчик частиц</string></property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>402</width>
+    <height>231</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Счётчик частиц</string>
+  </property>
   <layout class="QVBoxLayout" name="root">
-   <property name="leftMargin"><number>0</number></property>
-   <property name="topMargin"><number>0</number></property>
-   <property name="rightMargin"><number>0</number></property>
-   <property name="bottomMargin"><number>0</number></property>
-   <property name="spacing"><number>10</number></property>
-
-   <!-- ACQ1 / ACQ2 — крупные акцентные плитки -->
+   <property name="spacing">
+    <number>10</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
    <item>
     <layout class="QHBoxLayout" name="acq_row">
-     <property name="spacing"><number>10</number></property>
+     <property name="spacing">
+      <number>10</number>
+     </property>
      <item>
-       <widget class="_TileAccent" name="tile_acq1">
-         <property name="label" stdset="0"><string>ACQ1</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
+      <widget class="_TileAccent" name="tile_acq1">
+       <property name="label" stdset="0">
+        <string>ACQ1</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
      </item>
      <item>
-       <widget class="_TileAccent" name="tile_acq2">
-         <property name="label" stdset="0"><string>ACQ2</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
+      <widget class="_TileAccent" name="tile_acq2">
+       <property name="label" stdset="0">
+        <string>ACQ2</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
-
-    <item>
-     <widget class="QLabel" name="title_e">
-      <property name="text"><string>Электроны, e</string></property>
-     </widget>
-    </item>
    <item>
-     <layout class="QGridLayout" name="grid_e">
-      <property name="horizontalSpacing"><number>10</number></property>
-      <property name="verticalSpacing"><number>10</number></property>
-      <item row="0" column="0">
-       <widget class="_Tile" name="tile_e_0_1">
-         <property name="label" stdset="0"><string>e &gt; 0.1</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="_Tile" name="tile_e_0_5">
-         <property name="label" stdset="0"><string>e &gt; 0.5</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="_Tile" name="tile_e_0_8">
-         <property name="label" stdset="0"><string>e &gt; 0.8</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="_Tile" name="tile_e_1_6">
-         <property name="label" stdset="0"><string>e &gt; 1.6</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="_Tile" name="tile_e_3">
-         <property name="label" stdset="0"><string>e &gt; 3</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="1" column="2">
-       <widget class="_Tile" name="tile_e_5">
-         <property name="label" stdset="0"><string>e &gt; 5</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-     </layout>
+    <widget class="QLabel" name="title_e">
+     <property name="text">
+      <string>Электроны</string>
+     </property>
+    </widget>
    </item>
-
-    <item>
-     <widget class="QLabel" name="title_p">
-      <property name="text"><string>Протоны, p</string></property>
-     </widget>
-    </item>
    <item>
-     <layout class="QGridLayout" name="grid_p">
-      <property name="horizontalSpacing"><number>10</number></property>
-      <property name="verticalSpacing"><number>10</number></property>
-      <item row="0" column="0">
-       <widget class="_Tile" name="tile_p_10">
-         <property name="label" stdset="0"><string>p &gt; 10</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="_Tile" name="tile_p_30">
-         <property name="label" stdset="0"><string>p &gt; 30</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="_Tile" name="tile_p_60">
-         <property name="label" stdset="0"><string>p &gt; 60</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="_Tile" name="tile_p_100">
-         <property name="label" stdset="0"><string>p &gt; 100</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="_Tile" name="tile_p_200">
-         <property name="label" stdset="0"><string>p &gt; 200</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="1" column="2">
-       <widget class="_Tile" name="tile_p_500">
-         <property name="label" stdset="0"><string>p &gt; 500</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-     </layout>
+    <layout class="QGridLayout" name="grid_e">
+     <property name="spacing">
+      <number>10</number>
+     </property>
+     <item row="0" column="0">
+      <widget class="_Tile" name="tile_e_0_1">
+       <property name="label" stdset="0">
+        <string>e &gt; 0.1</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="_Tile" name="tile_e_0_5">
+       <property name="label" stdset="0">
+        <string>e &gt; 0.5</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="_Tile" name="tile_e_0_8">
+       <property name="label" stdset="0">
+        <string>e &gt; 0.8</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="_Tile" name="tile_e_1_6">
+       <property name="label" stdset="0">
+        <string>e &gt; 1.6</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="_Tile" name="tile_e_3">
+       <property name="label" stdset="0">
+        <string>e &gt; 3</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="_Tile" name="tile_e_5">
+       <property name="label" stdset="0">
+        <string>e &gt; 5</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
-
-    <item>
-     <widget class="QLabel" name="title_hcp">
-      <property name="text"><string>Тяжёлые, HCP</string></property>
-     </widget>
-    </item>
    <item>
-     <layout class="QGridLayout" name="grid_hcp">
-      <property name="horizontalSpacing"><number>10</number></property>
-      <property name="verticalSpacing"><number>10</number></property>
-      <item row="0" column="0">
-       <widget class="_Tile" name="tile_hcp_1">
-         <property name="label" stdset="0"><string>HCP &gt; 1</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="_Tile" name="tile_hcp_5">
-         <property name="label" stdset="0"><string>HCP &gt; 5</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="_Tile" name="tile_hcp_10">
-         <property name="label" stdset="0"><string>HCP &gt; 10</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="_Tile" name="tile_hcp_20">
-         <property name="label" stdset="0"><string>HCP &gt; 20</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="_Tile" name="tile_hcp_45">
-         <property name="label" stdset="0"><string>HCP &gt; 45</string></property>
-         <property name="value" stdset="0"><string>—</string></property>
-        </widget>
-      </item>
-     </layout>
+    <widget class="QLabel" name="title_p">
+     <property name="text">
+      <string>Протоны</string>
+     </property>
+    </widget>
    </item>
-
+   <item>
+    <layout class="QGridLayout" name="grid_p">
+     <property name="spacing">
+      <number>10</number>
+     </property>
+     <item row="0" column="0">
+      <widget class="_Tile" name="tile_p_10">
+       <property name="label" stdset="0">
+        <string>p &gt; 10</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="_Tile" name="tile_p_30">
+       <property name="label" stdset="0">
+        <string>p &gt; 30</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="_Tile" name="tile_p_60">
+       <property name="label" stdset="0">
+        <string>p &gt; 60</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="_Tile" name="tile_p_100">
+       <property name="label" stdset="0">
+        <string>p &gt; 100</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="_Tile" name="tile_p_200">
+       <property name="label" stdset="0">
+        <string>p &gt; 200</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="_Tile" name="tile_p_500">
+       <property name="label" stdset="0">
+        <string>p &gt; 500</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="title_hcp">
+     <property name="text">
+      <string>ТЗЧ</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="grid_hcp">
+     <property name="spacing">
+      <number>10</number>
+     </property>
+     <item row="0" column="0">
+      <widget class="_Tile" name="tile_hcp_1">
+       <property name="label" stdset="0">
+        <string>HCP &gt; 1</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="_Tile" name="tile_hcp_5">
+       <property name="label" stdset="0">
+        <string>HCP &gt; 5</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="_Tile" name="tile_hcp_10">
+       <property name="label" stdset="0">
+        <string>HCP &gt; 10</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="_Tile" name="tile_hcp_20">
+       <property name="label" stdset="0">
+        <string>HCP &gt; 20</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="_Tile" name="tile_hcp_45">
+       <property name="label" stdset="0">
+        <string>HCP &gt; 45</string>
+       </property>
+       <property name="value" stdset="0">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
    <item>
     <spacer name="vspacer">
-     <property name="orientation"><enum>Qt::Vertical</enum></property>
-     <property name="sizeHint" stdset="0"><size><width>20</width><height>10</height></size></property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>10</height>
+      </size>
+     </property>
     </spacer>
    </item>
   </layout>
@@ -180,11 +288,13 @@
    <class>_Tile</class>
    <extends>QFrame</extends>
    <header>app.widgets.oscilloscope.flux_widget</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>_TileAccent</class>
    <extends>QFrame</extends>
    <header>app.widgets.oscilloscope.flux_widget</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

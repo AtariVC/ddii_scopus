@@ -1,43 +1,9 @@
-"""Меню запуска: объединяет прежние ``run_meas_widget`` и ``run_flux_widget``.
-
-Одна кнопка запускает то, что отмечено галочками:
-
-* «Чтение осциллограмм» — цикл ``ACQ_task``: читает осциллограммы PIPS/SiPM,
-  рисует их и пики в гистограммы (бывший run_meas);
-* «Опрос счётчиков» — цикл ``HH_task``: гистограммы электронов/протонов/HCP в
-  панель счётчика частиц (бывший run_flux).
-
-Когда счётчики опрашиваются, а осциллограммы не читаются, дополнительно идёт
-``ACQ_Peak_task`` — он берёт пики прямо из регистров АЦП. При включённом чтении
-осциллограмм этого не делаем: пики туда уже кладёт ``ACQ_task``, иначе
-гистограммы PIPS/SiPM считали бы одно и то же дважды.
-
-Порог запуска и тригер — одно и то же поле ``lineEdit_trigger``.
-
-Запуск отдельно (панель поднимается с настоящими графиками и счётчиком):
-
-    python app/widgets/oscilloscope/run_control_widget.py
-    python -m app.widgets.oscilloscope.run_control_widget
-"""
-
-# Прямой запуск файла: абсолютные импорты `app.*` и promoted-виджеты из .ui
-# работают только когда модуль исполняется в контексте пакета.
-if __name__ == "__main__" and __package__ in (None, ""):
-    import os
-    import runpy
-    import sys
-
-    _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    if _root not in sys.path:
-        sys.path.insert(0, _root)
-    runpy.run_module("app.widgets.oscilloscope.run_control_widget", run_name="__main__", alter_sys=True)
-    raise SystemExit(0)
-
 import asyncio
 import datetime
 from pathlib import Path
 from typing import Awaitable, Callable
 
+from loguru import logger
 import numpy as np
 import qasync
 from PyQt6 import QtWidgets
@@ -141,7 +107,7 @@ class RunControlWidget(QtWidgets.QDialog):
         self._prev_hcp = self._acc_hcp = None
         self._counter_modulus = _COUNTER_MODULUS
 
-        self._apply_theme()
+        self._apply_theme_for_checkbox()
         self.init_flags()
         self.lineEdit_trigger.editingFinished.connect(self._on_trigger_changed)
         self._on_trigger_changed()
@@ -152,10 +118,7 @@ class RunControlWidget(QtWidgets.QDialog):
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
 
     # ===== оформление =====
-    def _apply_theme(self) -> None:
-        """Тема заливает отмеченный чекбокс цветом, но глифа ✓ не рисует —
-        подставляем свою галочку (в наборе иконок подходящей нет).
-        """
+    def _apply_theme_for_checkbox(self) -> None:
         check = (Path(__file__).resolve().parents[3] / "icon" / "check.svg").as_posix()
         self.setStyleSheet(
             f"""
@@ -275,8 +238,6 @@ class RunControlWidget(QtWidgets.QDialog):
             if self.flags[self.poll_counters_flag]:
                 hh_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
                 self.task_manager.create_task(hh_task(), "HH_task")
-                # пики из регистров АЦП нужны только когда осциллограммы не читаем,
-                # иначе ACQ_task уже наполняет те же гистограммы
                 if not self.flags[self.read_waveform_flag]:
                     await self.mpp_cmd.set_level(self._trigger_level())
                     await self.mpp_cmd.start_measure(on=1)

@@ -13,7 +13,7 @@ from modules.Main_Config.save_config import ConfigSaver
 
 from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
 from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
-from app.src.components.modbus.modbus_var import ModbusVar
+from app.src.components.modbus.modbus_var import ModbusReg
 from app.src.components.log.config import log_init
 from app.src.util.async_task_manager import AsyncTaskManager
 from app.src.components.modbus.worker import ModbusWorker
@@ -21,7 +21,7 @@ from app.src.components.parsers.custom_parsers import Parsers
 from app.src.components.parsers.parsers_pack import LineEditPack, LineEObj
 
 
-class MainConfigDialog(QtWidgets.QDialog, ModbusVar):
+class MainConfigDialog(QtWidgets.QDialog, ModbusReg):
     lineEdit_interval: QtWidgets.QLineEdit
 
     lineEdit_hvip_pips: QtWidgets.QLineEdit

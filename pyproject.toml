@@ -49,12 +49,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build]
 include = [
-    "virtual_ddii/**/*",
+    "app/**/*",
     "README.md",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["virtual_ddii"]
+# Пакет `app` ставится editable (`uv pip install -e .`), чтобы виджеты можно было
+# запускать поштучно без правки sys.path в каждом файле.
+packages = ["app"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

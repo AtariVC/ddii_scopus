@@ -15,11 +15,11 @@ from pymodbus.datastore import (
 
 # Твои служебные классы
 try:
-    from app.src.components.modbus.modbus_var import ModbusVar
+    from app.src.components.modbus.modbus_var import ModbusReg
     from app.src.components.log.config import log_s
     from app.src.components.modbus.worker import ModbusWorker
 except Exception:
-    class ModbusVar:
+    class ModbusReg:
         CM_ID = 1
         DDII_SWITCH_MODE = 0x0001
         SILENT_MODE = 0x0000
@@ -44,7 +44,7 @@ class ConnectionStatus:
     detail: str = ""
 
 
-class DDIIConnectionManager(QtCore.QObject, ModbusVar):
+class DDIIConnectionManager(QtCore.QObject, ModbusReg):
     status_changed = QtCore.pyqtSignal(object)
     connection_established = QtCore.pyqtSignal(object)
     connection_lost = QtCore.pyqtSignal(str)

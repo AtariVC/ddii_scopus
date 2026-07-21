@@ -7,25 +7,11 @@
 
 Разметка диалога — ``connection_settings.ui`` (loadUi), как и везде в проекте.
 
-Запуск отдельно:
+Запуск отдельно (из корня проекта):
 
-    python app/plugins/connection/connection_settings.py
     python -m app.plugins.connection.connection_settings
 """
 from __future__ import annotations
-
-# Прямой запуск файла: абсолютные импорты `app.*` и promoted-виджеты из .ui
-# работают только когда модуль исполняется в контексте пакета.
-if __name__ == "__main__" and __package__ in (None, ""):
-    import os
-    import runpy
-    import sys
-
-    _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    if _root not in sys.path:
-        sys.path.insert(0, _root)
-    runpy.run_module("app.plugins.connection.connection_settings", run_name="__main__", alter_sys=True)
-    raise SystemExit(0)
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -39,7 +25,7 @@ from qtpy.uic import loadUi
 from dark_pro_widgets import theme
 from dark_pro_widgets.combo_box import ComboBox
 
-from app.src.components.modbus.modbus_var import ModbusVar
+from app.src.components.modbus.modbus_var import ModbusReg
 
 # Организация/приложение для QSettings (macOS: ~/Library/Preferences, Win: реестр)
 _ORG = "ddii"
@@ -84,8 +70,8 @@ class ConnectionSettings:
     baudrate: int = BAUDRATE_DEFAULT
     tcp_host: str = ""
     tcp_port: int = TCP_PORT_DEFAULT
-    cm_id: int = field(default=ModbusVar.CM_ID)
-    mpp_id: int = field(default=ModbusVar.MPP_ID_DEFAULT)
+    cm_id: int = field(default=ModbusReg.CM_ID)
+    mpp_id: int = field(default=ModbusReg.MPP_ID)
 
     # --- какие устройства участвуют в опросе ---
     @property
@@ -260,8 +246,8 @@ class ConnectionSettingsDialog(QtWidgets.QDialog):
             baudrate=_int(self.combo_baudrate.currentText(), BAUDRATE_DEFAULT),
             tcp_host=self.edit_host.text().strip(),
             tcp_port=_int(self.edit_tcp_port.text(), TCP_PORT_DEFAULT),
-            cm_id=_int(self.edit_cm_id.text(), ModbusVar.CM_ID),
-            mpp_id=_int(self.edit_mpp_id.text(), ModbusVar.MPP_ID_DEFAULT),
+            cm_id=_int(self.edit_cm_id.text(), ModbusReg.CM_ID),
+            mpp_id=_int(self.edit_mpp_id.text(), ModbusReg.MPP_ID),
         )
 
     def _refresh_ports(self) -> None:

@@ -1,91 +1,109 @@
-'''Описания всех переменных проекта
-'''
 
-class ModbusVar():
-    HEAD                            = 0x0FF1
+class DebugCtrlReg():
+    DEBUG_MODE_SWITCH                  = 0
+    CONST_MODE_SWITCH                  = 1
+    POWER__HVIP_SWITCH                 = 2
+    SET_INTERVAL_MEAS                  = 3
+    GET_FRAME                          = 4
+    CM_CHECK_MEM                       = 5
+    ARCH_REQUEST                       = 6
+    SET_RD_PTR_MEM                     = 7
+    REQUEST_ARCH                       = 8
+    SET_HH_MPP                         = 9
+    SET_COEFF_ELV_LSB_MPP              = 10
+    SET_OFFSET_MPP                     = 11
+    START_AUTOTEST                     = 12
+    GPIO_IMPACT_AUTOTEST               = 13
+    LOAD_STATE_CFG                     = 14
+    SAVE_CURRENT_STATE_CFG             = 15
+    RESET_DEFAULT_CRG                  = 16
+    CM_RESET                           = 17
+    NUMBER                             = 18
 
-    DDII_SWITCH_MODE                = 0x0001
-    DDII_UPDATE_DATA                = 0x0002
+class DebugDbgReg():
+    BASE                               = 100
+    DBG_MODE                           = BASE + 0
+    CONST_MODE                         = BASE + 1
+    HVIP_MODE                          = BASE + 2
+    CM_STATUS                          = BASE + 3
+    CM_RST_COUNTER                     = BASE + 4
+    MEM_RD_PTR                         = BASE + 5
+    MEM_WR_PTR                         = BASE + 6
+    FIFO_LEVEL                         = BASE + 7
+    FIFO_ERROR_CNT                     = BASE + 8
+    IB_ERROR_CNT                       = BASE + 9
+    IB_NANS_CNT                        = BASE + 10
+    MKO_ERROR                          = BASE + 11
+    MKO_ERROR_CNT                      = BASE + 12
+    NUMBER                             = BASE + 13
 
-    CM_ID                           = 1
-    MPP_ID_DEFAULT                  = 14
+class DebugHvipReg():
+    BASE                               = 300
+    CH_SELECT                          = BASE + 0
+    MODE                               = BASE + 1
+    STATE                              = BASE + 2
+    PWM_RAW                            = BASE + 3
+    PWM_X100                           = BASE + 4
+    PWM_MAX_X100                       = BASE + 5
+    V_FB_X100                          = BASE + 6
+    V_HV_X100                          = BASE + 7
+    V_HV_DESIRED_X100                  = BASE + 8
+    CURRENT_X100                       = BASE + 9
+    MAX_CURRENT_X100                   = BASE + 10
+    FLAG_OVERVOLT                      = BASE + 11
+    PID_K_X10000                       = BASE + 12
+    PID_P_X10000                       = BASE + 13
+    PID_I_X10000                       = BASE + 14
+    PID_D_X10000                       = BASE + 15
+    PID_REACTION_MAX_X10000            = BASE + 16
+    PID_ERROR_X100                     = BASE + 17
 
-    CMD_DBG_GET_TELEMETRY           = 0x0000
-    CMD_DBG_SWITCH_MODE             = 0x0001
-    CMD_DBG_UPDATE_DATA             = 0x0002 # Команда на обновление структуры данных телеметрии
-    CMD_DBG_DBG_RESET               = 0x0003    
-    CMD_DBG_CSA_TEST_ENABLE         = 0x0004
-    CMD_DBG_SET_CFG                 = 0x0005
-    CMD_DBG_SET_VOLTAGE             = 0x0006
-    CMD_DBG_GET_CFG_VOLTAGE         = 0x0007    
-    CMD_DBG_SET_DEFAULT_CFG         = 0x0008
-    CMD_DBG_GET_VOLTAGE             = 0x0009
-    CMD_DBG_GET_CFG_PWM             = 0x000A
-    CMD_DBG_HVIP_ON_OFF             = 0x000B
-    CMD_DBG_GET_CFG                 = 0x000C
-    CM_DBG_SET_HVIP_AB              = 0x000D
-    CM_DBG_GET_HVIP_AB              = 0x000E
-    CM_GET_TERM                     = 0x000F
-    CM_DBG_GET_DESIRED_HVIP         = 0x0011
-    MB_DBG_REG_BASE                 = 100
-    MB_DDII_FRAME_REG_BASE          = 200
-    MB_SYS_FRAME_REG_BASE           = 240
-    MB_DDII_FRAME_REG_NUMBER        = 32
-    MB_SYS_FRAME_REG_NUMBER         = 32
-    CM_DBG_CMD_CTRL                 = 0
-    CM_DBG_CMD_TEST_GPIO_IMPACT     = 6
-    CM_SET_READ_POINTER             = 30
-    CM_SET_WRITE_POINTER            = 32
-    CM_GET_READ_POINTER             = 29
-    CM_GET_WRITE_POINTER            = 31
-    READ_MEM_FRAME                  = 33
 
-    REG_MPP_CTRL                    = 0x0000
-    REG_MPP_CTRL_ISSUE_WAVEFORM     = 0x0009
-    REG_MPP_CTRL_SET_HH             = 0x0008
-    REG_MPP_CTRL_TRIG_COUNT_CLEAR   = 0x000B
+class MppReg():
+    MPP_CTRL                           = 0x0000
+    MPP_CTRL_ISSUE_WAVEFORM            = 0x0009
+    # NB: тот же адрес, что и MPP_STRUCT — так было и в прежней карте регистров
+    TMPCOUNT                           = 0x0006
+    MPP_STRUCT                         = 6
+    ACQ1_PEACK                         = 7
+    ACQ2_PEACK                         = 8
+    DDIN_PEACK                         = 9
+    MPP_HH                             = 11
+    MPP_HIST_32                        = 44
+    MPP_HIST_16                        = 56
+    MPP_HIST_HCP                       = 62
+    MPP_LEVEL                          = 0x0079
+    CALIBR_ALL_CH                      = 0x0050
+    OSCILL_CH0                         = 0xA000
+    OSCILL_CH1                         = 0xA200
+
     
-    
-    TMPCOUNT                        = 0x0006
-    REG_GET_MPP_STRUCT              = 0x0006
-    ACQ1_PEACK                      = 0x0007
-    ACQ2_PEACK                      = 0x0008
-    DDIN_PEACK                      = 0x0009
-    REG_MPP_HH                      = 0x000B
-    REG_MPP_HIST_32                 = 44
-    REG_MPP_HIST_16                 = 56
-    REG_MPP_HIST_HCP                = 62
-    REG_MPP_LEVEL                   = 0x0079
-    REG_CALIBR_ALL_CH               = 0x0050
-    REG_OSCILL_CH0                  = 0xA000
-    REG_OSCILL_CH1                  = 0xA200
 
-    
+    MPP_LEVEL_TRIG                     = 1
+    MPP_TRIG_CNT_CLEAR                 = 11
 
-    MPP_LEVEL_TRIG                  = 0x0001
-    MPP_TRIG_CNT_CLEAR              = 0x000B
-
-    MPP_START_MEASURE: list[int]    = [0x0002, 0x0001]
-    MPP_STOP_MEASURE: list[int]     = [0x0002, 0x0000]
-    MPP_START_MEASURE_FORCED        = 0x0051
+    MPP_START_MEASURE: list[int]       = [0x0002, 0x0001]
+    MPP_STOP_MEASURE: list[int]        = [0x0002, 0x0000]
+    MPP_START_MEASURE_FORCED           = 0x0051
 
 
+class ModbusReg():
+    reg_ctrl = DebugCtrlReg()
+    reg_dbg = DebugDbgReg()
+    reg_hvip = DebugHvipReg()
+    reg_mpp = MppReg()
 
+    MB_F_CODE_16                       = 0x10
+    MB_F_CODE_3                        = 0x03
+    MB_F_CODE_6                        = 0x06
+    REG_COMMAND                        = 0
 
-    MB_F_CODE_16                    = 0x10
-    MB_F_CODE_3                     = 0x03
-    MB_F_CODE_6                     = 0x06
-    REG_COMMAND                     = 0
-
-    DEBUG_MODE                      = 0x0C
-    COMBAT_MODE                     = 0x0E
-    CONSTANT_MODE                   = 0x0F
-    SILENT_MODE                     = 0x0D
-
+    CM_ID                              = 1
+    MPP_ID                             = 14
     # Управление вкл каналов питания детекторов
-    PIPS_CH_VOLTAGE                 = 1
-    SIPM_CH_VOLTAGE                 = 2
-    CHERENKOV_CH_VOLTAGE            = 3
+    PIPS_CH_VOLTAGE                    = 1
+    SIPM_CH_VOLTAGE                    = 2
+    CHERENKOV_CH_VOLTAGE               = 3
 
 
     def __init__(self):

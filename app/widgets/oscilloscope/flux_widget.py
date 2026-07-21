@@ -5,26 +5,10 @@
 Разметка — ``flux_widget.ui``: плитки объявлены там как promoted-виджеты
 ``_Tile``/``_TileAccent``, подписи заданы свойством ``label``.
 
-Виджет можно запустить отдельно, с демо-данными:
+Виджет можно запустить отдельно, с демо-данными (из корня проекта):
 
-    python app/widgets/oscilloscope/flux_widget.py
     python -m app.widgets.oscilloscope.flux_widget
 """
-
-# Прямой запуск файла (`python app/widgets/oscilloscope/flux_widget.py` или кнопка
-# Run в IDE): абсолютные импорты `app.*` и promoted-виджеты из .ui работают только
-# когда модуль исполняется в контексте пакета. Перезапускаем его как
-# app.widgets.oscilloscope.flux_widget, добавив корень репозитория в sys.path.
-if __name__ == "__main__" and __package__ in (None, ""):
-    import os
-    import runpy
-    import sys
-
-    _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    if _root not in sys.path:
-        sys.path.insert(0, _root)
-    runpy.run_module("app.widgets.oscilloscope.flux_widget", run_name="__main__", alter_sys=True)
-    raise SystemExit(0)
 
 import math
 from pathlib import Path

@@ -24,21 +24,6 @@ cmd_wind_read_mem / *_settings):
 """
 from __future__ import annotations
 
-# Прямой запуск файла (`python app/plugins/connection/connection_bar.py` или
-# кнопка Run в IDE): абсолютные импорты `app.*` и promoted-виджеты из .ui
-# работают только когда модуль исполняется в контексте пакета. Перезапускаем его
-# как app.plugins.connection.connection_bar, добавив корень репозитория в sys.path.
-if __name__ == "__main__" and __package__ in (None, ""):
-    import os
-    import runpy
-    import sys
-
-    _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    if _root not in sys.path:
-        sys.path.insert(0, _root)
-    runpy.run_module("app.plugins.connection.connection_bar", run_name="__main__", alter_sys=True)
-    raise SystemExit(0)
-
 import asyncio
 import getpass
 import socket
@@ -65,7 +50,7 @@ from app.plugins.connection.connection_settings import (
 )
 from app.src.components.log.config import get_logger, log_s
 from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
-from app.src.components.modbus.modbus_var import ModbusVar
+from app.src.components.modbus.modbus_var import ModbusReg
 from app.src.components.modbus.worker import ModbusWorker
 
 # Единая высота контролов панели — продублирована в connection_bar.ui.
@@ -302,7 +287,7 @@ class ModbusRelayServer:
             get_logger(__name__).info("Modbus TCP сервер остановлен")
 
 
-class ConnectionBar(QtWidgets.QWidget, ModbusVar):
+class ConnectionBar(QtWidgets.QWidget, ModbusReg):
     """Постоянная нижняя панель связи + бэкенд подключения ДДИИ.
 
     ● статус │ [Serial|TCP] │ ⚙ │ [Подключить] … State: ЦМ ✓ · МПП ✓
@@ -638,7 +623,7 @@ class ConnectionBar(QtWidgets.QWidget, ModbusVar):
             try:
                 if self.client:
                     await self.client.write_registers(
-                        address=self.DDII_SWITCH_MODE, values=self.SILENT_MODE, slave=self.cm_id
+                        address=self.reg_ctrl.DEBUG_MODE_SWITCH, values=1, slave=self.cm_id
                     )
                     await log_s(self.mw.send_handler.mess)
                     self.status_CM = 1
@@ -837,12 +822,10 @@ class ConnectionBar(QtWidgets.QWidget, ModbusVar):
         )
         cm_cli = cli if self.settings.poll_cm else self._null_client
         mpp_cli = cli if self.settings.poll_mpp else self._null_client
-        # serial_log_enabled передаём явно обеим командам: их конструкторы дёргают
-        # глобальный set_serial_log_enabled, и без этого TX/RX-дамп в терминале
-        # включался бы или нет в зависимости от того, какая команда создана последней.
+
         slog = self.serial_log_enabled
         cm = ModbusCMCommand(cm_cli, logger, serial_log_enabled=slog)
-        # CM_ID — константа ModbusVar; подменяем на экземпляре адресом из настроек
+
         cm.CM_ID = self.cm_id
         try:
             mpp = ModbusMPPCommand(mpp_cli, logger, self.mpp_id, serial_log_enabled=slog)
