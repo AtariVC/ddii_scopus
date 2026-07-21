@@ -10,7 +10,7 @@ from PyQt6 import QtWidgets
 from qtpy.uic import loadUi
 
 from dark_pro_widgets import theme
-from dark_pro_widgets.buttons import PrimaryButton
+from dark_pro_widgets.buttons import ToggleButton
 
 from app.plugins.connection.connection_bar import ConnectionBar
 from app.src.components.modbus.worker import ModbusWorker
@@ -23,12 +23,13 @@ from app.widgets.oscilloscope.graph_widget import GraphWidget
 _COUNTER_MODULUS = 4096
 
 
-class _RunButton(PrimaryButton):
+class _RunButton(ToggleButton):
     """Акцентная кнопка запуска. Адаптер под загрузчик .ui, который создаёт
     promoted-виджет как ``Class(parent)``."""
 
     def __init__(self, parent=None):
-        super().__init__("", variant="accent", parent=parent)
+        super().__init__()
+
 
 
 class RunControlWidget(QtWidgets.QDialog):
