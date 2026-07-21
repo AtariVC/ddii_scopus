@@ -48,7 +48,7 @@ from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
 from app.widgets.viewer_hdf5.explorer_hdf5_widget import ExplorerHDF5Widget
 from app.widgets.viewer_hdf5.filter_viewer_widget import FilterViewerWidget
 from app.widgets.viewer_hdf5.graph_viewer_widget import GraphViewerWidget
-from app.widgets.oscilloscope.autotest_control import AutotestControl
+from app.widgets.oscilloscope.test_impact_ctrl import TestImpactControl
 
 _FONT = theme.FONT_FAMILY.split(",")[0].strip()
 
@@ -133,33 +133,29 @@ class MainUIRenderer(QtWidgets.QMainWindow):
         self.test_runner_widget: TestRunnerWidget = TestRunnerWidget()
         self.mpp_settings_widget: MppSettingsWidget = MppSettingsWidget(self)
         self.cm_settings_widget: CmSettingsWidget = CmSettingsWidget(self)
-        self.autotest_control: AutotestControl = AutotestControl(self)
+        self.test_impact_ctrl: TestImpactControl = TestImpactControl(self)
 
     # --- модель экранов ------------------------------------------------------
     def screen_model(self) -> dict:
         """экран -> {иконка, крошка, сайдбар: {секция: виджет}, рабочая область, инспектор}."""
         return {
-            "Осциллограф": {
+            "Измерение": {
                 "icon": "board",
-                "breadcrumb": "2 детектора · телескоп совпадений",
+                "breadcrumb": "Электроны · Протоны · ТЗЧ",
                 "sidebar": {"Меню запуска": self.run_control_widget,
-                            "Тестовые импульсы": self.autotest_control},
+                            "Тестовое воздействие": self.test_impact_ctrl},
                 "work": self.w_graph_widget,
                 "inspector": {"Счётчик частиц": self.flux_widget},
             },
-            "Настройка": {
-                "icon": "settings",
-                "breadcrumb": "Параметры прибора и связи",
-                "sidebar": {
-                    "МПП": self.mpp_settings_widget,
-                    "ЦМ: Питание": self.cm_settings_widget,
-                },
-                # параметры связи — в нижней панели по кнопке ⚙ (ТЗ §8)
-                "work": None,
-                "inspector": None,
+            "Смотрилка": {
+                "icon": "history",
+                "breadcrumb": "Архив прогонов",
+                "sidebar": {"Файл менеджер": self.explorer_hdf5_widget},
+                "work": self.graph_viewer_widget,
+                "inspector": {"Фильтр кадров": self.graph_filter_widget},
             },
-            "Диагностика": {
-                "icon": "bug-report",
+            "Управление и настройка": {
+                "icon": "settings",
                 "breadcrumb": "Телеметрия и журнал событий",
                 "sidebar": {
                     "Опрос телеметрии": self.telemetry_poll_widget,
@@ -169,13 +165,17 @@ class MainUIRenderer(QtWidgets.QMainWindow):
                 "work": self.test_tables_widget,
                 "inspector": None,
             },
-            "Вьюер": {
-                "icon": "history",
-                "breadcrumb": "Архив прогонов",
-                "sidebar": {"Файл менеджер": self.explorer_hdf5_widget},
-                "work": self.graph_viewer_widget,
-                "inspector": {"Фильтр кадров": self.graph_filter_widget},
+            "Общее состояние прибора": {
+                "icon": "bug-report",
+                "breadcrumb": "Параметры прибора и связи",
+                "sidebar": {
+                    "МПП": self.mpp_settings_widget,
+                    "ЦМ: Питание": self.cm_settings_widget,
+                },
+                "work": None,
+                "inspector": None,
             },
+
         }
 
     # --- сборка окна ---------------------------------------------------------

@@ -77,8 +77,6 @@ class MppReg():
     OSCILL_CH0                         = 0xA000
     OSCILL_CH1                         = 0xA200
 
-    
-
     MPP_LEVEL_TRIG                     = 1
     MPP_TRIG_CNT_CLEAR                 = 11
 

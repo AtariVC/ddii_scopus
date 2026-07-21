@@ -21,7 +21,7 @@ from app.widgets.oscilloscope.graph_widget import GraphWidget
 
 
 
-class AutotestControl(QtWidgets.QDialog):
+class TestImpactControl(QtWidgets.QDialog):
     spinBox_dur_imp_us: QtWidgets.QSpinBox
     pushButton_impact: PrimaryButton
 
@@ -29,7 +29,7 @@ class AutotestControl(QtWidgets.QDialog):
         super().__init__()
         self.parent = args[0]
         self.logger = logger
-        loadUi(Path(__file__).parent.joinpath("autotest_control.ui"), self)
+        loadUi(Path(__file__).parent.joinpath("test_impact_ctrl.ui"), self)
         self.w_ser_dialog: ConnectionBar = self.parent.w_ser_dialog  # type: ignore
         self.mw = ModbusWorker()
         self.pushButton_impact.clicked.connect(self.pushButton_impact_handler)
@@ -70,10 +70,10 @@ if __name__ == "__main__":
         logger=logger,
 
     )
-    widget = AutotestControl(host_parent)
+    widget = TestImpactControl(host_parent)
 
     host = QtWidgets.QWidget()
-    host.setWindowTitle("Автотест — виджет")
+    host.setWindowTitle("Воздействие — виджет")
     host.setStyleSheet(f"background-color: {theme.BG};")
     layout = QtWidgets.QVBoxLayout(host)
     layout.setContentsMargins(16, 16, 16, 16)
