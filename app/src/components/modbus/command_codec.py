@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import Any, Optional, TypeVar, overload
+from typing import Any, Optional, ParamSpec, overload
 
 from pymodbus.pdu import ModbusResponse
 
@@ -13,19 +13,24 @@ class ModbusCommandError(Exception):
     pass
 
 
-F = TypeVar("F", bound=Callable[..., Awaitable[ModbusResponse]])
+P = ParamSpec("P")
+
+# Декоратор объявляет то, что реально делает: команда возвращает ModbusResponse,
+# а обёртка кодирует его в bytes (см. wrapper ниже).
+_Command = Callable[P, Awaitable[ModbusResponse]]
+_Encoded = Callable[P, Awaitable[bytes]]
 
 
 @overload
-def mb_encode(func: F) -> F: ...
+def mb_encode(func: _Command[P]) -> _Encoded[P]: ...
 
 
 @overload
-def mb_encode(*, serial_log: Optional[bool] = None) -> Callable[[F], F]: ...
+def mb_encode(*, serial_log: Optional[bool] = None) -> Callable[[_Command[P]], _Encoded[P]]: ...
 
 
-def mb_encode(func: Optional[F] = None, *, serial_log: Optional[bool] = None):
-    def decorator(command: F) -> F:
+def mb_encode(func: Optional[Callable[..., Any]] = None, *, serial_log: Optional[bool] = None):
+    def decorator(command: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(command)
         async def wrapper(self: Any, *args: Any, **kwargs: Any) -> bytes:
             try:

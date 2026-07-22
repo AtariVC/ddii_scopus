@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 from pathlib import Path
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, TypedDict
 
 from loguru import logger
 import numpy as np
@@ -18,9 +18,19 @@ from app.src.components.parsers.custom_parsers import Parsers
 from app.src.event.event import Event
 from app.src.util.async_task_manager import AsyncTaskManager
 from app.widgets.oscilloscope.graph_widget import GraphWidget
+from types import SimpleNamespace
 
 # 12-битные внешние счётчики (0..4095) — для детекции переполнения/сброса
 _COUNTER_MODULUS = 4096
+
+
+class _DrawArgs(TypedDict):
+    """Общие параметры draw_graph"""
+    name_file_save_data: str
+    name_data: str
+    path_to_save: Path
+    save_log: bool
+    clear: bool
 
 
 class _RunButton(ToggleButton):
@@ -109,7 +119,7 @@ class RunControlWidget(QtWidgets.QDialog):
         self._prev_hcp = self._acc_hcp = None
         self._counter_modulus = _COUNTER_MODULUS
 
-        self._apply_theme_for_checkbox()
+        # self._apply_theme_for_checkbox()
         self.init_flags()
         self.lineEdit_trigger.editingFinished.connect(self._on_trigger_changed)
         self._on_trigger_changed()
@@ -118,27 +128,6 @@ class RunControlWidget(QtWidgets.QDialog):
         self.w_ser_dialog.disconnected.connect(self.on_serial_disconnected)
         self.pushButton_run.clicked.connect(self.pushButton_run_handler)
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
-
-    # ===== оформление =====
-    def _apply_theme_for_checkbox(self) -> None:
-        check = (Path(__file__).resolve().parents[3] / "icon" / "check.svg").as_posix()
-        self.setStyleSheet(
-            f"""
-            QCheckBox {{ spacing: 8px; background: transparent; }}
-            QCheckBox::indicator {{
-                width: 18px; height: 18px;
-                border: 1px solid {theme.BORDER};
-                border-radius: 5px;
-                background: {theme.FIELD_BG};
-            }}
-            QCheckBox::indicator:hover {{ border: 1px solid {theme.ACCENT}; }}
-            QCheckBox::indicator:checked {{
-                background: {theme.ACCENT};
-                border: 1px solid {theme.ACCENT};
-                image: url("{check}");
-            }}
-            """
-        )
 
     # ===== флаги =====
     def init_flags(self) -> None:
@@ -305,6 +294,13 @@ class RunControlWidget(QtWidgets.QDialog):
             if self.flags[self.enable_trig_meas_flag]:
                 await self.mpp_cmd.set_level(lvl)
                 await self.mpp_cmd.start_measure(on=1)
+            common: _DrawArgs = {
+                "name_file_save_data": self.name_file_save,
+                "name_data": self.name_data,
+                "path_to_save": self.path_to_save,
+                "save_log": save,
+                "clear": True,
+            }
             while 1:
                 if not self.w_ser_dialog.is_modbus_ready():
                     await self._stop_measuring("Потеряно соединение")
@@ -329,42 +325,20 @@ class RunControlWidget(QtWidgets.QDialog):
                     save = (peak0 & 0xFFF > lvl) or (peak1 & 0xFFF > 5)
                 else:
                     save = False
+                # общие параметры отрисовки — одни на оба канала
                 try:
-                    data_pips = await self.graph_widget.gp_pips.draw_graph(
-                        result_ch0_int,
-                        name_file_save_data=self.name_file_save,
-                        name_data=self.name_data,
-                        path_to_save=self.path_to_save,
-                        save_log=save,
-                        clear=True,
-                    )
-                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(
-                        result_ch1_int,
-                        name_file_save_data=self.name_file_save,
-                        name_data=self.name_data,
-                        path_to_save=self.path_to_save,
-                        save_log=save,
-                        clear=True,
-                    )
+                    common["clear"] = True
+                    data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, **common)
+                    data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, **common)
+                    common["clear"] = False
                     await self.graph_widget.hp_pips.draw_hist(
-                        [max(data_pips[1])],
-                        name_file_save_data=self.name_file_save,
-                        name_data=self.name_data,
-                        path_to_save=self.path_to_save,
-                        save_log=save,
-                    )
+                        [max(data_pips[1])],**common)
                     await self.graph_widget.hp_sipm.draw_hist(
-                        [max(data_sipm[1])],
-                        name_file_save_data=self.name_file_save,
-                        name_data=self.name_data,
-                        path_to_save=self.path_to_save,
-                        save_log=save,
+                        [max(data_sipm[1])],**common
                     )
                     self.graph_widget.refresh_badges()
                 except asyncio.exceptions.CancelledError:
                     return None
-        except asyncio.CancelledError:
-            ...
         except Exception as e:
             await self._stop_measuring(f"Ошибка (осциллограммы): {e}")
             return
@@ -394,6 +368,13 @@ class RunControlWidget(QtWidgets.QDialog):
         self._prev_electron = self._acc_electron = None
         self._prev_proton = self._acc_proton = None
         self._prev_hcp = self._acc_hcp = None
+        common: _DrawArgs = {
+            "name_file_save_data": self.name_file_save,
+            "name_data": self.name_data,
+            "path_to_save": self.path_to_save,
+            "save_log": self.save_log_file,
+            "clear": False,
+        }
         while 1:
             await asyncio.sleep(self.delay)
             if not self.w_ser_dialog.is_modbus_ready():
@@ -436,10 +417,7 @@ class RunControlWidget(QtWidgets.QDialog):
                     data = result_hist32_int + result_hist16_int + result_hcp_hist_int
                 await self.graph_widget.hp_counter.draw_hist(
                     data, bin_count=len(data),
-                    name_file_save_data=self.name_file_save,
-                    name_data=self.name_data,
-                    path_to_save=self.path_to_save,
-                    save_log=self.save_log_file,
+                    **common,
                     data_is_hist=True,
                 )
                 self.graph_widget.refresh_badges()
@@ -456,15 +434,22 @@ class RunControlWidget(QtWidgets.QDialog):
         self._prev_electron = self._acc_electron = None
         self._prev_proton = self._acc_proton = None
         self._prev_hcp = self._acc_hcp = None
+        common: _DrawArgs = {
+            "name_file_save_data": self.name_file_save,
+            "name_data": self.name_data,
+            "path_to_save": self.path_to_save,
+            "save_log": self.save_log_file,
+            "clear": False,
+        }
         while 1:
             await asyncio.sleep(0.0005)
             if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение")
                 return
             try:
-                result_acq1: bytes = await self.mpp_cmd.get_acq1()
-                result_acq2: bytes = await self.mpp_cmd.get_acq2()
-                result_tmp_count: bytes = await self.mpp_cmd.get_tmp_count()
+                result_acq1 = await self.mpp_cmd.get_acq1()
+                result_acq2 = await self.mpp_cmd.get_acq2()
+                result_tmp_count = await self.mpp_cmd.get_tmp_count()
             except Exception as e:
                 await self._stop_measuring(f"Ошибка чтения пиков АЦП: {e}")
                 return
@@ -473,6 +458,7 @@ class RunControlWidget(QtWidgets.QDialog):
             acq1: list[int] = await self.parser.mpp_pars_16b(result_acq1)
             acq2: list[int] = await self.parser.mpp_pars_16b(result_acq2)
             tmp_count: list[int] = await self.parser.mpp_pars_16b(result_tmp_count)
+
             acq1_value = acq1[0] if acq1 else 0
             acq2_value = acq2[0] if acq2 else 0
             tmp_count_value = tmp_count[0] if tmp_count else 0
@@ -483,19 +469,13 @@ class RunControlWidget(QtWidgets.QDialog):
                     self.TmpCount = tmp_count_value
                     await self.graph_widget.hp_pips.draw_hist(
                         [acq1_value], bin_count=4096,
-                        name_file_save_data=self.name_file_save,
-                        name_data=self.name_data,
-                        path_to_save=self.path_to_save,
-                        save_log=self.save_log_file,
                         data_is_hist=False,
+                        **common
                     )
                     await self.graph_widget.hp_sipm.draw_hist(
                         [acq2_value], bin_count=4096,
-                        name_file_save_data=self.name_file_save,
-                        name_data=self.name_data,
-                        path_to_save=self.path_to_save,
-                        save_log=self.save_log_file,
                         data_is_hist=False,
+                        **common
                     )
                     self.graph_widget.refresh_badges()
             except asyncio.exceptions.CancelledError as e:
@@ -532,9 +512,7 @@ class RunControlWidget(QtWidgets.QDialog):
 
 if __name__ == "__main__":
     import sys
-    from types import SimpleNamespace
-
-    from dark_pro_widgets import qss, theme
+    from dark_pro_widgets import qss
 
     from app.src.components.log.config import log_init
     from app.widgets.oscilloscope.flux_widget import FluxWidget

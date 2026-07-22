@@ -1,9 +1,5 @@
 import asyncio
-import datetime
 from pathlib import Path
-from typing import Awaitable, Callable
-
-import numpy as np
 import qasync
 from PyQt6 import QtWidgets
 from qtpy.uic import loadUi
@@ -14,12 +10,6 @@ from loguru import logger
 
 from app.plugins.connection.connection_bar import ConnectionBar
 from app.src.components.modbus.worker import ModbusWorker
-from app.src.components.parsers.custom_parsers import Parsers
-from app.src.event.event import Event
-from app.src.util.async_task_manager import AsyncTaskManager
-from app.widgets.oscilloscope.graph_widget import GraphWidget
-
-
 
 class TestImpactControl(QtWidgets.QDialog):
     spinBox_dur_imp_us: QtWidgets.QSpinBox
@@ -44,6 +34,7 @@ class TestImpactControl(QtWidgets.QDialog):
             return
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         await self.cm_cmd.set_gpio_impact_autotest()
+
 
 if __name__ == "__main__":
     import sys

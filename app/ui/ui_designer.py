@@ -4,15 +4,12 @@
     [рельс] [ сайдбар | рабочая область | инспектор      ]
     [ ● Подключено │ Serial TCP │ ⚙ │ Подключить … State ]
 
-Оболочка окна поднимается из ``window_linker_new.ui`` через ``loadUi`` — как и
-в прежнем ``window_linker.py``: .ui даёт QMainWindow, меню, статусбар и пустые
-слоты, а код наполняет их по ``screen_model()``. Динамика (рельс, страницы
-стека, колонки экрана) собирается в Python, потому что зависит от модели.
+Оболочка окна поднимается из ``ui_designer.ui`` через ``loadUi``. Рельс, страницы стека, колонки экрана собирается в Python, потому что зависит от модели.
 
 Слоты из .ui: ``layout_rail``, ``label_title``/``label_crumb``, ``stack``,
 ``layout_connection``.
 
-Запуск (из корня проекта):  python main.py  ·  python -m app.ui.window_linker_new
+Запуск (из корня проекта):  python main.py  ·  python -m app.ui.ui_designer
 """
 
 import asyncio
@@ -60,7 +57,7 @@ INSPECTOR_WIDTH = 344
 WORK_BG = theme.FIELD_BG
 
 
-class MainUIRenderer(QtWidgets.QMainWindow):
+class MainUIDesigner(QtWidgets.QMainWindow):
     coroutine_get_client_finished = QtCore.pyqtSignal()
 
     shared_bfr_update_event: Event
@@ -73,7 +70,7 @@ class MainUIRenderer(QtWidgets.QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path(__file__).parent.joinpath("window_linker_new.ui"), self)
+        loadUi(Path(__file__).parent.joinpath("ui_designer.ui"), self)
 
         self.shared_bfr_update_event = Event(str)  # общий буфер обмена данными
         self.mw: ModbusWorker = ModbusWorker()
@@ -319,7 +316,7 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qss.build_stylesheet())  # тема ddii
 
-    w: MainUIRenderer = MainUIRenderer()
+    w: MainUIDesigner = MainUIDesigner()
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)

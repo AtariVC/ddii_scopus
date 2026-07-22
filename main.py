@@ -6,13 +6,13 @@ from PyQt6 import QtWidgets
 
 from dark_pro_widgets import qss
 
-from app.ui.window_linker_new import MainUIRenderer
+from app.ui.ui_designer import MainUIDesigner
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qss.build_stylesheet())
 
-    w: MainUIRenderer = MainUIRenderer()
+    w: MainUIDesigner = MainUIDesigner()
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)

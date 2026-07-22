@@ -44,7 +44,7 @@ class GraphPen():
         
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data: list, name_file_save_data: Optional[str] = None, name_data: Optional[str] = None, path_to_save: Optional[Path] = None, save_log=False, clear=False, filter: Optional[Callable] = None):
+    async def draw_graph(self, data: list, name_file_save_data: Optional[str] = None, name_data: Optional[str] = None, path_to_save: Optional[Path] = None, save_log=False, clear=False, filter: Optional[Callable] = None, *args):
         try:
             if any(isinstance(item, float) for item in data):
                 data = list(map(int, data))
