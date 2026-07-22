@@ -10,7 +10,7 @@ import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
 from qtpy.uic import loadUi
 
-from app.widgets.viewer_hdf5.explorer_hdf5_widget import ExplorerHDF5Widget
+from app.widgets.viewer_hdf5.explorer_widget import ExplorerHDF5Widget
 from app.src.components.log.config import get_logger, log_init
 
 from app.src.event.event import Event

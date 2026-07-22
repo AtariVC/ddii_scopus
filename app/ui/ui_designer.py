@@ -42,7 +42,7 @@ from app.widgets.settings.mpp_settings_widget import MppSettingsWidget
 from app.widgets.tests.runner_widget import TestRunnerWidget
 from app.widgets.tests.tables_widget import TestTablesWidget
 from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
-from app.widgets.viewer_hdf5.explorer_hdf5_widget import ExplorerHDF5Widget
+from app.widgets.viewer_hdf5.explorer_widget import ExplorerHDF5Widget
 from app.widgets.viewer_hdf5.filter_viewer_widget import FilterViewerWidget
 from app.widgets.viewer_hdf5.graph_viewer_widget import GraphViewerWidget
 from app.widgets.oscilloscope.test_impact_ctrl import TestImpactControl
@@ -87,7 +87,7 @@ class MainUIDesigner(QtWidgets.QMainWindow):
         self._tint_titlebar()
 
     def _tint_titlebar(self) -> None:
-        """Красит системную рамку .
+        """Красит системную рамку окна.
         """
         if sys.platform != "win32" or self._titlebar_tinted:
             return

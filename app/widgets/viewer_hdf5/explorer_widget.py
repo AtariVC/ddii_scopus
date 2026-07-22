@@ -1,9 +1,7 @@
 import asyncio
 import os
-import struct
 import sys
-import time
-import platform
+from dark_pro_widgets.buttons import PrimaryButton
 
 from pathlib import Path
 from typing import Awaitable, Callable, Dict, Optional, Sequence, Union
@@ -41,16 +39,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 class ExplorerHDF5Widget(QtWidgets.QDialog):
     lineEdit_path_edit: QtWidgets.QLineEdit
-    pushButton_down: QtWidgets.QPushButton
-    pushButton_browser: QtWidgets.QPushButton
-    pushButton_close_hdf5: QtWidgets.QPushButton
-    pushButton_up: QtWidgets.QPushButton
+    pushButton_down: PrimaryButton
+    pushButton_browser: PrimaryButton
+    pushButton_close_hdf5: PrimaryButton
+    pushButton_up: PrimaryButton
     columnView_explorer: QtWidgets.QColumnView
     treeView_file_tree: QtWidgets.QTreeView
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path(__file__).parent.joinpath("explorer_hdf5_widget.ui"), self)
+        loadUi(Path(__file__).parent.joinpath("explorer_widget.ui"), self)
         self.history = []
         self.history_index = -1
         self.double_clicked_event = Event(str)
@@ -330,6 +328,7 @@ if __name__ == "__main__":
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
+    app
 
     mw.show()
 

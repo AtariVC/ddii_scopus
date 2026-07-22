@@ -22,9 +22,9 @@ class TestImpactControl(QtWidgets.QDialog):
         loadUi(Path(__file__).parent.joinpath("test_impact_ctrl.ui"), self)
         self.w_ser_dialog: ConnectionBar = self.parent.w_ser_dialog  # type: ignore
         self.mw = ModbusWorker()
+        self.pushButton_impact.setVariant("neutral")
         self.pushButton_impact.clicked.connect(self.pushButton_impact_handler)
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
-
 
     # ===== запуск/остановка =====
     @qasync.asyncSlot()
@@ -34,7 +34,6 @@ class TestImpactControl(QtWidgets.QDialog):
             return
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
         await self.cm_cmd.set_gpio_impact_autotest()
-
 
 if __name__ == "__main__":
     import sys

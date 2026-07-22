@@ -76,7 +76,7 @@
         <number>3</number>
        </property>
        <item row="0" column="1">
-        <widget class="QPushButton" name="pushButton_up">
+        <widget class="PrimaryButton" name="pushButton_up">
          <property name="maximumSize">
           <size>
            <width>50</width>
@@ -108,7 +108,7 @@
         </widget>
        </item>
        <item row="0" column="3">
-        <widget class="QPushButton" name="pushButton_close_hdf5">
+        <widget class="PrimaryButton" name="pushButton_close_hdf5">
          <property name="maximumSize">
           <size>
            <width>50</width>
@@ -124,7 +124,7 @@
         </widget>
        </item>
        <item row="0" column="4">
-        <widget class="QPushButton" name="pushButton_browser">
+        <widget class="PrimaryButton" name="pushButton_browser">
          <property name="maximumSize">
           <size>
            <width>115</width>
@@ -140,7 +140,7 @@
         </widget>
        </item>
        <item row="0" column="0">
-        <widget class="QPushButton" name="pushButton_down">
+        <widget class="PrimaryButton" name="pushButton_down">
          <property name="maximumSize">
           <size>
            <width>50</width>
@@ -183,6 +183,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PrimaryButton</class>
+   <extends>QPushButton</extends>
+   <header>dark_pro_widgets.buttons</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
