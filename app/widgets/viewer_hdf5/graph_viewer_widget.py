@@ -5,48 +5,112 @@ from dataclasses import dataclass
 
 from pathlib import Path
 
+import numpy as np
+import pyqtgraph as pg
 import qasync
 import qtmodern.styles
 from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtGui import QColor
 from qtpy.uic import loadUi
 
+from dark_pro_widgets import theme, PlaybackBar
+
 from app.widgets.viewer_hdf5.explorer_widget import ExplorerHDF5Widget
+from app.widgets.oscilloscope.flux_widget import format_count
 from app.src.components.log.config import get_logger, log_init
 
 from app.src.event.event import Event
 from app.src.components.plot.plot_renderer import GraphPen, HistPen
 from app.src.util.write_data_to_file import read_hdf5_file, write_to_hdf5_file
 
+_FONT = theme.FONT_FAMILY.split(",")[0].strip()
+_MONO = theme.MONO_FAMILY.split(",")[0].strip()
+
+# Цвет закреплён за каналом: и для графика, и для точки у заголовка карточки.
+COLOR_PIPS = theme.PIPS        # зелёный
+COLOR_SIPM = theme.SIPM        # янтарный
+COLOR_COUNTER = theme.ACCENT   # синий
+
+# Цифры в бейджах приглушённые, чтобы не спорить с цветом канала.
+BADGE_COLOR = theme.TEXT_DIM
+
+
+def _rgb(hex_color: str, alpha: int | None = None) -> tuple:
+    """'#3fb950' -> (63, 185, 80[, alpha]) — GraphPen/HistPen ждут кортеж."""
+    color = QColor(hex_color)
+    rgb = (color.red(), color.green(), color.blue())
+    return rgb if alpha is None else (*rgb, alpha)
+
 
 class GraphViewerWidget(QtWidgets.QWidget):
     verticalLayout_graph: QtWidgets.QVBoxLayout
-    vLayout_hist_EdE: QtWidgets.QVBoxLayout
     vLayout_hist_pips: QtWidgets.QVBoxLayout
     vLayout_hist_sipm: QtWidgets.QVBoxLayout
     vLayout_hist_counter: QtWidgets.QVBoxLayout
     vLayout_pips: QtWidgets.QVBoxLayout
     vLayout_sipm: QtWidgets.QVBoxLayout
-    label_counter_data: QtWidgets.QLabel
-    label_time_data: QtWidgets.QLabel
-    horizontalSlider_time_scale: QtWidgets.QSlider
+    vLayout_playback: QtWidgets.QVBoxLayout
+    playback: PlaybackBar
+    # карточки и бейджи
+    card_pips: QtWidgets.QFrame
+    card_sipm: QtWidgets.QFrame
+    card_hist_pips: QtWidgets.QFrame
+    card_hist_sipm: QtWidgets.QFrame
+    card_counter: QtWidgets.QFrame
+    badge_pips: QtWidgets.QLabel
+    badge_sipm: QtWidgets.QLabel
+    badge_hist_pips: QtWidgets.QLabel
+    badge_hist_sipm: QtWidgets.QLabel
+    badge_counter: QtWidgets.QLabel
 
     slider_update_event: Event
 
     def __init__(self, *args) -> None:
         super().__init__()
         loadUi(Path(__file__).parent.joinpath("graph_viewer_widget.ui"), self)
+        # Графики должны быть в теме независимо от точки входа.
+        pg.setConfigOptions(antialias=True, background=theme.PANEL_BG, foreground=theme.TEXT_DIM)
         self.pen_init()
+        self._apply_theme()
         self.massageBox = QtWidgets.QMessageBox()
         self.massageBox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
         self.logger = log_init()
         self.slider_update_event = Event(int)
         self.parent_hdf5_path = ""
+        self._init_playback()
         if __name__ != "__main__":
             self.parent = args[0]
             self.explorer: ExplorerHDF5Widget = self.parent.explorer_hdf5_widget  # type: ignore
             self.explorer.double_clicked_event.subscribe(self.open_graphs)
-            self.horizontalSlider_time_scale.actionTriggered.connect(lambda: self.slider_graphs_updater())
         # External filter widget will control filtering/navigation
+
+    def _init_playback(self) -> None:
+        """Транспорт покадрового просмотра — готовый виджет из dark_pro_widgets."""
+        self.playback = PlaybackBar(total_frames=1, frame=1, time_text="—")
+        self.vLayout_playback.addWidget(self.playback)
+        # Слайдер и кнопки ⏮/⏭ шлют frameChanged; play/pause — playToggled.
+        self.playback.frameChanged.connect(lambda _v: self.slider_graphs_updater())
+        self.playback.playToggled.connect(self._on_play_toggled)
+        # Авто-проигрывание: таймер прокручивает кадры, пока нажат play.
+        self._play_timer = QtCore.QTimer(self)
+        self._play_timer.setInterval(100)  # ~10 кадров/с
+        self._play_timer.timeout.connect(self._advance_frame)
+
+    def _on_play_toggled(self, playing: bool) -> None:
+        if playing and self.amount_measurements:
+            self._play_timer.start()
+        else:
+            self._play_timer.stop()
+
+    def _advance_frame(self) -> None:
+        """Шаг авто-проигрывания: следующий кадр, в конце — стоп."""
+        nxt = self.playback.current_frame() + 1
+        if self.amount_measurements == 0 or nxt > self.amount_measurements:
+            self._play_timer.stop()
+            self.playback.set_playing(False)
+            return
+        self.playback.set_frame(nxt)  # не эмитит frameChanged
+        self.slider_graphs_updater()
 
     def pen_init(self) -> None:
         self.task = None  # type: ignore
@@ -61,19 +125,107 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.dataset_sipm: dict = {}
         self.dataset_h_pips: dict = {}
         self.dataset_h_sipm: dict = {}
-        self.gp_pips = GraphPen(layout=self.vLayout_pips, name=self.name_pen_pips, color=(255, 255, 0))
-        self.gp_sipm = GraphPen(layout=self.vLayout_sipm, name=self.name_pen_sipm, color=(0, 255, 255))
-        self.hp_pips = HistPen(layout=self.vLayout_hist_pips, name=self.name_pen_h_pips, color=(255, 0, 0, 150))
-        self.hp_sipm = HistPen(layout=self.vLayout_hist_sipm, name=self.name_pen_h_sipm, color=(0, 0, 255, 150))
+        # Цвет закреплён за каналом: PIPS — зелёный, SiPM — янтарный (осциллограмма
+        # и гистограмма одним цветом), счётчик событий — синий.
+        self.gp_pips = GraphPen(layout=self.vLayout_pips, name=self.name_pen_pips, color=_rgb(COLOR_PIPS))
+        self.gp_sipm = GraphPen(layout=self.vLayout_sipm, name=self.name_pen_sipm, color=_rgb(COLOR_SIPM))
+        self.hp_pips = HistPen(layout=self.vLayout_hist_pips, name=self.name_pen_h_pips, color=_rgb(COLOR_PIPS, 150))
+        self.hp_sipm = HistPen(layout=self.vLayout_hist_sipm, name=self.name_pen_h_sipm, color=_rgb(COLOR_SIPM, 150))
         self.counter_h = HistPen(
-            layout=self.vLayout_hist_counter, name=self.name_pen_counter, color=(123, 195, 121, 150)
+            layout=self.vLayout_hist_counter, name=self.name_pen_counter, color=_rgb(COLOR_COUNTER, 150)
         )
         # Filtering state managed by external widget
+
+    # ===== оформление =====
+    def _apply_theme(self) -> None:
+        """Карточки, точки у заголовков и тёмные области графиков — как на макете."""
+        cards = {
+            self.card_pips: COLOR_PIPS,
+            self.card_hist_pips: COLOR_PIPS,
+            self.card_sipm: COLOR_SIPM,
+            self.card_hist_sipm: COLOR_SIPM,
+            self.card_counter: COLOR_COUNTER,
+        }
+        for card, color in cards.items():
+            name = card.objectName()
+            card.setStyleSheet(
+                f"QFrame {{ background-color: {theme.PANEL_BG};"
+                f" border: 1px solid {theme.BORDER}; border-radius: 8px; }}"
+            )
+            title = card.findChild(QtWidgets.QLabel, f"title_{name}")
+            if title is not None:
+                title.setStyleSheet(
+                    f"color: {theme.TEXT}; font-family: '{_FONT}'; font-size: 15px; "
+                    "font-weight: 600; background: transparent; border: none;"
+                )
+            dot = card.findChild(QtWidgets.QLabel, f"dot_{name}")
+            if dot is not None:
+                dot.setStyleSheet(
+                    f"color: {color}; font-size: 13px; background: transparent; border: none;"
+                )
+
+        # Гистограммы: контур той же краской, что и заливка (в движке он белый).
+        for hist in (self.hp_pips, self.hp_sipm, self.counter_h):
+            hist.outline_pen = pg.mkPen(hist.color, width=1.6)
+
+        for widget in (self.gp_pips.plt_widget, self.gp_sipm.plt_widget,
+                       self.hp_pips.hist_widget, self.hp_sipm.hist_widget,
+                       self.counter_h.hist_widget):
+            self._style_plot(widget)
+
+        # Начальное состояние бейджей (транспорт оформлен самим PlaybackBar).
+        for badge in (self.badge_pips, self.badge_sipm):
+            self._set_badge(badge, "кадр —", BADGE_COLOR)
+        for badge in (self.badge_hist_pips, self.badge_hist_sipm):
+            self._set_badge(badge, "Σ —", BADGE_COLOR)
+        self._set_badge(self.badge_counter, "по кадрам", BADGE_COLOR)
+
+    @staticmethod
+    def _style_plot(widget: pg.PlotWidget) -> None:
+        """Тёмная область с еле заметной сеткой — как на макете."""
+        widget.setBackground(theme.FIELD_BG)
+        widget.setMenuEnabled(True)
+        item = widget.getPlotItem()
+        item.showButtons()
+        item.showGrid(x=True, y=True, alpha=0.12)
+        item.setContentsMargins(4, 4, 4, 4)
+        for axis in ("left", "bottom"):
+            ax = item.getAxis(axis)
+            ax.setPen(pg.mkPen(theme.BORDER))
+            ax.setTextPen(pg.mkPen(theme.TEXT_DIM))
+
+    def _set_badge(self, badge: QtWidgets.QLabel, text: str, color: str) -> None:
+        badge.setText(text)
+        badge.setStyleSheet(
+            f"color: {color}; font-family: '{_MONO}'; font-size: 12px; font-weight: 600; "
+            "background: transparent; border: none;"
+        )
+
+    @staticmethod
+    def _total_of(hist) -> float:
+        """Σ накопленной гистограммы (движок хранит её в ``accum_data``)."""
+        try:
+            data = getattr(hist, "accum_data", None)
+            if data is not None and len(data):
+                return float(np.sum(data))
+        except Exception:
+            ...
+        return 0.0
+
+    def _refresh_badges(self, frame: int) -> None:
+        """Бейджи: у детекторов — номер кадра, у гистограмм — Σ накопленного."""
+        for badge in (self.badge_pips, self.badge_sipm):
+            self._set_badge(badge, f"кадр {frame}", BADGE_COLOR)
+        for hist, badge in ((self.hp_pips, self.badge_hist_pips),
+                            (self.hp_sipm, self.badge_hist_sipm)):
+            total = self._total_of(hist)
+            self._set_badge(badge, f"Σ {format_count(total)}" if total else "Σ —", BADGE_COLOR)
 
     def open_graphs(self, path: str) -> None:
         """Открывает графики из файла"""
         self.parent_hdf5_path = path
-        self.horizontalSlider_time_scale.setValue(0)
+        self.playback.set_playing(False)
+        self._play_timer.stop()
         self.dataset_pips = read_hdf5_file(Path(path), self.name_pen_pips)
         self.dataset_sipm = read_hdf5_file(Path(path), self.name_pen_sipm)
         self.dataset_h_pips = read_hdf5_file(Path(path), self.name_pen_h_pips)
@@ -82,13 +234,13 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.amount_measurements = len(self.dataset_h_pips)
         if self.amount_measurements:
             self.measure_time_list = list(self.dataset_h_pips.keys())
-            time_str = self.time_formater(self.measure_time_list[0])
-            self.label_time_data.setText(f"{time_str}")
-            self.horizontalSlider_time_scale.setMaximum(self.amount_measurements)
-            self.label_counter_data.setText(f"{self.horizontalSlider_time_scale.value()}/{self.amount_measurements}")
-            self.horizontalSlider_time_scale.setValue(1)
+            self.playback.set_total_frames(self.amount_measurements)
+            self.playback.set_frame(1)
+            # PlaybackBar.set_frame не эмитит frameChanged — рисуем первый кадр сами.
+            self.slider_graphs_updater()
         else:
-            self.label_time_data.setText(f"Нет данных")
+            self.playback.set_total_frames(1)
+            self.playback.set_time("нет данных")
         # Filter state is external; nothing to reset here
 
     def time_formater(self, input_time_str: str) -> str:
@@ -114,11 +266,12 @@ class GraphViewerWidget(QtWidgets.QWidget):
         if self.amount_measurements == 0:
             return
         try:
-            current_val = self.horizontalSlider_time_scale.value()
+            current_val = self.playback.current_frame()
             self.slider_update_event.emit(current_val)
-            self.label_counter_data.setText(f"{current_val}/{self.amount_measurements}")
+            # PlaybackBar сам показывает «кадр N / total»; ему нужна только метка
+            # времени (без префикса «Время:» — его виджет добавляет сам).
             time_str = self.time_formater(self.measure_time_list[current_val - 1])
-            self.label_time_data.setText(f"{time_str}")
+            self.playback.set_time(time_str.replace("Время: ", ""))
             if self.dataset_pips:
                 data_pips = list(self.dataset_pips.values())[current_val - 1].T
                 await self.gp_pips.draw_graph(data_pips[1], clear=True)
@@ -144,6 +297,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
                 await self.counter_h.draw_hist(data_h_counter[1].tolist(), clear=True, data_is_hist=True)
             else:
                 self.counter_h.hist_clear()
+            self._refresh_badges(current_val)
             # await self.hp_pips.draw_hist(data_pips[1], clear=True)
             # await self.hp_sipm.draw_hist(data_sipm[1], clear=True)
         except Exception as ex:
@@ -204,7 +358,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
     def go_to_index(self, idx: int) -> None:
         try:
             if 1 <= idx <= self.amount_measurements:
-                self.horizontalSlider_time_scale.setValue(idx)
+                self.playback.set_frame(idx)  # не эмитит frameChanged
                 try:
                     # schedule async update
                     asyncio.create_task(self.slider_graphs_updater())

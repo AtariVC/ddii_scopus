@@ -63,7 +63,7 @@ if __name__ == "__main__":
     widget = TestImpactControl(host_parent)
 
     host = QtWidgets.QWidget()
-    host.setWindowTitle("Воздействие — виджет")
+    host.setWindowTitle("Тестовое воздействие — demo")
     host.setStyleSheet(f"background-color: {theme.BG};")
     layout = QtWidgets.QVBoxLayout(host)
     layout.setContentsMargins(16, 16, 16, 16)
@@ -71,6 +71,10 @@ if __name__ == "__main__":
     layout.addStretch()
 
     host.resize(328, 420)
+    # Красим ДО show(): winId() создаёт нативное окно, а тёмный заголовок
+    # (immersive dark mode) на Windows 10 применяется только если выставлен
+    # до первой отрисовки заголовка. Красим верхнеуровневое окно (host, не widget).
+    theme.tint_window_board(int(host.winId()))
     host.show()
 
     with event_loop:

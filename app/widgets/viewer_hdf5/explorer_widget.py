@@ -9,7 +9,6 @@ from typing import Awaitable, Callable, Dict, Optional, Sequence, Union
 import h5py
 import numpy as np
 import qasync
-import qtmodern.styles
 from pymodbus.client import AsyncModbusSerialClient
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtCore import QAbstractItemModel, QDir, QModelIndex, Qt
@@ -28,7 +27,6 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qtmodern.windows import ModernWindow
 from qtpy.uic import loadUi
 
 from app.src.event.event import Event
@@ -319,18 +317,31 @@ class _CustomIconProvider(QFileIconProvider):
 
 
 if __name__ == "__main__":
+    import sys
+
+    from dark_pro_widgets import qss, theme
+
+    from app.src.components.log.config import log_init
+    from app.widgets.oscilloscope.flux_widget import FluxWidget
     app = QtWidgets.QApplication(sys.argv)
-    qtmodern.styles.dark(app)
-    w: ExplorerHDF5Widget = ExplorerHDF5Widget()
-    mw: ModernWindow = ModernWindow(w)
-    mw.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)  # fix flickering on resize window
+    app.setStyleSheet(qss.build_stylesheet())
+    widget: ExplorerHDF5Widget = ExplorerHDF5Widget()
+
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
-    app
+    
+    host = QtWidgets.QWidget()
+    host.setWindowTitle("Файловое дерево — demo")
+    host.setStyleSheet(f"background-color: {theme.BG};")
+    layout = QtWidgets.QVBoxLayout(host)
+    layout.setContentsMargins(16, 16, 16, 16)
+    layout.addWidget(widget)
+    layout.addStretch()
 
-    mw.show()
+    theme.tint_window_board(int(host.winId()))
+    host.show()
 
     with event_loop:
         try:

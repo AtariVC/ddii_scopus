@@ -44,6 +44,12 @@ class FilterViewerWidget(QtWidgets.QWidget):
         self._pos: int = -1
         self.pushButton_save_frame.clicked.connect(self.pushButton_save_frame_handler)
 
+        # Главные действия панели — акцентной синей краской (как на макете).
+        for btn in (self.pushButton_apply, self.pushButton_save_frame):
+            btn.setProperty("accent", True)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+
         # self._build_ui()
         self._wire()
 
