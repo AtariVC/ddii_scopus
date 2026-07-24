@@ -1,13 +1,6 @@
 """Бэкенд нижней панели подключения ДДИИ.
 
-Вид панели вынесен в [connection_bar_ui.ConnectionBarUI] (готов к переносу в
-``dark_pro_widgets``). Здесь — только бэкенд: Serial / TCP‑клиент, relay‑сервер,
-проверка ЦМ/МПП, фабрика команд, настройки соединения. ``ConnectionBar``
-наследует UI-виджет и добавляет к нему логику связи, поэтому ``w_ser_dialog`` —
-это по-прежнему один объект: и виджет нижней панели, и точка входа в бэкенд.
-
-Публичный API для потребителей (run_meas / run_flux / ddii_control /
-cmd_wind_read_mem / *_settings):
+Публичный API для потребителей:
   * сигналы ``coroutine_finished``, ``disconnected``;
   * ``get_commands_interface(logger) -> (ModbusCMCommand, ModbusMPPCommand)``;
   * ``check_connection(only_cm, only_mpp) -> bool`` (async);
@@ -15,10 +8,6 @@ cmd_wind_read_mem / *_settings):
   * атрибуты ``client``, ``tcp_client``, ``relay_server``, ``mpp_id``;
   * ``label_state_w`` — QLabel состояния (алиас статуса панели).
 
-Презентационный API (``set_connected``/``set_transport``/``set_state`` и геттеры
-``is_connected``/``current_transport``) и презентационные сигналы
-(``connectToggled``/``transportChanged``/``portChanged``/``settingsClicked``)
-наследуются от ``ConnectionBarUI``.
 """
 from __future__ import annotations
 
