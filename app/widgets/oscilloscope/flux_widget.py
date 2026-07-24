@@ -18,7 +18,7 @@ from PyQt6.QtCore import pyqtProperty
 from qtpy.uic import loadUi
 
 from dark_pro_widgets import theme
-from dark_pro_widgets.stat_tile import StatTile
+from dark_pro_widgets import StatTile
 
 from app.src.components.log.config import log_init
 from app.src.components.modbus.worker import ModbusWorker

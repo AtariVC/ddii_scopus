@@ -1,346 +1,81 @@
-import asyncio
-import os
-import sys
-from dark_pro_widgets.buttons import PrimaryButton
+"""Файл-менеджер экрана «Вьюер».
+"""
 
 from pathlib import Path
-from typing import Awaitable, Callable, Dict, Optional, Sequence, Union
 
-import h5py
-import numpy as np
-import qasync
-from pymodbus.client import AsyncModbusSerialClient
-from PyQt6 import QtCore, QtWidgets
-from PyQt6.QtCore import QAbstractItemModel, QDir, QModelIndex, Qt
-from PyQt6.QtGui import QFileSystemModel, QIcon
-from PyQt6.QtWidgets import QFileIconProvider
-from PyQt6.QtWidgets import (
-    QApplication,
-    QFileDialog,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QMessageBox,
-    QPushButton,
-    QSplitter,
-    QTreeView,
-    QVBoxLayout,
-    QWidget,
-)
-from qtpy.uic import loadUi
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QVBoxLayout
+
+from dark_pro_widgets import FileTree
 
 from app.src.event.event import Event
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
+# Вьюер работает только с HDF5 — остальные записи в списке игнорируем.
+_HDF5_SUFFIXES = (".h5", ".hdf5")
 
-class ExplorerHDF5Widget(QtWidgets.QDialog):
-    lineEdit_path_edit: QtWidgets.QLineEdit
-    pushButton_down: PrimaryButton
-    pushButton_browser: PrimaryButton
-    pushButton_close_hdf5: PrimaryButton
-    pushButton_up: PrimaryButton
-    columnView_explorer: QtWidgets.QColumnView
-    treeView_file_tree: QtWidgets.QTreeView
+
+class ExplorerHDF5Widget(QtWidgets.QWidget):
+    """Левый сайдбар «Вьюер»: обёртка над ``FileTree``.
+
+        double_clicked_event (Event[str]): путь открытого HDF5-файла.
+    """
+
+    double_clicked_event: Event
 
     def __init__(self) -> None:
         super().__init__()
-        loadUi(Path(__file__).parent.joinpath("explorer_widget.ui"), self)
-        self.history = []
-        self.history_index = -1
         self.double_clicked_event = Event(str)
-        # self.hdf5_model = HDF5TreeModel()
-        self.fs_model = QFileSystemModel()
-        # Set custom icons for specific file types (e.g., HDF5)
-        self.fs_model.setIconProvider(_CustomIconProvider(base_path=PROJECT_ROOT))
-        self.fs_model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot)
-        self.current_model = None
-        self.current_folder = str(PROJECT_ROOT.joinpath("log/scope"))  # Начинаем с домашней директории
-        self.load_folder(self.current_folder)
-        self.init_widget()
 
-    def init_widget(self):
-        self.treeView_file_tree.setHeaderHidden(False)
-        self.treeView_file_tree.hideColumn(2)
-        self.treeView_file_tree.setColumnWidth(0, 200)
-        self.treeView_file_tree.resizeColumnToContents(2)
-        self.treeView_file_tree.doubleClicked.connect(self.on_item_double_clicked)
-        self.lineEdit_path_edit.setPlaceholderText("Current folder path...")
-        self.lineEdit_path_edit.returnPressed.connect(self.navigate_to_path)
-        self.pushButton_down.clicked.connect(self.navigate_down)
-        self.pushButton_up.clicked.connect(self.navigate_up)
-        self.pushButton_browser.clicked.connect(self.explorer)
-        # Rename buttons to reflect history navigation
+        self.tree = FileTree(parent=self)
 
-    def navigate_to_path(self):
-        path = self.lineEdit_path_edit.text().strip()
-        if not path:
-            QMessageBox.warning(self, "Path Error", "Path is empty")
-            return
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.tree)
 
-        if os.path.isdir(path):
-            self.load_folder(path)
-            return
+        # FileTree сам ходит по каталогам; наружу пробрасываем только файлы.
+        self.tree.fileActivated.connect(self._on_file_activated)
 
-        if os.path.isfile(path) and (path.lower().endswith(".hdf5") or path.lower().endswith(".h5")):
-            # Emit event to handle HDF5 file open externally
+        start = PROJECT_ROOT / "log" / "scope"
+        self.tree.set_path(str(start if start.is_dir() else PROJECT_ROOT))
+
+    def _on_file_activated(self, path: str) -> None:
+        if path.lower().endswith(_HDF5_SUFFIXES):
             self.double_clicked_event.emit(path)
-            return
-
-        if os.path.exists(path):
-            QMessageBox.information(self, "Unsupported Path", "Please select a folder or an HDF5 file (*.h5, *.hdf5)")
-        else:
-            QMessageBox.warning(self, "Path Error", "The specified path does not exist")
-
-    def navigate_down(self):
-        # Back in history
-        if self.history_index > 0:
-            self.history_index -= 1
-            self.load_folder(self.history[self.history_index], add_to_history=False)
-
-    def navigate_up(self):
-        # Forward in history
-        if self.history_index < len(self.history) - 1:
-            self.history_index += 1
-            self.load_folder(self.history[self.history_index], add_to_history=False)
-
-    def explorer(self):
-        # Use native file dialog on all OS to choose HDF5 file
-        start_dir = self.current_folder if os.path.isdir(self.current_folder) else str(Path(self.current_folder).parent)
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select HDF5 file",
-            start_dir,
-            "HDF5 Files (*.h5 *.hdf5);;All Files (*)",
-        )
-        if file_path:
-            self.lineEdit_path_edit.setText(file_path)
-            # Navigate to open the selected file
-            self.navigate_to_path()
-
-    def on_item_double_clicked(self, index):
-        if not index.isValid():
-            return
-        # if self.current_model == "hdf5":
-        #     item = index.internalPointer()
-        #     h5_item = item["item"]
-
-        if self.current_model == "fs":
-            path = self.fs_model.filePath(index)
-
-            if os.path.isdir(path):
-                self.load_folder(path)
-            elif os.path.isfile(path) and (path.lower().endswith(".hdf5") or path.lower().endswith(".h5")):
-                # self.load_hdf5_file(path)
-                self.double_clicked_event.emit(path)
-
-    def load_folder(self, folder_path, add_to_history=True):
-        if not os.path.isdir(folder_path):
-            return
-
-        self.current_folder = folder_path
-        self.lineEdit_path_edit.setText(folder_path)
-
-        if add_to_history:
-            self.history = self.history[: self.history_index + 1]
-            self.history.append(folder_path)
-            self.history_index += 1
-            # Обновляем кнопки навигации, если они есть
-            # self.back_button.setEnabled(self.history_index > 0)
-            # self.forward_button.setEnabled(self.history_index < len(self.history) - 1)
-
-        self.fs_model.setRootPath(folder_path)
-        self.treeView_file_tree.setModel(self.fs_model)
-        self.treeView_file_tree.setRootIndex(self.fs_model.index(folder_path))
-        self.current_model = "fs"
-        # Update nav buttons availability
-        try:
-            self.pushButton_down.setEnabled(self.history_index > 0)
-            self.pushButton_up.setEnabled(self.history_index < len(self.history) - 1)
-        except Exception:
-            ...
-
-    # def load_hdf5_file(self, file_path):
-    # if self.hdf5_model.load_hdf5(file_path):
-    #     folder_path = os.path.dirname(file_path)
-    #     self.lineEdit_path_edit.setText(folder_path)
-    #     self.current_folder = folder_path
-
-    # self.treeView_file_tree.setModel(self.hdf5_model)
-    # self.current_model = "hdf5"
-    # self.treeView_file_tree.expandAll()
-
-
-class HDF5TreeModel(QAbstractItemModel):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.root_item = {"name": "Root", "path": "", "item": None, "parent": None, "children": []}
-        self.hdf5_file = None
-        self.file_path = ""
-
-    def load_hdf5(self, file_path):
-        try:
-            if self.hdf5_file:
-                self.hdf5_file.close()
-
-            self.hdf5_file = h5py.File(file_path, "r")
-            self.file_path = file_path
-
-            self.root_item = {
-                "name": os.path.basename(file_path),
-                "path": "/",
-                "item": self.hdf5_file,
-                "parent": None,
-                "children": [],
-            }
-
-            self.beginResetModel()
-            self._populate_children(self.root_item)
-            self.endResetModel()
-            return True
-        except Exception as e:
-            QMessageBox.critical(None, "Error", f"Failed to open HDF5 file: {str(e)}")
-            return False
-
-    def _populate_children(self, parent_item):
-        if not isinstance(parent_item["item"], h5py.Group):
-            return
-
-        for name, item in parent_item["item"].items():
-            child_path = parent_item["path"] + "/" + name if parent_item["path"] != "/" else "/" + name
-            child = {"name": name, "path": child_path, "item": item, "parent": parent_item, "children": []}
-            parent_item["children"].append(child)
-
-            if isinstance(item, h5py.Group):
-                self._populate_children(child)
-
-    def index(self, row, column, parent=QModelIndex()):
-        if not self.hasIndex(row, column, parent):
-            return QModelIndex()
-
-        if not parent.isValid():
-            parent_item = self.root_item
-        else:
-            parent_item = parent.internalPointer()
-
-        if row < len(parent_item["children"]):
-            child_item = parent_item["children"][row]
-            return self.createIndex(row, column, child_item)
-
-        return QModelIndex()
-
-    def parent(self, index):
-        if not index.isValid():
-            return QModelIndex()
-
-        child_item = index.internalPointer()
-        parent_item = child_item["parent"]
-
-        if parent_item is None or parent_item == self.root_item:
-            return QModelIndex()
-
-        grandparent = parent_item["parent"]
-        if grandparent is None:
-            return QModelIndex()
-
-        row = grandparent["children"].index(parent_item)
-        return self.createIndex(row, 0, parent_item)
-
-    def rowCount(self, parent=QModelIndex()):
-        if parent.column() > 0:
-            return 0
-
-        if not parent.isValid():
-            parent_item = self.root_item
-        else:
-            parent_item = parent.internalPointer()
-
-        return len(parent_item["children"])
-
-    def columnCount(self, parent=QModelIndex()):
-        return 1
-
-    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
-        if not index.isValid():
-            return None
-
-        item = index.internalPointer()
-
-        if role == Qt.ItemDataRole.DisplayRole:
-            return item["name"]
-
-        return None
-
-    def headerData(self, section, orientation, role):
-        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
-            return "HDF5 Structure"
-        return None
-
-    def hasChildren(self, parent=QModelIndex()):
-        if not parent.isValid():
-            return True
-
-        item = parent.internalPointer()
-        return len(item["children"]) > 0
-
-    def close_file(self):
-        if self.hdf5_file is not None:
-            self.hdf5_file.close()
-            self.hdf5_file = None
-            self.beginResetModel()
-            self.root_item = {"name": "Root", "path": "", "item": None, "parent": None, "children": []}
-            self.endResetModel()
-
-
-class _CustomIconProvider(QFileIconProvider):
-    def __init__(self, base_path: Path) -> None:
-        super().__init__()
-        icon_dir = base_path / "icon"
-        self._icons: Dict[str, QIcon] = {
-            "h5": QIcon(str(icon_dir / "HDF_logo_(2017).svg")),
-            "hdf5": QIcon(str(icon_dir / "HDF_logo_(2017).svg")),
-        }
-
-    # Overload for PyQt6: receives QFileInfo
-    def icon(self, file_info):  # type: ignore[override]
-        try:
-            if file_info.isFile():
-                ext = file_info.suffix().lower()
-                if ext in self._icons:
-                    ico = self._icons[ext]
-                    if not ico.isNull():
-                        return ico
-        except Exception:
-            ...
-        return super().icon(file_info)
 
 
 if __name__ == "__main__":
+    import asyncio
     import sys
 
-    from dark_pro_widgets import qss, theme
+    import qasync
 
-    from app.src.components.log.config import log_init
-    from app.widgets.oscilloscope.flux_widget import FluxWidget
-    app = QtWidgets.QApplication(sys.argv)
+    from dark_pro_widgets import qss, theme
+    from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget
+
+    app = QApplication(sys.argv)
     app.setStyleSheet(qss.build_stylesheet())
-    widget: ExplorerHDF5Widget = ExplorerHDF5Widget()
 
     event_loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(event_loop)
     app_close_event = asyncio.Event()
     app.aboutToQuit.connect(app_close_event.set)
-    
-    host = QtWidgets.QWidget()
+
+    widget = ExplorerHDF5Widget()
+    widget.double_clicked_event.subscribe(lambda p: print("открыть HDF5:", p))
+
+    host = QWidget()
     host.setWindowTitle("Файловое дерево — demo")
     host.setStyleSheet(f"background-color: {theme.BG};")
-    layout = QtWidgets.QVBoxLayout(host)
+    layout = QVBoxLayout(host)
     layout.setContentsMargins(16, 16, 16, 16)
     layout.addWidget(widget)
     layout.addStretch()
 
-    theme.tint_window_board(int(host.winId()))
+    host.resize(320, 760)
+    theme.tint_window_board(int(host.winId()))  # тёмный заголовок ДО show()
     host.show()
 
     with event_loop:

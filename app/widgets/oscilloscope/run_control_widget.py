@@ -10,7 +10,7 @@ from PyQt6 import QtWidgets
 from qtpy.uic import loadUi
 
 from dark_pro_widgets import theme
-from dark_pro_widgets.buttons import ToggleButton
+from dark_pro_widgets.widgets.controls.buttons import ToggleButton
 
 from app.plugins.connection.connection_bar import ConnectionBar
 from app.src.components.modbus.worker import ModbusWorker

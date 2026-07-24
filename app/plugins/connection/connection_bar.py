@@ -40,8 +40,7 @@ from qtpy.uic import loadUi
 from custom.icons import load_svg_icon
 
 from dark_pro_widgets import theme
-from dark_pro_widgets.buttons import PrimaryButton
-from dark_pro_widgets.segmented_control import SegmentedControl
+from dark_pro_widgets import PrimaryButton, SegmentedControl
 
 from app.plugins.connection.connection_settings import (
     ConnectionSettings,

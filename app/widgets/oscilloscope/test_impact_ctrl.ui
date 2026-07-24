@@ -72,7 +72,7 @@
   <customwidget>
    <class>PrimaryButton</class>
    <extends>QPushButton</extends>
-   <header>dark_pro_widgets.buttons</header>
+   <header>dark_pro_widgets.widgets.controls.buttons</header>
   </customwidget>
  </customwidgets>
  <resources/>

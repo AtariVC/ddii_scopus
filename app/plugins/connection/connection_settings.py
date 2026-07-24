@@ -23,7 +23,7 @@ from PyQt6.QtGui import QIntValidator
 from qtpy.uic import loadUi
 
 from dark_pro_widgets import theme
-from dark_pro_widgets.combo_box import ComboBox
+from dark_pro_widgets import ComboBox
 
 from app.src.components.modbus.modbus_var import ModbusReg
 

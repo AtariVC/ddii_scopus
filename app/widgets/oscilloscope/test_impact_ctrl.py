@@ -5,7 +5,7 @@ from PyQt6 import QtWidgets
 from qtpy.uic import loadUi
 
 from dark_pro_widgets import theme
-from dark_pro_widgets.buttons import PrimaryButton
+from dark_pro_widgets.widgets.controls.buttons import PrimaryButton
 from loguru import logger
 
 from app.plugins.connection.connection_bar import ConnectionBar
