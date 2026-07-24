@@ -307,6 +307,9 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
     coroutine_finished = pyqtSignal()
     tcp_status_changed = pyqtSignal(str, bool)
     disconnected = pyqtSignal()
+    # (ЦМ доступен, МПП доступен) — шлётся при смене доступности, в том числе
+    # при частичной связи. По нему виджеты гасят/включают свои кнопки.
+    device_state_changed = pyqtSignal(bool, bool)
 
     # Аннотации виджетов из .ui
     _dot: QtWidgets.QLabel
@@ -509,6 +512,7 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
         """
         if not self._connected:
             self.set_state("—", theme.TEXT_DIM)
+            self._notify_device_state()  # иначе кнопки остались бы активными
             return
 
         parts: list[str] = []
@@ -524,6 +528,7 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
 
         if not parts:  # режим без устройств — теоретически недостижимо
             self.set_state("—", theme.TEXT_DIM)
+            self._notify_device_state()
             return
 
         if all(oks):
@@ -535,6 +540,34 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
         self.set_state(" · ".join(parts), color)
         # слева — короткий вердикт тем же цветом; справа остаётся детализация
         self._set_status(verdict, color)
+        self._notify_device_state()
+
+    # ===== доступность устройств (для кнопок в виджетах) =====
+    @property
+    def cm_ready(self) -> bool:
+        """ЦМ опрашивается и отвечает."""
+        return bool(self.is_modbus_ready() and self.settings.poll_cm and self.status_CM)
+
+    @property
+    def mpp_ready(self) -> bool:
+        """МПП опрашивается и отвечает."""
+        return bool(self.is_modbus_ready() and self.settings.poll_mpp and self.status_MPP)
+
+    def device_hint(self, device: str) -> str:
+        """Почему устройство недоступно — текст для подсказки на кнопке."""
+        poll = self.settings.poll_cm if device == "ЦМ" else self.settings.poll_mpp
+        if not self.is_modbus_ready():
+            return "Нет подключения к прибору"
+        if not poll:
+            return f"{device} отключён в настройках опроса (⚙)"
+        return f"{device} не отвечает"
+
+    def _notify_device_state(self) -> None:
+        """Шлёт ``device_state_changed`` только при реальной смене доступности."""
+        state = (self.cm_ready, self.mpp_ready)
+        if state != getattr(self, "_last_device_state", None):
+            self._last_device_state = state
+            self.device_state_changed.emit(*state)
 
     # ===== кнопка подключения =====
     @qasync.asyncSlot()

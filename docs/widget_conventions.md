@@ -159,7 +159,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
 - Асинхронные обработчики — `@qasync.asyncSlot()` (без своей `asyncio`-петли слот не
   выполнится). Ручной запуск из кода — `asyncio.create_task(self.some_async_slot())`.
 - Логи — `loguru` (`from loguru import logger`) либо `log_init()` / `get_logger()`
-  из `app.src.components.log.config`. В библиотечном коде — стандартный `logging`.
+  из `app.src.components.log.config`.
 - Косметика (покраска заголовка и т.п.) не должна ронять приложение: ошибку логируем на
   `debug` и продолжаем, не пробрасываем.
 
