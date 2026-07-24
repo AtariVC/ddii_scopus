@@ -13,7 +13,6 @@ from pymodbus.datastore import (
     ModbusSequentialDataBlock,
 )
 
-# Твои служебные классы
 try:
     from app.src.components.modbus.modbus_var import ModbusReg
     from app.src.components.log.config import log_s

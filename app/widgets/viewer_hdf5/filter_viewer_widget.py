@@ -10,9 +10,10 @@ from PyQt6.QtCore import Qt
 import sys
 from PyQt6.QtGui import QIntValidator
 from qtpy.uic import loadUi
+from PyQt6.QtWidgets import QWidget
+from dark_pro_widgets.widgets.controls import IconButton, PrimaryButton
 
-
-class FilterViewerWidget(QtWidgets.QWidget):
+class FilterViewerWidget(QWidget):
     """Фильтр кадров для Viewer: порог + выбор каналов + навигация.
 
     Ожидает, что родитель передан как MainUIRenderer и содержит graph_viewer_widget.
@@ -22,53 +23,59 @@ class FilterViewerWidget(QtWidgets.QWidget):
     lineEdit_threshold_pips: QtWidgets.QLineEdit
     checkBox_sipm: QtWidgets.QCheckBox
     lineEdit_threshold_sipm: QtWidgets.QLineEdit
-    pushButton_apply: QtWidgets.QPushButton
-    pushButton_prev: QtWidgets.QPushButton
-    pushButton_next: QtWidgets.QPushButton
+    pushButton_filter: PrimaryButton
+    pushButton_prev: IconButton
+    pushButton_next: IconButton
     listWidget_times: QtWidgets.QListWidget
 
-    pushButton_save_frame: QtWidgets.QPushButton
+    pushButton_save_frame: PrimaryButton
     lineEdit_num_frame: QtWidgets.QLineEdit
 
-    def __init__(self, parent) -> None:
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._mw = parent  # MainUIRenderer or None
         loadUi(Path(__file__).parent.joinpath("filter_viewer_widget.ui"), self)
         # Ensure container reports a reasonable minimum height so outer wrapper
         # (create_tab_widget_items) doesn't clamp it to ~40px and hide content
-        self.setMinimumHeight(220)
+        # self.setMinimumHeight(220)
         self._matched: List[int] = []  # 1-based индексы кадров
         if __name__ != "__main__":
             _gw = self._viewer()
             _gw.slider_update_event.subscribe(lambda val: self.lineEdit_num_frame.setText(str(val))) # type: ignore
         self._pos: int = -1
-        self.pushButton_save_frame.clicked.connect(self.pushButton_save_frame_handler)
 
-        # Главные действия панели — акцентной синей краской (как на макете).
-        for btn in (self.pushButton_apply, self.pushButton_save_frame):
-            btn.setProperty("accent", True)
-            btn.style().unpolish(btn)
-            btn.style().polish(btn)
+        # # Главные действия панели — акцентной синей краской (как на макете).
+        # for btn in (self.pushButton_apply, self.pushButton_save_frame):
+        #     btn.setProperty("accent", True)
+        #     if btn.style() is not None:
+        #         btn.style().unpolish(btn)
+        #         btn.style().polish(btn)
 
         # self._build_ui()
+        self._implement_style()
         self._wire()
 
-    
+    def _implement_style(self):
+        self.pushButton_prev.setGlyph("chevron_left")
+        self.pushButton_next.setGlyph("chevron_right")
+        self.pushButton_filter.setVariant("accent")
+        self.pushButton_save_frame.setVariant("blue")
+
     def _wire(self) -> None:
-        self.pushButton_apply.clicked.connect(self._on_apply)
+        self.pushButton_filter.clicked.connect(self._on_filter)
         self.pushButton_prev.clicked.connect(lambda: self._step(-1))
         self.pushButton_next.clicked.connect(lambda: self._step(+1))
         self.listWidget_times.itemClicked.connect(self._on_pick)
+        self.pushButton_save_frame.clicked.connect(self._save_frame)
 
-    def pushButton_save_frame_handler(self):
+    def _save_frame(self):
         num_frame: int = int(self.lineEdit_num_frame.text())
         self._mw.graph_viewer_widget.save_desired_frame_hdf5(num_frame) # type: ignore
-
 
     def _viewer(self):
         return getattr(self._mw, "graph_viewer_widget", None)
 
-    def _on_apply(self):
+    def _on_filter(self):
         gv = self._viewer()
         if gv is None:
             return
@@ -118,8 +125,5 @@ class FilterViewerWidget(QtWidgets.QWidget):
             gv.go_to_index(self._matched[self._pos])
 
 if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
-    qtmodern.styles.dark(app)
-    w = FilterViewerWidget(None)
-    w.show()
-    app.exec()
+    from dark_pro_widgets.core._preview import preview
+    preview(FilterViewerWidget, title="Фильтр кадров — demo", size=(300, 200), stretch=False)

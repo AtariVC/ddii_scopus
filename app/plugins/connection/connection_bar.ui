@@ -80,17 +80,17 @@
   <customwidget>
    <class>_TransportSwitch</class>
    <extends>QFrame</extends>
-   <header>app.plugins.connection.connection_bar</header>
+   <header>app.plugins.connection.connection_bar_ui</header>
   </customwidget>
   <customwidget>
    <class>_ConnectButton</class>
    <extends>QPushButton</extends>
-   <header>app.plugins.connection.connection_bar</header>
+   <header>app.plugins.connection.connection_bar_ui</header>
   </customwidget>
   <customwidget>
    <class>_IconButton</class>
    <extends>QPushButton</extends>
-   <header>app.plugins.connection.connection_bar</header>
+   <header>app.plugins.connection.connection_bar_ui</header>
   </customwidget>
  </customwidgets>
  <resources/>

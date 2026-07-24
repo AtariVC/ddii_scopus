@@ -124,7 +124,38 @@ class GraphViewerWidget(QtWidgets.QWidget):
 
 ---
 
-## 6. Именование
+## 6. Разделение классов на модули
+
+**Когда разделять классы по разным файлам:**
+
+- **Большой объём.** Класс на сотни строк со своей сложной логикой.
+- **Независимость.** Классы решают разные задачи и не зависят друг от друга.
+- **Удобство чтения.** Разделение помогает быстрее находить нужный код.
+
+**Когда держать классы в одном файле:**
+
+- **Вспомогательные классы.** Маленький класс нужен только для работы основного
+  (промоут-адаптеры под `.ui`, мини-модель одной записи).
+- **Логическая связь.** Группа тесно связанных мелких классов (исключения модуля,
+  мини-модель), которые всегда используются вместе.
+
+Ориентир — «одна ответственность на файл»: главный виджет + его обслуга рядом,
+самостоятельная подсистема — отдельно.
+
+**Пример** ([connection_bar.py](../app/plugins/connection/connection_bar.py) — оба случая в одном месте):
+
+- *Оставляем рядом:* промоут-адаптеры `_TransportSwitch` / `_ConnectButton` /
+  `_IconButton` (существуют только чтобы `.ui` собрал `ConnectionBar`) и
+  вложенный `ProxySequentialDataBlock` (мини-модель, живёт только внутри relay).
+- *Кандидат на вынос:* `ModbusRelayServer` — самостоятельная подсистема на ~180
+  строк, не зависящая от виджета; её логично держать в отдельном модуле.
+
+Второй ориентир из библиотеки: `FileItem` вынесен из `file_tree.py` в
+`file_item.py` — независимая мини-модель записи, переиспользуемая виджетом и демо.
+
+---
+
+## 7. Именование
 
 - `objectName` = `<тип><Camel/snake>`: `pushButton_impact`, `lineEdit_threshold_pips`,
   `checkBox_sipm`, `label_time_data`, `spinBox_dur_imp_us`, `listWidget_times`.
@@ -134,7 +165,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
 
 ---
 
-## 7. Связи между виджетами
+## 8. Связи между виджетами
 
 - Зависимости прокидываем через `parent` (главное окно), а сам виджет получает его
   как `args[0]`; к соседям обращаемся через parent:
@@ -154,7 +185,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
 
 ---
 
-## 8. Асинхронность и логи
+## 9. Асинхронность и логи
 
 - Асинхронные обработчики — `@qasync.asyncSlot()` (без своей `asyncio`-петли слот не
   выполнится). Ручной запуск из кода — `asyncio.create_task(self.some_async_slot())`.
@@ -165,46 +196,61 @@ class GraphViewerWidget(QtWidgets.QWidget):
 
 ---
 
-## 9. Автономный запуск виджета (`if __name__ == "__main__"`)
+## 10. Автономный запуск виджета (`if __name__ == "__main__"`)
 
-Каждый виджет должен запускаться в одиночку для отладки. Скелет:
+Каждый виджет должен запускаться в одиночку для отладки. Для этого есть готовый
+хелпер `preview` из `dark_pro_widgets.core` — он сам создаёт `QApplication`,
+применяет тему (`qss.build_stylesheet()`), кладёт виджет в хост-окно и красит
+заголовок. Ручной скелет писать не нужно:
 
 ```python
 if __name__ == "__main__":
+    from dark_pro_widgets.core import preview
+    preview(FilterViewerWidget, title="Фильтр кадров — demo", size=(320, 760), stretch=False)
+```
+
+- Передаём **фабрику** (класс или функция без аргументов), а не готовый объект:
+  QApplication должен существовать раньше любого QWidget, поэтому виджет строится
+  внутри `preview`. Для сложного демо используем функцию:
+  `preview(lambda: _build_demo(), ...)`; можно вернуть и список виджетов.
+- Сигнатура: `preview(build, title="preview", size=None, spacing=14,
+  margins=(24,24,24,24), stretch=True)`.
+
+**Исключение — виджеты с async-слотами** (`@qasync.asyncSlot()`): им нужна
+qasync-петля, а `preview` крутит обычный `app.exec()`, поэтому слоты не выполнятся.
+Для таких виджетов оставляем ручной скелет с `qasync.QEventLoop` (образец —
+[connection_bar.py](../app/plugins/connection/connection_bar.py)). Там же — правило
+покраски заголовка: красим **верхнеуровневое** окно (`host`, не вложенный виджет)
+и **до** `show()` (на Win10 immersive-dark применяется только до первой отрисовки;
+только Windows) — но `preview` это делает сам.
+
+**Сырой запуск без `preview`** (на всякий случай — если хелпер недоступен или нужен
+полный контроль над окном/петлёй). Виджет строим только ПОСЛЕ `QApplication`:
+
+```python
+if __name__ == "__main__":
+    import sys
+    from PyQt6 import QtWidgets
+    from dark_pro_widgets import qss, theme
+
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qss.build_stylesheet())          # тема ddii
-
-    event_loop = qasync.QEventLoop(app)                # для asyncSlot
-    asyncio.set_event_loop(event_loop)
-    app_close_event = asyncio.Event()
-    app.aboutToQuit.connect(app_close_event.set)
 
     host = QtWidgets.QWidget()
     host.setStyleSheet(f"background-color: {theme.BG};")
     layout = QtWidgets.QVBoxLayout(host)
     layout.setContentsMargins(16, 16, 16, 16)
-    layout.addWidget(WidgetClass(host_parent))          # parent при необходимости
+    layout.addWidget(WidgetClass())                    # мок; parent при необходимости
 
-    host.resize(...)
-    theme.tint_window_board(int(host.winId()))          # тёмный заголовок ДО show()
+    host.resize(320, 760)
+    theme.tint_window_board(int(host.winId()))         # тёмный заголовок ДО show()
     host.show()
-
-    with event_loop:
-        try:
-            event_loop.run_until_complete(app_close_event.wait())
-        except asyncio.CancelledError:
-            ...
+    sys.exit(app.exec())                               # для async-слотов — qasync.QEventLoop
 ```
-
-Ключевое:
-- Стиль приложения — `qss.build_stylesheet()`.
-- Красим системный заголовок **верхнеуровневого** окна (`host`, не вложенного виджета)
-  и **до** `show()` (`winId()` создаёт нативное окно; на Win10 immersive-dark
-  применяется только до первой отрисовки). Только Windows.
 
 ---
 
-## 10. Чек-лист перед коммитом виджета
+## 11. Чек-лист перед коммитом виджета
 
 - [ ] Есть пара `<имя>_widget.ui` + `<имя>_widget.py`, имена совпадают.
 - [ ] В `.ui` нет логики и нет хардкод-цветов/шрифтов в `styleSheet`.
@@ -212,6 +258,9 @@ if __name__ == "__main__":
 - [ ] Рантайм-виджеты кладутся в пустые layout-слоты, а не создаются мимо layout.
 - [ ] Цвета/шрифты — из `theme`; варианты кнопок — через свойства (`accent`/`danger`).
 - [ ] Проверено, нет ли готового компонента в `dark_pro_widgets`.
+- [ ] Классы разложены по правилу §6: самостоятельная подсистема — отдельный модуль,
+      обслуга главного класса — рядом.
 - [ ] Сигналы подключены в `__init__`/`_wire()`; обработчики названы по конвенции.
 - [ ] Асинхронные слоты — `@qasync.asyncSlot()`.
-- [ ] Есть рабочий `if __name__ == "__main__"` для автономного запуска.
+- [ ] Есть рабочий `if __name__ == "__main__"` для автономного запуска — через
+      `preview(Factory, …)`; ручной qasync-скелет только если у виджета async-слоты.

@@ -1,11 +1,10 @@
-"""Нижняя панель подключения (ConnectionBar) — обновлённый дизайн + бэкенд.
+"""Бэкенд нижней панели подключения ДДИИ.
 
-Разметка берётся из ``connection_bar.ui`` (loadUi), тема и промоут-виджеты — из
-``dark_pro_widgets``. Бэкенд (Serial / TCP‑клиент / relay‑сервер, проверка
-ЦМ/МПП, фабрика команд) перенесён из
-``main_serial_dialog_tcp.py`` (класс ``SerialConnect``, теперь в !old/),
-поэтому ``ConnectionBar`` — полноценная замена прежнего диалога: его кладут в
-``w_ser_dialog`` и он же служит постоянной нижней панелью (ТЗ §8).
+Вид панели вынесен в [connection_bar_ui.ConnectionBarUI] (готов к переносу в
+``dark_pro_widgets``). Здесь — только бэкенд: Serial / TCP‑клиент, relay‑сервер,
+проверка ЦМ/МПП, фабрика команд, настройки соединения. ``ConnectionBar``
+наследует UI-виджет и добавляет к нему логику связи, поэтому ``w_ser_dialog`` —
+это по-прежнему один объект: и виджет нижней панели, и точка входа в бэкенд.
 
 Публичный API для потребителей (run_meas / run_flux / ddii_control /
 cmd_wind_read_mem / *_settings):
@@ -16,278 +15,41 @@ cmd_wind_read_mem / *_settings):
   * атрибуты ``client``, ``tcp_client``, ``relay_server``, ``mpp_id``;
   * ``label_state_w`` — QLabel состояния (алиас статуса панели).
 
-Презентационный API (совпадает с dark_pro_widgets.ConnectionBar):
-  ``set_connected``/``set_ports``/``set_port``/``set_transport``/``set_mpp``/
-  ``set_state`` и геттеры ``is_connected``/``current_transport``/
-  ``current_port``/``current_mpp`` плюс сигналы ``connectToggled``/
-  ``transportChanged``/``portChanged``.
+Презентационный API (``set_connected``/``set_transport``/``set_state`` и геттеры
+``is_connected``/``current_transport``) и презентационные сигналы
+(``connectToggled``/``transportChanged``/``portChanged``/``settingsClicked``)
+наследуются от ``ConnectionBarUI``.
 """
 from __future__ import annotations
 
 import asyncio
 import getpass
 import socket
-from pathlib import Path
 
 import qasync
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
-from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusSlaveContext
-from pymodbus.server import StartAsyncTcpServer
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from qtpy.uic import loadUi
+from PyQt6.QtCore import pyqtSignal
 
 from custom.icons import load_svg_icon
 
 from dark_pro_widgets import theme
-from dark_pro_widgets import PrimaryButton, SegmentedControl
 
+from app.plugins.connection.connection_bar_ui import ConnectionBarUI
 from app.plugins.connection.connection_settings import (
     ConnectionSettings,
     ConnectionSettingsDialog,
     list_serial_ports,
 )
+from app.plugins.connection.modbus_relay_server import ModbusRelayServer
 from app.src.components.log.config import get_logger, log_s
 from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
 from app.src.components.modbus.modbus_var import ModbusReg
 from app.src.components.modbus.worker import ModbusWorker
 
-# Единая высота контролов панели — продублирована в connection_bar.ui.
-CONTROL_H = 32
-# Фон панели — RGB(19, 20, 23); рельс — theme.FIELD_BG RGB(15, 16, 19).
-BAR_BG = "#131417"
 
-_FONT = theme.FONT_FAMILY.split(",")[0].strip()
-_MONO = theme.MONO_FAMILY.split(",")[0].strip()
-
-
-# --- promotion-адаптеры ------------------------------------------------------
-# Загрузчик .ui создаёт promoted-виджеты только как ``Class(parent)``, а базовые
-# виджеты dark_pro_widgets требуют обязательные аргументы (items/text). Тонкие
-# подклассы дают конструктор ``(parent)`` с нужными умолчаниями. Подключены в
-# connection_bar.ui через <customwidget> (header = этот модуль).
-
-class _TransportSwitch(SegmentedControl):
-    """Сегменты Serial | TCP."""
-
-    def __init__(self, parent=None):
-        super().__init__(["Serial", "TCP"], parent=parent)
-
-
-class _ConnectButton(PrimaryButton):
-    """Кнопка Подключить/Отключить — компактная, акцентная по умолчанию."""
-
-    def __init__(self, parent=None):
-        super().__init__("", variant="accent", compact=True, parent=parent)
-
-
-class _IconButton(QtWidgets.QPushButton):
-    """Плоская иконочная кнопка панели (32×32). Саму иконку ставит владелец —
-    через ``custom.icons.load_svg_icon`` с цветом из темы."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setIconSize(QSize(18, 18))
-        self.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                border: 1px solid transparent;
-                border-radius: 7px;
-            }}
-            QPushButton:hover {{
-                background-color: {theme.FIELD_BG};
-                border: 1px solid {theme.BORDER};
-            }}
-            QPushButton:pressed {{ background-color: #2f343d; }}
-        """)
-
-
-class ModbusRelayServer:
-    """Сервер для ретрансляции Modbus данных (перенесён из SerialConnect)."""
-
-    def __init__(self, serial_client, host="0.0.0.0", port=5012, cm_id: int | None = None, mpp_id: int | None = None):
-        self.serial_client = serial_client
-        self.host = host
-        self.port = port
-        self.server = None  # may be asyncio.Server in some versions
-        self.server_task = None  # asyncio.Task for server lifetime
-        self.context = None
-        self.loop = None
-        self.cm_id = cm_id
-        self.mpp_id = mpp_id
-        self._setup_datastore()
-
-    def _setup_datastore(self):
-        """Настройка хранилища данных Modbus.
-        Создаёт прокси‑блоки, которые пробрасывают чтение/запись в serial‑клиент,
-        а также отдельную область HR[80..] для сообщений идентификации клиентов.
-        """
-        logger = get_logger(__name__)
-
-        class ProxySequentialDataBlock(ModbusSequentialDataBlock):
-            def __init__(self, relay: "ModbusRelayServer", unit_id: int, kind: str):
-                super().__init__(0, [0] * 512)
-                self.relay = relay
-                self.unit_id = unit_id
-                self.kind = kind  # 'hr' | 'ir'
-
-            def getValues(self, address, count=1):  # type: ignore[override]
-                # Служебная область (идентификация клиентов) обслуживается локально
-                try:
-                    if int(address) >= 80:
-                        return super().getValues(address, count)
-                except Exception:
-                    ...
-                cli = self.relay.serial_client
-                if cli is None:
-                    return [0] * int(count)
-                try:
-                    loop = self.relay.loop or asyncio.get_event_loop()
-                    if self.kind == "hr":
-                        fut = asyncio.run_coroutine_threadsafe(
-                            cli.read_holding_registers(int(address), int(count), slave=int(self.unit_id)), loop
-                        )
-                    else:
-                        fut = asyncio.run_coroutine_threadsafe(
-                            cli.read_input_registers(int(address), int(count), slave=int(self.unit_id)), loop
-                        )
-                    resp = fut.result(timeout=2.0)
-                    regs = getattr(resp, "registers", None)
-                    if regs is None:
-                        try:
-                            raw = resp.encode()
-                            regs = [int.from_bytes(raw[i:i + 2], "big") for i in range(0, len(raw), 2)]
-                        except Exception:
-                            regs = [0] * int(count)
-                    return list(regs)[: int(count)]
-                except Exception as e:
-                    logger.error(f"Proxy getValues error ({self.kind}) addr={address} cnt={count}: {e}")
-                    return [0] * int(count)
-
-            def setValues(self, address, values):  # type: ignore[override]
-                # Перехватываем служебную область идентификации — не пробрасываем в прибор
-                try:
-                    if int(address) >= 80:
-                        super().setValues(address, values)
-                        try:
-                            regs = list(values) if isinstance(values, (list, tuple)) else [values]
-                            bb = bytearray()
-                            for v in regs:
-                                try:
-                                    bb.extend(int(v).to_bytes(2, byteorder="big", signed=False))
-                                except Exception:
-                                    pass
-                            text = bb.rstrip(b"\x00").decode(errors="ignore")
-                            if text:
-                                logger.info(f"[TCP SERVER] Новое подключение: {text}")
-                        except Exception:
-                            ...
-                        return
-                except Exception:
-                    ...
-                cli = self.relay.serial_client
-                if cli is None:
-                    return
-                try:
-                    loop = self.relay.loop or asyncio.get_event_loop()
-                    fut = asyncio.run_coroutine_threadsafe(
-                        cli.write_registers(int(address), list(values), slave=int(self.unit_id)), loop
-                    )
-                    fut.result(timeout=2.0)
-                except Exception as e:
-                    logger.error(f"Proxy setValues error addr={address}: {e}")
-
-        # Собираем карту slaves по unit id (ЦМ/МПП)
-        try:
-            slaves: dict[int, ModbusSlaveContext] = {}
-            if self.cm_id is not None:
-                slaves[int(self.cm_id)] = ModbusSlaveContext(
-                    di=ModbusSequentialDataBlock(0, [0] * 64),
-                    co=ModbusSequentialDataBlock(0, [0] * 64),
-                    hr=ProxySequentialDataBlock(self, int(self.cm_id), "hr"),
-                    ir=ProxySequentialDataBlock(self, int(self.cm_id), "ir"),
-                )
-            if self.mpp_id is not None:
-                slaves[int(self.mpp_id)] = ModbusSlaveContext(
-                    di=ModbusSequentialDataBlock(0, [0] * 64),
-                    co=ModbusSequentialDataBlock(0, [0] * 64),
-                    hr=ProxySequentialDataBlock(self, int(self.mpp_id), "hr"),
-                    ir=ProxySequentialDataBlock(self, int(self.mpp_id), "ir"),
-                )
-            if slaves:
-                self.context = ModbusServerContext(slaves=slaves, single=False)
-            else:
-                store = ModbusSlaveContext(
-                    di=ModbusSequentialDataBlock(0, [0] * 64),
-                    co=ModbusSequentialDataBlock(0, [0] * 64),
-                    hr=ModbusSequentialDataBlock(0, [0] * 512),
-                    ir=ModbusSequentialDataBlock(0, [0] * 64),
-                )
-                self.context = ModbusServerContext(slaves=store, single=True)
-        except Exception as e:
-            logger.error(f"Ошибка создания контекста сервера: {e}")
-            store = ModbusSlaveContext(
-                di=ModbusSequentialDataBlock(0, [0] * 64),
-                co=ModbusSequentialDataBlock(0, [0] * 64),
-                hr=ModbusSequentialDataBlock(0, [0] * 512),
-                ir=ModbusSequentialDataBlock(0, [0] * 64),
-            )
-            self.context = ModbusServerContext(slaves=store, single=True)
-
-    async def start_server(self):
-        """Запуск TCP сервера"""
-        logger = get_logger(__name__)
-        try:
-            self.loop = asyncio.get_event_loop()
-            # В ряде версий pymodbus StartAsyncTcpServer является длительно живущей корутиной,
-            # поэтому запускаем её как фоновую задачу, чтобы не блокировать UI-слот.
-            srv_coro = StartAsyncTcpServer(context=self.context, address=(self.host, self.port))
-            self.server_task = asyncio.create_task(srv_coro)
-            # Дадим циклу шанс выполнить привязку сокета и отловить мгновенные ошибки
-            await asyncio.sleep(0.05)
-            if self.server_task.done():
-                # Если задача завершилась мгновенно — проверим на исключение
-                exc = self.server_task.exception()
-                if exc:
-                    logger.error(f"Ошибка запуска сервера: {exc}")
-                    self.server_task = None
-                    return False
-            logger.info(f"Modbus TCP сервер запущен (фоново) на {self.host}:{self.port}")
-            return True
-        except Exception as e:
-            logger.error(f"Ошибка запуска сервера: {e}")
-            return False
-
-    def stop_server(self):
-        """Остановка TCP сервера"""
-        stopped = False
-        # Останавливаем задачу сервера, если запускается как Task
-        if self.server_task:
-            try:
-                self.server_task.cancel()
-            except Exception:
-                pass
-            self.server_task = None
-            stopped = True
-        # Дополнительно пробуем корректно закрыть объект сервера, если он есть
-        if self.server:
-            try:
-                self.server.close()
-                stopped = True
-            except Exception:
-                try:
-                    self.server.server_close()
-                    stopped = True
-                except Exception:
-                    pass
-            self.server = None
-        if stopped:
-            get_logger(__name__).info("Modbus TCP сервер остановлен")
-
-
-class ConnectionBar(QtWidgets.QWidget, ModbusReg):
-    """Постоянная нижняя панель связи + бэкенд подключения ДДИИ.
+class ConnectionBar(ConnectionBarUI, ModbusReg):
+    """Нижняя панель связи ДДИИ = UI (``ConnectionBarUI``) + бэкенд подключения.
 
     ● статус │ [Serial|TCP] │ ⚙ │ [Подключить] … State: ЦМ ✓ · МПП ✓
 
@@ -297,13 +59,10 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
     режима опроса.
     """
 
-    # Презентационные сигналы (совместимость с dark_pro_widgets.ConnectionBar)
-    connectToggled = pyqtSignal(bool)
-    transportChanged = pyqtSignal(str)
-    portChanged = pyqtSignal(str)
-    settingsClicked = pyqtSignal()  # ⚙ нажата (панель сама открывает диалог)
+    # Бэкенд-сигналы (совместимость с прежним SerialConnect).
+    # Презентационные сигналы (connectToggled/transportChanged/portChanged/
+    # settingsClicked) наследуются от ConnectionBarUI.
     settingsChanged = pyqtSignal(object)  # применены новые ConnectionSettings
-    # Бэкенд-сигналы (совместимость с прежним SerialConnect)
     coroutine_finished = pyqtSignal()
     tcp_status_changed = pyqtSignal(str, bool)
     disconnected = pyqtSignal()
@@ -311,20 +70,9 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
     # при частичной связи. По нему виджеты гасят/включают свои кнопки.
     device_state_changed = pyqtSignal(bool, bool)
 
-    # Аннотации виджетов из .ui
-    _dot: QtWidgets.QLabel
-    _status: QtWidgets.QLabel
-    sep1: QtWidgets.QFrame
-    transport: _TransportSwitch
-    settings_btn: _IconButton
-    _btn: _ConnectButton
-    _state_caption: QtWidgets.QLabel
-    _state: QtWidgets.QLabel
-
     def __init__(self, logger=None, parent=None) -> None:
+        # ConnectionBarUI: loadUi, тема, презентационная разводка сигналов.
         super().__init__(parent)
-        # виджеты .ui становятся атрибутами self (см. аннотации выше)
-        loadUi(Path(__file__).parent / "connection_bar.ui", self)
 
         self.logger = logger or get_logger(__name__)
         self.mw = ModbusWorker()
@@ -345,7 +93,6 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
         self.client: AsyncModbusSerialClient | None = None
         self.tcp_client: AsyncModbusTcpClient | None = None
         self.relay_server: ModbusRelayServer | None = None
-        self._connected = False
         # что уже сообщали в лог — гасит повтор одинаковых сообщений (см. _log_state)
         self._log_state_cache: dict[str, str | None] = {}
         # Дамп обмена по serial (TX/RX хексом, как в DockLight). По умолчанию выключен —
@@ -371,64 +118,21 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
 
         self._null_client = _NullModbusClient()
 
-        # --- оформление панели/виджетов (цвета из theme.*) ---
-        self.setObjectName("ConnectionBar")
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setFixedHeight(46)
-        self.setStyleSheet(
-            f"#ConnectionBar {{ background-color: {BAR_BG}; "
-            f"border-top: 1px solid {theme.SEPARATOR}; }}"
-        )
-        self._status.setStyleSheet(
-            f"color: {theme.TEXT}; font-family: '{_FONT}'; background: transparent; border: none;"
-        )
-        self.sep1.setStyleSheet(f"background-color: {theme.BORDER}; border: none;")
-        # SVG-иконки залиты чёрным — перекрашиваем под тему, иначе не видно
+        # SVG-иконка ⚙ залита чёрным — перекрашиваем под тему (иконку ставит владелец UI)
         self.settings_btn.setIcon(load_svg_icon("settings", theme.TEXT_DIM))
-        self._state_caption.setStyleSheet(
-            f"color: {theme.TEXT_DIM}; font-family: '{_MONO}'; background: transparent; border: none;"
-        )
-
         # Алиас для потребителей, которые пишут статус операций (калибровка и т.п.)
         self.label_state_w = self._status
 
-        # --- сигналы ---
-        self.transport.currentTextChanged.connect(self.transportChanged)
-        self._btn.clicked.connect(self._on_btn_clicked)
-        self.settings_btn.clicked.connect(self.open_settings)
+        # --- сигналы: UI шлёт намерение, бэкенд выполняет действие ---
+        self.connectToggled.connect(self._on_conn_toggled)
+        self.settingsClicked.connect(self.open_settings)
 
         # --- начальное состояние ---
         self.transport.setCurrentIndex(0)  # Serial
         self.set_connected(False)
         self._update_state_label()
 
-    # ===== презентационный API (как у dark_pro_widgets.ConnectionBar) =====
-    def _set_dot(self, ok: bool) -> None:
-        self._paint_status(color=theme.OK if ok else theme.TEXT_DIM)
-
-    def _paint_status(self, color: str) -> None:
-        """Красит точку и надпись статуса одним цветом состояния."""
-        self._dot.setStyleSheet(f"color: {color}; background: transparent; border: none;")
-        self._status.setStyleSheet(
-            f"color: {color}; font-family: '{_FONT}'; font-weight: 600; "
-            "background: transparent; border: none;"
-        )
-
-    def _set_status(self, text: str, color: str) -> None:
-        """Короткий вердикт слева: текст + цвет. Детализация по ЦМ/МПП — в State."""
-        self._status.setText(text)
-        self._paint_status(color)
-
-    def set_connected(self, connected: bool) -> None:
-        self._connected = bool(connected)
-        if self._connected:
-            self._set_status("Подключено", theme.OK)
-        else:
-            self._set_status("Отключено", theme.TEXT_DIM)
-        # 'Отключить' — нейтральная тёмная; 'Подключить' — акцентная
-        self._btn.setText("Отключить" if self._connected else "Подключить")
-        self._btn.setVariant("neutral" if self._connected else "accent")
-
+    # ===== настройки/состояние, зависящие от бэкенда =====
     def set_ports(self, ports, current=None) -> None:
         """Совместимость: порт живёт в настройках, список берётся системно."""
         if current:
@@ -438,30 +142,9 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
         self.settings.serial_port = str(port)
         self.settings.save()
 
-    def set_transport(self, name: str) -> None:
-        idx = 0 if name.lower().startswith("serial") else 1
-        self.transport.setCurrentIndex(idx)
-
     def set_mpp(self, mpp) -> None:
         self.settings.mpp_id = int(mpp)
         self.settings.save()
-
-    def set_state(self, text: str, color: str | None = None) -> None:
-        """Прямая установка поля State (обычно вызывается ``_update_state_label``)."""
-        self._state.setText(text)
-        self._state.setStyleSheet(
-            f"color: {color or theme.TEXT_DIM}; font-family: '{_MONO}'; font-weight: 600; "
-            "background: transparent; border: none;"
-        )
-
-    def is_connected(self) -> bool:
-        return self._connected
-
-    def current_transport(self) -> str:
-        return self.transport.currentText()
-
-    def is_serial_transport(self) -> bool:
-        return self.current_transport().lower().startswith("serial")
 
     def current_port(self) -> str:
         """Порт для текущего транспорта: COM-порт либо ``host:port``."""
@@ -487,8 +170,11 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
 
     # ===== настройки =====
     def open_settings(self) -> None:
-        """Модальный диалог параметров соединения (⚙ на панели)."""
-        self.settingsClicked.emit()
+        """Модальный диалог параметров соединения (⚙ на панели).
+
+        Вызывается по ``settingsClicked`` (его шлёт UI при клике по ⚙), поэтому
+        сам сигнал здесь не эмитим — иначе была бы рекурсия.
+        """
         dialog = ConnectionSettingsDialog(self.settings, self)
         if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
             return
@@ -570,14 +256,13 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
             self.device_state_changed.emit(*state)
 
     # ===== кнопка подключения =====
-    @qasync.asyncSlot()
-    async def _on_btn_clicked(self) -> None:
-        # Уведомляем внешних наблюдателей (панель сама выполняет действие)
-        self.connectToggled.emit(not self._connected)
-        if self._connected:
-            await self.disconnect_clicked()
-        else:
+    @qasync.asyncSlot(bool)
+    async def _on_conn_toggled(self, connect_requested: bool) -> None:
+        """Реакция на ``connectToggled`` из UI: подключить или отключить."""
+        if connect_requested:
             await self.connect_clicked()
+        else:
+            await self.disconnect_clicked()
 
     async def connect_clicked(self) -> None:
         """Подключение согласно выбранному транспорту (Serial / TCP-клиент)."""
@@ -902,6 +587,8 @@ class ConnectionBar(QtWidgets.QWidget, ModbusReg):
 
 
 if __name__ == "__main__":
+    # Сырой запуск (памятка §10): у ConnectionBar есть async-слот (кнопка
+    # подключения), поэтому вместо preview нужен ручной qasync-скелет.
     import sys
 
     from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget
@@ -916,6 +603,7 @@ if __name__ == "__main__":
     # хост-окно: бар прижат к низу, как в реальном приложении (ТЗ §8)
     host = QWidget()
     host.setWindowTitle("ConnectionBar — автономный запуск")
+    host.setStyleSheet(f"background-color: {theme.BG};")
     layout = QVBoxLayout(host)
     layout.setContentsMargins(0, 0, 0, 0)
     layout.addStretch()
@@ -924,6 +612,8 @@ if __name__ == "__main__":
     layout.addWidget(bar)
 
     host.resize(960, 240)
+    # Тёмный системный заголовок верхнеуровневого окна — ДО show() (см. §10).
+    theme.tint_window_board(int(host.winId()))
     host.show()
 
     # qasync-петля обязательна: кнопка подключения — async-слот (Serial/TCP).
