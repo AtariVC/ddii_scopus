@@ -53,7 +53,7 @@ class FilterViewerWidget(QWidget):
 
         # self._build_ui()
         self._implement_style()
-        self._wire()
+        self._wire() 
 
     def _implement_style(self):
         self.pushButton_prev.setGlyph("chevron_left")
