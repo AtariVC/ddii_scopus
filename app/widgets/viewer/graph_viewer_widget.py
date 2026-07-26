@@ -15,7 +15,7 @@ from qtpy.uic import loadUi
 
 from dark_pro_widgets import theme, PlaybackBar
 
-from app.widgets.viewer_hdf5.explorer_widget import ExplorerHDF5Widget
+from app.widgets.viewer.explorer_widget import ExplorerHDF5Widget
 from app.widgets.oscilloscope.flux_widget import format_count
 from app.src.components.log.config import get_logger, log_init
 
@@ -322,29 +322,28 @@ class GraphViewerWidget(QtWidgets.QWidget):
         sipm_thr = 0 if level_sipm is None else int(level_sipm)
         matched_idx: list[int] = []
         for i in range(1, self.amount_measurements + 1):
-            ok_pips = False
-            ok_sipm = False
-            if use_pips and self.dataset_pips:
-                try:
-                    arr = list(self.dataset_pips.values())[i - 1].T[1]
-                    if max(arr) > pips_thr:
-                        ok_pips = True
-                except Exception:
-                    ...
-            if use_sipm and self.dataset_sipm:
-                try:
-                    arr = list(self.dataset_sipm.values())[i - 1].T[1]
-                    if max(arr) > sipm_thr:
-                        ok_sipm = True
-                except Exception:
-                    ...
+            # невыбранный канал в условие не входит (остаётся True);
+            # выбранный — должен превысить свой порог
+            ok_pips = True
+            ok_sipm = True
+            if use_pips:
+                ok_pips = False
+                if self.dataset_pips:
+                    try:
+                        arr = list(self.dataset_pips.values())[i - 1].T[1]
+                        ok_pips = max(arr) > pips_thr
+                    except Exception:
+                        ok_pips = False
+            if use_sipm:
+                ok_sipm = False
+                if self.dataset_sipm:
+                    try:
+                        arr = list(self.dataset_sipm.values())[i - 1].T[1]
+                        ok_sipm = max(arr) > sipm_thr
+                    except Exception:
+                        ok_sipm = False
             if ok_pips and ok_sipm:
                 matched_idx.append(i)
-            if not matched_idx:
-                self.massageBox.setText("Warning")
-                self.massageBox.setInformativeText("No data found")
-                self.massageBox.setWindowTitle("Warning")
-                self.massageBox.show()
         return matched_idx
 
     def get_time_for_index(self, idx: int) -> str:

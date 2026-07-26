@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List
 
 from PyQt6 import QtWidgets
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import QWidget
 from qtpy.uic import loadUi
 
@@ -102,30 +103,119 @@ class FilterViewerWidget(QWidget):
         gv = self._viewer()
         if gv is None:
             return
-        try:
-            lvl_pips = int(self.lineEdit_threshold_pips.text()) if self.lineEdit_threshold_pips.text() else 0
-        except Exception:
-            lvl_pips = 0
-        try:
-            lvl_sipm = int(self.lineEdit_threshold_sipm.text()) if self.lineEdit_threshold_sipm.text() else 0
-        except Exception:
-            lvl_sipm = 0
-        use_pips = self.checkBox_pips.isChecked()
-        use_sipm = self.checkBox_sipm.isChecked()
-        matched = gv.apply_filter(lvl_pips, lvl_sipm, use_pips, use_sipm)
-        self._matched = matched
-        self._pos = 0 if matched else -1
-        self.label_found.setText(f"Найдено {len(matched)} кадров")
-        self.listWidget_times.clear()
-        for idx in matched:
-            self.listWidget_times.addItem(f"{idx}: {gv.get_time_for_index(idx)}")
-        # Jump to first match
+        matched = self._run_filter(gv)
+        if matched is None:
+            # ввод не прошёл проверку — предупреждение показано, список не трогаем
+            return
+        self._populate_list([(idx, f"кадр #{idx:04d}", str(gv.get_time_for_index(idx))) for idx in matched])
+        # перейти к первому совпадению
         if self._pos != -1:
             gv.go_to_index(self._matched[self._pos])
-            try:
-                self.listWidget_times.setCurrentRow(self._pos)
-            except Exception:
-                ...
+
+    def _run_filter(self, gv) -> list[int] | None:
+        """Проверить галочки/пороги и вернуть индексы подходящих кадров.
+
+        Фильтр идёт по каждому *включённому* каналу (галочке):
+
+        * ни одна галочка не выбрана — предупреждение, ``None``;
+        * для каждого включённого канала порог обязателен; если он пустой или
+          не число — предупреждение со списком незаполненных порогов, ``None``;
+        * иначе — совпадение по всем включённым каналам сразу (две галочки — оба
+          условия, одна — только своё), невыбранные каналы игнорируются.
+        """
+        use_pips = self.checkBox_pips.isChecked()
+        use_sipm = self.checkBox_sipm.isChecked()
+
+        if not (use_pips or use_sipm):
+            self._warn("Выберите канал",
+                       "Отметьте хотя бы один канал (SiPM или PIPS) для фильтрации.")
+            return None
+
+        lvl_pips = self._read_threshold(self.lineEdit_threshold_pips) if use_pips else None
+        lvl_sipm = self._read_threshold(self.lineEdit_threshold_sipm) if use_sipm else None
+
+        missing = [name for name, use, lvl in
+                   (("SiPM", use_sipm, lvl_sipm), ("PIPS", use_pips, lvl_pips))
+                   if use and lvl is None]
+        if missing:
+            self._warn("Укажите порог",
+                       "Укажите порог для: " + ", ".join(missing) + ".")
+            return None
+
+        return gv.apply_filter(lvl_pips, lvl_sipm, use_pips, use_sipm)
+
+    @staticmethod
+    def _read_threshold(line_edit: LineEdit) -> int | None:
+        """Разобрать целочисленный порог из поля. ``None`` — пусто или не число."""
+        text = line_edit.text().strip()
+        if not text:
+            return None
+        try:
+            return int(text)
+        except ValueError:
+            return None
+
+    def _warn(self, title: str, text: str) -> None:
+        QtWidgets.QMessageBox.warning(self, title, text)
+
+    def _populate_list(self, rows: List[tuple[int, str, str]]) -> None:
+        """Только наполнение списка: заполнить ``listWidget_times`` и счётчик найденного.
+
+        ``rows`` — тройки ``(индекс_кадра, заголовок, значения)``. Заголовок рисуется
+        обычным цветом текста, значения пика — приглушённым (как на макете). Индексы
+        сохраняются в ``self._matched`` для навигации prev/next и клика по строке.
+        """
+        self._matched = [idx for idx, _, _ in rows]
+        self._pos = 0 if self._matched else -1
+        self.label_found.setText(f"Найдено {len(self._matched)} кадров")
+        self.listWidget_times.clear()
+        for _idx, title, detail in rows:
+            item = QtWidgets.QListWidgetItem()
+            label = self._make_row_label(title, detail)
+            # прибавляем вертикальные отступы QListWidget::item (padding 8px сверху/снизу),
+            # иначе виджет строки сплющивается до ~6px и текст не виден
+            hint = label.sizeHint()
+            item.setSizeHint(QSize(hint.width(), hint.height() + 16))
+            self.listWidget_times.addItem(item)
+            self.listWidget_times.setItemWidget(item, label)
+        if self._pos != -1:
+            self.listWidget_times.setCurrentRow(self._pos)
+
+    def _make_row_label(self, title: str, detail: str) -> QtWidgets.QLabel:
+        """Строка списка: заголовок обычным цветом + приглушённые значения справа.
+
+        Двухцветный текст в одной строке ``QListWidget`` возможен только через
+        собственный виджет — берём ``QLabel`` с rich-text (без ручных layout'ов).
+        Клик прозрачно проходит на элемент списка, чтобы работали выбор и навигация.
+        """
+        label = QtWidgets.QLabel()
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setText(
+            "<table width='100%' cellspacing='0' cellpadding='0'><tr>"
+            f"<td align='left'><span style=\"color:{theme.TEXT}; font-weight:600;\">{title}</span></td>"
+            f"<td align='right'><span style=\"color:{theme.TEXT_DIM};\">{detail}</span></td>"
+            "</tr></table>"
+        )
+        label.setStyleSheet(
+            f"background: transparent; border: none; font-family: '{_MONO}'; "
+            "font-size: 13px; padding: 2px 2px;"
+        )
+        label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        return label
+
+    def load_demo_data(self) -> None:
+        """Заполнить список демонстрационными кадрами (для автономного превью)."""
+        samples = [
+            (88, 0.81, 0.29),
+            (124, 0.92, 0.44),
+            (301, 0.77, 0.35),
+            (455, 1.04, 0.51),
+            (620, 0.83, 0.30),
+        ]
+        self._populate_list([
+            (idx, f"кадр #{idx:04d}", f"PIPS {pips:.2f} · SiPM {sipm:.2f}")
+            for idx, sipm, pips in samples
+        ])
 
     def _step(self, step: int):
         gv = self._viewer()
@@ -150,4 +240,10 @@ class FilterViewerWidget(QWidget):
 
 if __name__ == "__main__":
     from dark_pro_widgets.core._preview import preview
-    preview(FilterViewerWidget, title="Фильтр кадров — demo", size=(340, 560), stretch=False)
+
+    def _build() -> FilterViewerWidget:
+        widget = FilterViewerWidget()
+        widget.load_demo_data()
+        return widget
+
+    preview(_build, title="Фильтр кадров — demo", size=(340, 560), stretch=False)

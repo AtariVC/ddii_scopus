@@ -3,117 +3,206 @@
  <class>FilterViewerWidget</class>
  <widget class="QWidget" name="FilterViewerWidget">
   <property name="geometry">
-   <rect><x>0</x><y>0</y><width>340</width><height>560</height></rect>
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>340</width>
+    <height>587</height>
+   </rect>
   </property>
-  <property name="minimumSize"><size><width>0</width><height>0</height></size></property>
-  <property name="windowTitle"><string>Фильтр кадров</string></property>
+  <property name="minimumSize">
+   <size>
+    <width>0</width>
+    <height>0</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Фильтр кадров</string>
+  </property>
   <layout class="QVBoxLayout" name="root">
-   <property name="leftMargin"><number>0</number></property>
-   <property name="topMargin"><number>0</number></property>
-   <property name="rightMargin"><number>0</number></property>
-   <property name="bottomMargin"><number>0</number></property>
-   <property name="spacing"><number>12</number></property>
-
-   <!-- заголовок «ФИЛЬТР КАДРОВ» рисует колонка инспектора (_section_label),
-        поэтому внутри виджета его нет — иначе дублируется -->
-
-   <!-- каналы + пороги: чекбокс слева фиксирован, поле справа тянется -->
+   <property name="spacing">
+    <number>12</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
    <item>
     <layout class="QGridLayout" name="grid_filters" columnstretch="0,1">
-     <property name="horizontalSpacing"><number>12</number></property>
-     <property name="verticalSpacing"><number>10</number></property>
-     <item row="0" column="0">
-      <widget class="CheckBox" name="checkBox_sipm">
-       <property name="text"><string>SiPM</string></property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="LineEdit" name="lineEdit_threshold_sipm">
-       <property name="minimumSize"><size><width>0</width><height>38</height></size></property>
-       <property name="placeholderText"><string>Порог SiPM…</string></property>
-      </widget>
-     </item>
+     <property name="horizontalSpacing">
+      <number>12</number>
+     </property>
+     <property name="verticalSpacing">
+      <number>10</number>
+     </property>
      <item row="1" column="0">
-      <widget class="CheckBox" name="checkBox_pips">
-       <property name="text"><string>PIPS</string></property>
+      <widget class="CheckBox" name="checkBox_sipm">
+       <property name="text">
+        <string>SiPM</string>
+       </property>
       </widget>
      </item>
      <item row="1" column="1">
+      <widget class="LineEdit" name="lineEdit_threshold_sipm">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>38</height>
+        </size>
+       </property>
+       <property name="placeholderText">
+        <string>Порог SiPM…</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
       <widget class="LineEdit" name="lineEdit_threshold_pips">
-       <property name="minimumSize"><size><width>0</width><height>38</height></size></property>
-       <property name="placeholderText"><string>Порог PIPS…</string></property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>38</height>
+        </size>
+       </property>
+       <property name="placeholderText">
+        <string>Порог PIPS…</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="CheckBox" name="checkBox_pips">
+       <property name="text">
+        <string>PIPS</string>
+       </property>
       </widget>
      </item>
     </layout>
    </item>
-
-   <!-- Фильтровать | ‹ | › -->
    <item>
     <layout class="QHBoxLayout" name="row_actions">
-     <property name="spacing"><number>10</number></property>
+     <property name="spacing">
+      <number>10</number>
+     </property>
      <item>
       <widget class="PrimaryButton" name="pushButton_filter">
-       <property name="minimumSize"><size><width>0</width><height>44</height></size></property>
-       <property name="text"><string>Фильтровать</string></property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>44</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Фильтровать</string>
+       </property>
       </widget>
      </item>
      <item>
       <widget class="IconButton" name="pushButton_prev">
-       <property name="minimumSize"><size><width>52</width><height>44</height></size></property>
-       <property name="maximumSize"><size><width>52</width><height>44</height></size></property>
-       <property name="text"><string/></property>
+       <property name="minimumSize">
+        <size>
+         <width>52</width>
+         <height>44</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>52</width>
+         <height>44</height>
+        </size>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
       </widget>
      </item>
      <item>
       <widget class="IconButton" name="pushButton_next">
-       <property name="minimumSize"><size><width>52</width><height>44</height></size></property>
-       <property name="maximumSize"><size><width>52</width><height>44</height></size></property>
-       <property name="text"><string/></property>
+       <property name="minimumSize">
+        <size>
+         <width>52</width>
+         <height>44</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>52</width>
+         <height>44</height>
+        </size>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
       </widget>
      </item>
     </layout>
    </item>
-
-   <!-- счётчик найденного -->
    <item>
     <widget class="QLabel" name="label_found">
-     <property name="text"><string>Найдено 0 кадров</string></property>
+     <property name="text">
+      <string>Найдено 0 кадров</string>
+     </property>
     </widget>
    </item>
-
-   <!-- список кадров: наполняется в отдельной библиотеке, здесь пустой.
-        Высоту задаём явно — колонка инспектора виджет по вертикали не растягивает -->
    <item>
     <widget class="QListWidget" name="listWidget_times">
-     <property name="minimumSize"><size><width>0</width><height>300</height></size></property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>300</height>
+      </size>
+     </property>
     </widget>
    </item>
-
    <item>
     <widget class="Line" name="line_save">
-     <property name="orientation"><enum>Qt::Horizontal</enum></property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
     </widget>
    </item>
-
-   <!-- Сохранить кадр: подпись · номер · кнопка -->
    <item>
     <layout class="QHBoxLayout" name="row_save">
-     <property name="spacing"><number>10</number></property>
+     <property name="spacing">
+      <number>10</number>
+     </property>
      <item>
       <widget class="QLabel" name="label_save">
-       <property name="text"><string>Сохранить кадр</string></property>
+       <property name="text">
+        <string>Сохранить кадр</string>
+       </property>
       </widget>
      </item>
      <item>
       <widget class="LineEdit" name="lineEdit_num_frame">
-       <property name="minimumSize"><size><width>0</width><height>40</height></size></property>
-       <property name="placeholderText"><string>Номер</string></property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>40</height>
+        </size>
+       </property>
+       <property name="placeholderText">
+        <string>Номер</string>
+       </property>
       </widget>
      </item>
      <item>
       <widget class="PrimaryButton" name="pushButton_save_frame">
-       <property name="minimumSize"><size><width>110</width><height>40</height></size></property>
-       <property name="text"><string>Сохранить</string></property>
+       <property name="minimumSize">
+        <size>
+         <width>110</width>
+         <height>40</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Сохранить</string>
+       </property>
       </widget>
      </item>
     </layout>
