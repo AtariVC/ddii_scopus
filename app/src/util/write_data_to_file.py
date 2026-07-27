@@ -65,6 +65,12 @@ def write_to_hdf5_file(data: list,
             dataset_name = f"{name_data} -- {name_group}"
             data_np = np.array(data).T
             # data_np.squeeze()
+            # Повторное сохранение того же кадра (та же метка времени) — датасет
+            # уже есть. HDF5 не даёт создать одноимённый, поэтому перезаписываем:
+            # удаляем старый и пишем заново (операция идемпотентна).
+            if dataset_name in data_group:
+                logger.debug(f"Датасет '{dataset_name}' уже есть — перезаписываю")
+                del data_group[dataset_name]
             data_group.create_dataset(dataset_name, data=data_np)
     except Exception as e:
         logger.error(e)

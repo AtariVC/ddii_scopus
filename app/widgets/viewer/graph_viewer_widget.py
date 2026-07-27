@@ -64,6 +64,10 @@ class GraphViewerWidget(QtWidgets.QWidget):
     badge_counter: QtWidgets.QLabel
 
     slider_update_event: Event
+    # Event.emit вызывает подписчиков в фоновом потоке ('emit'), а open_graphs
+    # трогает Qt-виджеты и async-слот — это можно только из GUI-потока. Сигнал
+    # перебрасывает вызов в поток виджета (межпоточный сигнал → QueuedConnection).
+    _open_graphs_request = QtCore.pyqtSignal(str)
 
     def __init__(self, *args) -> None:
         super().__init__()
@@ -78,10 +82,14 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.slider_update_event = Event(int)
         self.parent_hdf5_path = ""
         self._init_playback()
+        # open_graphs выполняем в GUI-потоке: подписываем на событие эмиттер
+        # сигнала (он сработает в фоновом потоке 'emit'), а сам слот получит
+        # вызов уже в потоке виджета.
+        self._open_graphs_request.connect(self.open_graphs)
         if __name__ != "__main__":
             self.parent = args[0]
             self.explorer: ExplorerHDF5Widget = self.parent.explorer_hdf5_widget  # type: ignore
-            self.explorer.double_clicked_event.subscribe(self.open_graphs)
+            self.explorer.double_clicked_event.subscribe(self._open_graphs_request.emit)
         # External filter widget will control filtering/navigation
 
     def _init_playback(self) -> None:
