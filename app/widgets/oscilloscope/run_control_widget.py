@@ -325,6 +325,11 @@ class RunControlWidget(QtWidgets.QDialog):
                     save = (peak0 & 0xFFF > lvl) or (peak1 & 0xFFF > 5)
                 else:
                     save = False
+                # name_data и save меняются каждую итерацию — common собран до цикла,
+                # поэтому обновляем изменяемые поля здесь, иначе draw_* получат
+                # замороженные значения (save_log=False → pips/sipm не пишутся)
+                common["name_data"] = self.name_data
+                common["save_log"] = save
                 # общие параметры отрисовки — одни на оба канала
                 try:
                     common["clear"] = True
@@ -390,6 +395,9 @@ class RunControlWidget(QtWidgets.QDialog):
 
             if not self.name_data:
                 self.name_data = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")[:24]
+            # common собран до цикла — обновляем метку кадра, иначе h_counter
+            # каждую итерацию пишется под тем же именем и перезаписывается
+            common["name_data"] = self.name_data
 
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
@@ -455,6 +463,9 @@ class RunControlWidget(QtWidgets.QDialog):
                 return
 
             self.name_data = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")[:24]
+            # common собран до цикла — обновляем метку кадра, иначе датасеты
+            # каждую итерацию пишутся под одним именем и перезаписываются
+            common["name_data"] = self.name_data
             acq1: list[int] = await self.parser.mpp_pars_16b(result_acq1)
             acq2: list[int] = await self.parser.mpp_pars_16b(result_acq2)
             tmp_count: list[int] = await self.parser.mpp_pars_16b(result_tmp_count)

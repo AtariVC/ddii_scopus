@@ -3,7 +3,7 @@ import datetime
 import operator
 import os
 from pathlib import Path
-from typing import Optional, Sequence, Callable, Union
+from typing import Callable, Optional, Sequence, Union
 
 import numpy as np
 import pyqtgraph as pg
@@ -12,25 +12,28 @@ import qtmodern
 from PyQt6 import QtCore, QtWidgets
 
 from app.src.components.log.config import get_logger
-from app.src.util.write_data_to_file import write_to_hdf5_file
 from app.src.components.log.print_logger import PrintLogger
+from app.src.util.write_data_to_file import write_to_hdf5_file
 
 
-class GraphPen():
-    '''Отрисовщик графиков
+class GraphPen:
+    """Отрисовщик графиков
 
     Добавляет в layout окно графика и отрисовывет график
-    '''
-    def __init__(self,
+    """
+
+    def __init__(
+        self,
         layout: QtWidgets.QHBoxLayout | QtWidgets.QVBoxLayout | QtWidgets.QGridLayout,
         name: str = "default_graph",
-        color: tuple = (255, 120, 10)) -> None:
+        color: tuple = (255, 120, 10),
+    ) -> None:
 
         self.plt_widget = pg.PlotWidget()
         layout.addWidget(self.plt_widget)
         self.pen = pg.mkPen(color)
         self.name_frame: str = name
-        self.plot_item: pg.PlotDataItem # для PlotDataItem
+        self.plot_item: pg.PlotDataItem  # для PlotDataItem
         self.logger = get_logger(__name__)
         # Threshold for selective saving (None disables filtering)
         self._save_threshold: int | None = None
@@ -41,19 +44,28 @@ class GraphPen():
         #     self.logger = args[0]
         # else:
         #     self.logger = PrintLogger()
-        
 
     @qasync.asyncSlot()
-    async def draw_graph(self, data: list, name_file_save_data: Optional[str] = None, name_data: Optional[str] = None, path_to_save: Optional[Path] = None, save_log=False, clear=False, filter: Optional[Callable] = None, *args):
+    async def draw_graph(
+        self,
+        data: list,
+        name_file_save_data: Optional[str] = None,
+        name_data: Optional[str] = None,
+        path_to_save: Optional[Path] = None,
+        save_log=False,
+        clear=False,
+        filter: Optional[Callable] = None,
+        *args,
+    ):
         try:
             if any(isinstance(item, float) for item in data):
                 data = list(map(int, data))
                 # print(f"Данные преобразованы в int")
             x, y = await self._prepare_graph_data(data)
             y = self._filter_implement(y, filter)
-            if clear: # очищать ли график. Если нет, то новые точки просто добавляются на график
+            if clear:  # очищать ли график. Если нет, то новые точки просто добавляются на график
                 self.plt_widget.clear()
-                self.plot_item = pg.PlotDataItem(x, y, pen = self.pen)
+                self.plot_item = pg.PlotDataItem(x, y, pen=self.pen)
                 self.plt_widget.addItem(self.plot_item)
             else:
                 # обновляем существующие данные
@@ -71,13 +83,13 @@ class GraphPen():
                     #     # Skip saving if nothing passes the threshold
                     #     if len(yf) == 0:
                     #         return x, y
-                        # write_to_hdf5_file([xf, yf], self.name_frame, path_to_save,
-                        #                    name_file_hdf5=name_file_save_data,
-                        #                    name_data=name_data)
+                    # write_to_hdf5_file([xf, yf], self.name_frame, path_to_save,
+                    #                    name_file_hdf5=name_file_save_data,
+                    #                    name_data=name_data)
                     # else:
-                    write_to_hdf5_file([x, y], self.name_frame, path_to_save, 
-                                name_file_hdf5=name_file_save_data, 
-                                name_data=name_data)
+                    write_to_hdf5_file(
+                        [x, y], self.name_frame, path_to_save, name_file_hdf5=name_file_save_data, name_data=name_data
+                    )
                 elif path_to_save == None:
                     raise ValueError("Не передана переменная в draw_graph: path_to_save == None")
                 elif name_file_save_data == None:
@@ -87,7 +99,7 @@ class GraphPen():
             return x, y
         except Exception as e:
             self.logger.error(f"Ошибка отрисовки: {e}")
-            return [],[]
+            return [], []
 
     async def _prepare_graph_data(self, data):
         """Подготовка данных для графика
@@ -177,7 +189,6 @@ class GraphPen():
             self._spike_window = max(1, w)
         except Exception:
             self._spike_window = 1
-    
 
     def _filter_implement(self, data: list[int], filter: Optional[Callable] = None) -> list[int]:
         if filter is not None:
@@ -198,11 +209,15 @@ class GraphPen():
         except Exception:
             self._save_threshold = None
 
-class HistPen():
-    def __init__(self, *args,
-                layout: QtWidgets.QHBoxLayout|QtWidgets.QVBoxLayout|QtWidgets.QGridLayout,
-                name: str,
-                color: tuple = (0, 0, 255, 150)) -> None:
+
+class HistPen:
+    def __init__(
+        self,
+        *args,
+        layout: QtWidgets.QHBoxLayout | QtWidgets.QVBoxLayout | QtWidgets.QGridLayout,
+        name: str,
+        color: tuple = (0, 0, 255, 150),
+    ) -> None:
         self.logger = get_logger(__name__)
         self.hist_widget: pg.PlotWidget = pg.PlotWidget()
         layout.addWidget(self.hist_widget)
@@ -213,9 +228,9 @@ class HistPen():
         self.name_frame: str = name
         self.hist_item = None
         self.hist_outline_item = None  # для белого контура
-        
+
         # Настройки гистограммы
-        self.accum_data: list|np.ndarray = []
+        self.accum_data: list | np.ndarray = []
         ###
         # self.bin_count = 100  # начальное количество бинов
         self.padding_factor = 0.1  # отступ по краям (10% от диапазона данных)
@@ -262,7 +277,7 @@ class HistPen():
         q3 = np.percentile(data, 75)
         iqr = q3 - q1
         if iqr > 0:  # защита от деления на ноль
-            bin_width = 2 * iqr / (len(data) ** (1/3))
+            bin_width = 2 * iqr / (len(data) ** (1 / 3))
             self.bin_count = max(5, min(100, int((x_max - x_min) / bin_width)))
         else:
             # Если IQR = 0, используем правило Стёрджеса
@@ -272,14 +287,17 @@ class HistPen():
         return bins, (x_min, x_max)
 
     @qasync.asyncSlot()
-    async def draw_hist(self, data: Sequence[Union[int, float]], 
-                    save_log: Optional[bool] = False,
-                    name_file_save_data: Optional[str] = None,
-                    name_data: Optional[str] = None,
-                    path_to_save: Optional[Path] = None,
-                    clear: Optional[bool] = False,
-                    data_is_hist: Optional[bool] = False,
-                    bin_count: int = 4096) -> None:
+    async def draw_hist(
+        self,
+        data: Sequence[Union[int, float]],
+        save_log: Optional[bool] = False,
+        name_file_save_data: Optional[str] = None,
+        name_data: Optional[str] = None,
+        path_to_save: Optional[Path] = None,
+        clear: Optional[bool] = False,
+        data_is_hist: Optional[bool] = False,
+        bin_count: int = 4096,
+    ) -> None:
         """
         Отрисовывает гистограмму данных с возможностью фильтрации и сохранения
         Args:
@@ -317,7 +335,7 @@ class HistPen():
         else:
             bin_count = len(data)
             bins = np.linspace(0, float(bin_count), int(bin_count) + 1)
-            y, x = data, bins           
+            y, x = data, bins
         # Recompute histogram with correct bins based on bin_count
         if bin_count is None or bin_count < 1:
             self.logger.error(f"bin_count is None or bin_count < 1")
@@ -344,13 +362,21 @@ class HistPen():
                 if not data_is_hist:
                     # Сохраняем текущую накопленную гистограмму
                     y_save = np.asarray(self.accum_data)
-                    write_to_hdf5_file([x[:-1], y_save], self.name_frame, self.path_to_save,
-                                       name_file_hdf5=name_file_save_data,
-                                       name_data=name_data)
+                    write_to_hdf5_file(
+                        [x[:-1], y_save],
+                        self.name_frame,
+                        self.path_to_save,
+                        name_file_hdf5=name_file_save_data,
+                        name_data=name_data,
+                    )
                 else:
-                    write_to_hdf5_file([x[:-1], y], self.name_frame, self.path_to_save, 
-                                name_file_hdf5=name_file_save_data, 
-                                name_data=name_data)
+                    write_to_hdf5_file(
+                        [x[:-1], y],
+                        self.name_frame,
+                        self.path_to_save,
+                        name_file_hdf5=name_file_save_data,
+                        name_data=name_data,
+                    )
             elif path_to_save == None:
                 raise ValueError("Не передана переменная в draw_hist: path_to_save == None")
             elif name_file_save_data == None:
