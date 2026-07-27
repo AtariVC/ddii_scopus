@@ -267,6 +267,21 @@ class GraphViewerWidget(QtWidgets.QWidget):
         else:
             return "Время: неверный формат"
 
+    @staticmethod
+    def _frame_at(dataset: dict, idx: int):
+        """Транспонированный ``idx``-й кадр (1-based) из датасета или ``None``.
+
+        Длины датасетов каналов различаются (осциллограммы пишутся только выше
+        порога), поэтому индексируем по фактической длине конкретного датасета,
+        а не по общему ``amount_measurements`` — иначе IndexError.
+        """
+        if not dataset:
+            return None
+        values = list(dataset.values())
+        if 1 <= idx <= len(values):
+            return values[idx - 1].T
+        return None
+
     @qasync.asyncSlot()
     async def slider_graphs_updater(self) -> None:
         """Обновляет графики при изменении слайдера"""
@@ -280,28 +295,31 @@ class GraphViewerWidget(QtWidgets.QWidget):
             # времени (без префикса «Время:» — его виджет добавляет сам).
             time_str = self.time_formater(self.measure_time_list[current_val - 1])
             self.playback.set_time(time_str.replace("Время: ", ""))
-            if self.dataset_pips:
-                data_pips = list(self.dataset_pips.values())[current_val - 1].T
+            # Каналы пишутся с разной частотой (осциллограммы — только выше порога),
+            # поэтому длины датасетов различаются. Индексируем каждый по своей длине:
+            # если кадра нет — просто очищаем этот график, а не падаем на IndexError.
+            data_pips = self._frame_at(self.dataset_pips, current_val)
+            if data_pips is not None:
                 await self.gp_pips.draw_graph(data_pips[1], clear=True)
             else:
                 self.gp_pips.plt_widget.clear()
-            if self.dataset_sipm:
-                data_sipm = list(self.dataset_sipm.values())[current_val - 1].T
+            data_sipm = self._frame_at(self.dataset_sipm, current_val)
+            if data_sipm is not None:
                 await self.gp_sipm.draw_graph(data_sipm[1], clear=True)
             else:
                 self.gp_sipm.plt_widget.clear()
-            if self.dataset_h_pips:
-                data_h_pips = list(self.dataset_h_pips.values())[current_val - 1].T
+            data_h_pips = self._frame_at(self.dataset_h_pips, current_val)
+            if data_h_pips is not None:
                 await self.hp_pips.draw_hist(data_h_pips[1].tolist(), clear=True, data_is_hist=True)
             else:
                 self.hp_pips.hist_clear()
-            if self.dataset_h_sipm:
-                data_h_sipm = list(self.dataset_h_sipm.values())[current_val - 1].T
+            data_h_sipm = self._frame_at(self.dataset_h_sipm, current_val)
+            if data_h_sipm is not None:
                 await self.hp_sipm.draw_hist(data_h_sipm[1].tolist(), clear=True, data_is_hist=True)
             else:
                 self.hp_sipm.hist_clear()
-            if self.dataset_h_counter:
-                data_h_counter = list(self.dataset_h_counter.values())[current_val - 1].T
+            data_h_counter = self._frame_at(self.dataset_h_counter, current_val)
+            if data_h_counter is not None:
                 await self.counter_h.draw_hist(data_h_counter[1].tolist(), clear=True, data_is_hist=True)
             else:
                 self.counter_h.hist_clear()
@@ -309,7 +327,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
             # await self.hp_pips.draw_hist(data_pips[1], clear=True)
             # await self.hp_sipm.draw_hist(data_sipm[1], clear=True)
         except Exception as ex:
-            logger.error(ex)
+            logger.error(ex, exc_info=True)
 
         # if value < self.amount_measurements:
 
