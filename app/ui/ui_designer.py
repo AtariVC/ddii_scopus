@@ -32,16 +32,17 @@ from app.src.components.log.config import log_init
 from app.src.components.modbus.worker import ModbusWorker
 from app.src.components.parsers.custom_parsers import Parsers
 from app.src.event.event import Event
-from app.widgets.debug.debug_graph import DebugGraphWidget
+# from app.widgets.debug.debug_graph import DebugGraphWidget
 from app.widgets.oscilloscope.flux_widget import FluxWidget
 from app.widgets.oscilloscope.graph_widget import GraphWidget
 from app.widgets.oscilloscope.run_control_widget import RunControlWidget
-from app.widgets.parser.cmd_wind_read_mem import CmdWindReadMemWidget
-from app.widgets.settings.cm_settings_widget import CmSettingsWidget
-from app.widgets.settings.mpp_settings_widget import MppSettingsWidget
-from app.widgets.tests.runner_widget import TestRunnerWidget
-from app.widgets.tests.tables_widget import TestTablesWidget
-from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
+from app.widgets.control_panel.nav_list import ControlNavList
+# from app.widgets.parser.cmd_wind_read_mem import CmdWindReadMemWidget
+# from app.widgets.settings.cm_settings_widget import CmSettingsWidget
+# from app.widgets.settings.mpp_settings_widget import MppSettingsWidget
+# from app.widgets.tests.runner_widget import TestRunnerWidget
+# from app.widgets.tests.tables_widget import TestTablesWidget
+# from app.widgets.tests.telemetry_poll_widget import TelemetryPollWidget
 from app.widgets.viewer.explorer_widget import ExplorerHDF5Widget
 from app.widgets.viewer.filter_viewer_widget import FilterViewerWidget
 from app.widgets.viewer.graph_viewer_widget import GraphViewerWidget
@@ -123,14 +124,15 @@ class MainUIDesigner(QtWidgets.QMainWindow):
         self.explorer_hdf5_widget: ExplorerHDF5Widget = ExplorerHDF5Widget()
         self.graph_viewer_widget: GraphViewerWidget = GraphViewerWidget(self)
         self.graph_filter_widget: FilterViewerWidget = FilterViewerWidget(self)
-        self.graph_debug_widget: DebugGraphWidget = DebugGraphWidget()
-        self.cmd_wind_read_mem: CmdWindReadMemWidget = CmdWindReadMemWidget(self)
-        self.test_tables_widget: TestTablesWidget = TestTablesWidget()
-        self.telemetry_poll_widget: TelemetryPollWidget = TelemetryPollWidget(self)
-        self.test_runner_widget: TestRunnerWidget = TestRunnerWidget()
-        self.mpp_settings_widget: MppSettingsWidget = MppSettingsWidget(self)
-        self.cm_settings_widget: CmSettingsWidget = CmSettingsWidget(self)
+        # self.graph_debug_widget: DebugGraphWidget = DebugGraphWidget()
+        # self.cmd_wind_read_mem: CmdWindReadMemWidget = CmdWindReadMemWidget(self)
+        # self.test_tables_widget: TestTablesWidget = TestTablesWidget()
+        # self.telemetry_poll_widget: TelemetryPollWidget = TelemetryPollWidget(self)
+        # self.test_runner_widget: TestRunnerWidget = TestRunnerWidget()
+        # self.mpp_settings_widget: MppSettingsWidget = MppSettingsWidget(self)
+        # self.cm_settings_widget: CmSettingsWidget = CmSettingsWidget(self)
         self.test_impact_ctrl: TestImpactControl = TestImpactControl(self)
+        self.control_navlist = ControlNavList(self)
 
     # --- модель экранов ------------------------------------------------------
     def screen_model(self) -> dict:
@@ -153,25 +155,23 @@ class MainUIDesigner(QtWidgets.QMainWindow):
             },
             "Управление и настройка": {
                 "icon": "settings",
-                "breadcrumb": "Телеметрия и журнал событий",
+                "breadcrumb": "Настройки",
                 "sidebar": {
-                    "Опрос телеметрии": self.telemetry_poll_widget,
-                    "Тестирование": self.test_runner_widget,
-                    "Чтение памяти": self.cmd_wind_read_mem,
+                    "Опрос телеметрии": self.control_navlist,
                 },
-                "work": self.test_tables_widget,
+                # "work": self.test_tables_widget,
                 "inspector": None,
             },
-            "Общее состояние прибора": {
-                "icon": "bug-report",
-                "breadcrumb": "Параметры прибора и связи",
-                "sidebar": {
-                    "МПП": self.mpp_settings_widget,
-                    "ЦМ: Питание": self.cm_settings_widget,
-                },
-                "work": None,
-                "inspector": None,
-            },
+            # "Общее состояние прибора": {
+            #     "icon": "bug-report",
+            #     "breadcrumb": "Параметры прибора и связи",
+            #     "sidebar": {
+            #         "МПП": self.mpp_settings_widget,
+            #         "ЦМ: Питание": self.cm_settings_widget,
+            #     },
+            #     "work": None,
+            #     "inspector": None,
+            # },
 
         }
 
