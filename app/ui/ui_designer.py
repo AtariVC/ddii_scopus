@@ -4,7 +4,8 @@
     [рельс] [ сайдбар | рабочая область | инспектор      ]
     [ ● Подключено │ Serial TCP │ ⚙ │ Подключить … State ]
 
-Оболочка окна поднимается из ``ui_designer.ui`` через ``loadUi``. Рельс, страницы стека, колонки экрана собирается в Python, потому что зависит от модели.
+Оболочка окна поднимается из ``ui_designer.ui`` через ``loadUi``. Рельс, страницы стека, колонки экрана собирается в 
+Python, потому что зависит от модели.
 
 Слоты из .ui: ``layout_rail``, ``label_title``/``label_crumb``, ``stack``,
 ``layout_connection``.
@@ -36,7 +37,7 @@ from app.src.event.event import Event
 from app.widgets.oscilloscope.flux_widget import FluxWidget
 from app.widgets.oscilloscope.graph_widget import GraphWidget
 from app.widgets.oscilloscope.run_control_widget import RunControlWidget
-from app.widgets.control_panel.nav_list import ControlNavList
+from app.widgets.controls.control_panel import ControlPanel
 # from app.widgets.parser.cmd_wind_read_mem import CmdWindReadMemWidget
 # from app.widgets.settings.cm_settings_widget import CmSettingsWidget
 # from app.widgets.settings.mpp_settings_widget import MppSettingsWidget
@@ -67,6 +68,7 @@ class MainUIDesigner(QtWidgets.QMainWindow):
     layout_rail: QVBoxLayout
     layout_connection: QVBoxLayout
     stack: QStackedWidget
+    stack_control_panel: QStackedWidget
     action_quit: QtCore.QObject
 
     def __init__(self) -> None:
@@ -132,7 +134,9 @@ class MainUIDesigner(QtWidgets.QMainWindow):
         # self.mpp_settings_widget: MppSettingsWidget = MppSettingsWidget(self)
         # self.cm_settings_widget: CmSettingsWidget = CmSettingsWidget(self)
         self.test_impact_ctrl: TestImpactControl = TestImpactControl(self)
-        self.control_navlist = ControlNavList(self)
+        self.stack_control_panel = QStackedWidget()
+        self.control_panel = ControlPanel(self)
+        self.control_panel.build_stack_widget()
 
     # --- модель экранов ------------------------------------------------------
     def screen_model(self) -> dict:
@@ -157,9 +161,9 @@ class MainUIDesigner(QtWidgets.QMainWindow):
                 "icon": "settings",
                 "breadcrumb": "Настройки",
                 "sidebar": {
-                    "Опрос телеметрии": self.control_navlist,
+                    "Опрос телеметрии": self.control_panel,
                 },
-                # "work": self.test_tables_widget,
+                "work": self.stack_control_panel,
                 "inspector": None,
             },
             # "Общее состояние прибора": {

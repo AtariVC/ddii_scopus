@@ -8,7 +8,7 @@ API:
 """
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from dark_pro_widgets.core import theme
 from dark_pro_widgets.widgets.composite import PowerCtrlPanel
@@ -43,12 +43,12 @@ class PowerControlWidget(QWidget):
         super().__init__(parent)
         self.panels: dict[str, PowerCtrlPanel] = {}
 
-        outer = QVBoxLayout(self)
+        outer = QHBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(12)
+        # панели в ряд, равной ширины (stretch=1 на каждую)
         for key, title, color in _CHANNELS:
-            outer.addWidget(self._build_panel(key, title, color))
-        outer.addStretch(1)
+            outer.addWidget(self._build_panel(key, title, color), 1)
 
     def _build_panel(self, key: str, title: str, color: str) -> PowerCtrlPanel:
         """Собрать и настроить одну панель канала.
@@ -89,7 +89,6 @@ if __name__ == "__main__":
         for ch, pnl in widget.panels.items():
             pnl.signal_switch_power.connect(lambda on, c=ch: print(c, "питание:", on))
             pnl.signal_set_value.connect(lambda v, c=ch: print(c, "уставка:", v))
-        widget.setFixedWidth(520)
         return widget
 
-    preview(build, title="Управление питанием — PIPS · SiPM · Черенков", size=(560, 720), stretch=False)
+    preview(build, title="Управление питанием — PIPS · SiPM · Черенков", size=(1120, 340), stretch=False)
