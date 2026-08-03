@@ -1,24 +1,49 @@
 """PowerControlWidget — три панели управления питанием: PIPS, SiPM, Черенковский счётчик.
 
 API:
-* ``PowerControlWidget(parent=None)`` — три сконфигурированные панели каналов.
+* ``PowerControlWidget(client=None, parent=None)`` — три сконфигурированные панели
+  каналов; ``client`` даёт командный интерфейс (``client.cm``), в demo — ``None``.
 * ``panel(key) -> PowerCtrlPanel | None`` — панель канала (``'pips'``/``'sipm'``/``'cherenkov'``).
 * ``panels: dict[str, PowerCtrlPanel]`` — все панели по ключу канала.
 * атрибуты ``panel_pips`` · ``panel_sipm`` · ``panel_cherenkov`` — прямой доступ к панелям.
 """
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QHBoxLayout, QWidget
+from dataclasses import dataclass
 
+from PyQt6.QtWidgets import QHBoxLayout, QWidget
+from PyQt6.QtCore import pyqtSignal
 from dark_pro_widgets.core import theme
 from dark_pro_widgets.widgets.composite import PowerCtrlPanel
+from app.src.components.modbus.command_interface import ModbusCMCommand
+from typing import Callable
 
-# (ключ, заголовок, цвет точки) — цвет закреплён за каналом, как на графиках:
-# PIPS — зелёный, SiPM — янтарный, черенковский счётчик — синий (accent).
-_CHANNELS: list[tuple[str, str, str]] = [
-    ("pips", "Канал PIPS", theme.PIPS),
-    ("sipm", "Канал SiPM", theme.SIPM),
-    ("cherenkov", "Черенковский счётчик", theme.ACCENT),
+
+@dataclass(frozen=True)
+class ChannelConfig:
+    """Конфигурация одной панели канала питания.
+
+    Attributes:
+        key: ключ канала (``'pips'``/``'sipm'``/``'cherenkov'``).
+        title: заголовок панели.
+        color: цвет точки состояния — токен темы, закреплённый за каналом.
+        enable_ch_v: команда управления напряжением
+        set_v: команда установки уставки напряжения 
+        
+    """
+    key: str
+    title: str
+    color: str
+    # enable_ch_v: Callable
+    # set_v: Callable
+
+
+# Цвет закреплён за каналом, как на графиках: PIPS — зелёный, SiPM — янтарный,
+# черенковский счётчик — синий (accent).
+_CHANNELS: list[ChannelConfig] = [
+    ChannelConfig("pips", "Канал PIPS", theme.PIPS),
+    ChannelConfig("sipm", "Канал SiPM", theme.SIPM),
+    ChannelConfig("cherenkov", "Черенковский счётчик", theme.ACCENT),
 ]
 
 # Набор плиток телеметрии и подпись уставки — одинаковы для всех трёх каналов.
@@ -39,35 +64,37 @@ class PowerControlWidget(QWidget):
     panel_sipm: PowerCtrlPanel
     panel_cherenkov: PowerCtrlPanel
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, client=None, parent=None) -> None:
         super().__init__(parent)
         self.panels: dict[str, PowerCtrlPanel] = {}
+
+        self.client = client
+        # командный интерфейс ВШ ЦМ; в demo/без подключения — None (getattr не падает)
+        self.cm_ib: ModbusCMCommand | None = getattr(client, "cm", None)
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(12)
         # панели в ряд, равной ширины (stretch=1 на каждую)
-        for key, title, color in _CHANNELS:
-            outer.addWidget(self._build_panel(key, title, color), 1)
+        for channel in _CHANNELS:
+            outer.addWidget(self._build_panel(channel), 1)
 
-    def _build_panel(self, key: str, title: str, color: str) -> PowerCtrlPanel:
+    def _build_panel(self, channel: ChannelConfig) -> PowerCtrlPanel:
         """Собрать и настроить одну панель канала.
 
         Args:
-            key: ключ канала (``'pips'``/``'sipm'``/``'cherenkov'``).
-            title: заголовок панели.
-            color: цвет точки состояния — токен темы, закреплённый за каналом.
+            channel: конфигурация канала (ключ, заголовок, цвет точки).
 
         Returns:
             Настроенная :class:`PowerCtrlPanel`; ссылка также кладётся в
-            ``self.panels[key]`` и в атрибут ``panel_<key>``.
+            ``self.panels[channel.key]`` и в атрибут ``panel_<key>``.
         """
         panel = PowerCtrlPanel()
-        panel.set_title_widget(title, color)
+        panel.set_title_widget(channel.title, channel.color)
         panel.set_tiles(_TILES)
         panel.set_lineEdit_label(_SETPOINT_LABEL)
-        self.panels[key] = panel
-        setattr(self, f"panel_{key}", panel)
+        self.panels[channel.key] = panel
+        setattr(self, f"panel_{channel.key}", panel)
         return panel
 
     def panel(self, key: str) -> PowerCtrlPanel | None:

@@ -32,7 +32,7 @@ from app.plugins.connection.connection_settings import (
 )
 from app.plugins.connection.modbus_relay_server import ModbusRelayServer
 from app.src.components.log.config import get_logger, log_s
-from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
+from app.src.components.modbus.command_interface import ModbusCMCommand, ModbusMPPCommand
 from app.src.components.modbus.modbus_var import ModbusReg
 from app.src.components.modbus.worker import ModbusWorker
 

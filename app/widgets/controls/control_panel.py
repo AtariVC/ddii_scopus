@@ -12,7 +12,7 @@ class ControlPanel(NavList):
         self._parent = parent
         self._pages = {}
         self.mok_widget = QtWidgets.QWidget()
-        self.power_panel = PowerControlWidget()
+        self.power_panel = PowerControlWidget(self._parent.client)
         self.build_navlist()
         self.sectionChanged.connect(self.on_screen_changed)
 
