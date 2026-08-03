@@ -197,7 +197,7 @@ class MainUIDesigner(QtWidgets.QMainWindow):
         self.connection = self.w_ser_dialog
         self.layout_connection.addWidget(self.connection)
 
-        self.action_quit.triggered.connect(self.close)
+        self.action_quit.triggered.connect(self.close) # type: ignore
         self.on_screen_changed(0)
 
     @staticmethod

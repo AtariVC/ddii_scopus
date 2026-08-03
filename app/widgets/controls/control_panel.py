@@ -1,15 +1,17 @@
 from dark_pro_widgets.widgets.controls.nav_list import NavList
 from app.widgets.controls.power import PowerControlWidget
+from PyQt6 import QtWidgets
 
 
 _ITEMS_NAVLIST = ["Контроль питания", "Журнал событий", "Просмотрщик кадров", "Тестирование"]
 
 class ControlPanel(NavList):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent):
         super().__init__()
         self._parent = parent
         self._pages = {}
+        self.mok_widget = QtWidgets.QWidget()
         self.power_panel = PowerControlWidget()
         self.build_navlist()
         self.sectionChanged.connect(self.on_screen_changed)
@@ -24,7 +26,10 @@ class ControlPanel(NavList):
         
     def build_stack_widget(self):
         self._pages = {_ITEMS_NAVLIST[0]: self.power_panel}
-        self._parent.stack_control_panel.addWidget(self.power_panel)
-
+        for widget in self._pages.values():
+            self._parent.stack_control_panel.addWidget(widget)
+        for item in _ITEMS_NAVLIST:
+            if item not in self._pages.keys():
+                self._parent.stack_control_panel.addWidget(self.mok_widget)
 
     
