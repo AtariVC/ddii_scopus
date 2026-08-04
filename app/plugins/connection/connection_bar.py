@@ -515,7 +515,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         # Готовность при наличии любого транспорта: Serial или TCP‑клиента
         return (self.client is not None) or (self.tcp_client is not None)
 
-    def get_commands_interface(self, logger) -> tuple[ModbusCMCommand, ModbusMPPCommand]:
+    def get_commands_interface(self) -> tuple[ModbusCMCommand, ModbusMPPCommand]:
         """Команды с актуальным клиентом и адресами из настроек.
 
         Устройство, выключенное режимом опроса, получает null-клиент: любая
@@ -530,13 +530,13 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         mpp_cli = cli if self.settings.poll_mpp else self._null_client
 
         slog = self.log_serial_exchange
-        cm = ModbusCMCommand(cm_cli, logger, log_serial_exchange=slog)
+        cm = ModbusCMCommand(cm_cli, log_serial_exchange=slog)
 
         cm.CM_ID = self.cm_id
         try:
-            mpp = ModbusMPPCommand(mpp_cli, logger, self.mpp_id, log_serial_exchange=slog)
+            mpp = ModbusMPPCommand(mpp_cli, self.mpp_id, log_serial_exchange=slog)
         except Exception:
-            mpp = ModbusMPPCommand(mpp_cli, logger, log_serial_exchange=slog)
+            mpp = ModbusMPPCommand(mpp_cli, log_serial_exchange=slog)
         return cm, mpp
 
     async def check_connection(self, only_cm=True, only_mpp=True) -> bool:

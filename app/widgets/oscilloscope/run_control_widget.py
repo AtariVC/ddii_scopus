@@ -127,7 +127,7 @@ class RunControlWidget(QtWidgets.QDialog):
         self.w_ser_dialog.coroutine_finished.connect(self.init_mb_cmd)
         self.w_ser_dialog.disconnected.connect(self.on_serial_disconnected)
         self.pushButton_run.clicked.connect(self.pushButton_run_handler)
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
 
     # ===== флаги =====
     def init_flags(self) -> None:

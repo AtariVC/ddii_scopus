@@ -24,7 +24,7 @@ class TestImpactControl(QtWidgets.QDialog):
         self.mw = ModbusWorker()
         self.pushButton_impact.setVariant("neutral")
         self.pushButton_impact.clicked.connect(self.pushButton_impact_handler)
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
 
     # ===== запуск/остановка =====
     @qasync.asyncSlot()
@@ -32,7 +32,7 @@ class TestImpactControl(QtWidgets.QDialog):
         if not await self.w_ser_dialog.check_connection():
             self.logger.error("Нет подключения (ЦМ/МПП недоступны)")
             return
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
         await self.cm_cmd.set_gpio_impact_autotest()
 
 if __name__ == "__main__":

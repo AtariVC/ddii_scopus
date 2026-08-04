@@ -3,6 +3,7 @@ from typing import Optional
 
 from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.pdu import ModbusResponse
+from loguru import logger
 
 from app.src.components.log.config import apply_glob_serial_log_flag
 from app.src.components.modbus.command_codec import mb_encode
@@ -20,7 +21,7 @@ class ModbusCMCommand(ModbusReg):
     device_name = "ЦМ"
     log_serial_exchange = True
 
-    def __init__(self, client, logger, *, log_enabled: bool = True, log_serial_exchange: bool = True, **kwargs):
+    def __init__(self, client, *, log_enabled: bool = True, log_serial_exchange: bool = True, **kwargs):
         super().__init__()
         self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
@@ -79,7 +80,7 @@ class ModbusMPPCommand(ModbusReg):
     Args:
         ModbusReg (_type_): внутренние постоянные окружения
     """
-    def __init__(self, client, logger, *args, log_enabled: bool = True, log_serial_exchange: bool = False):
+    def __init__(self, client, *args, log_enabled: bool = True, log_serial_exchange: bool = False):
         super().__init__()
         self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
