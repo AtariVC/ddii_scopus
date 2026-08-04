@@ -34,7 +34,7 @@ dependencies = [
     "h5py>=3.12.1,<4.0.0",
     "typing-extensions>=4.14.0,<5.0.0",
     "qcustomwindow @ git+https://github.com/CrinitusFeles/QCustomWindow.git ; sys_platform == 'win32'",
-    "bytes-parser @ git+https://github.com/CrinitusFeles/BytesParser.git",
+    "bytes-parser",
     "pdoc>=15.0.4",
     "bs4>=0.0.2",
     "pymyip0>=0.1",
@@ -79,3 +79,4 @@ dark-pro-widgets = { git = "https://github.com/AtariVC/dark_pro_widgets.git" }
 # Пин на конкретный коммит: если в репозитории переименуют/удалят иконки,
 # набор здесь останется прежним до осознанного обновления rev.
 qcustomwidgets = { git = "https://github.com/AtariVC/QCustomWidgets.git", rev = "7a26278128eeebfdf0b7ef37335b54a1cf8baac2" }
+bytes-parser = { git = "https://github.com/AtariVC/BytesParser.git" }
