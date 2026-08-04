@@ -56,6 +56,9 @@ class CmHvipReg():
     PID_D_X10000                       = BASE + 14
     PID_REACTION_MAX_X10000            = BASE + 15
     PID_ERROR_X100                     = BASE + 16
+    # MB_HVIP_REG_NUMBER: регистров на один канал; каналы разложены
+    # последовательными блоками по NUMBER регистров от BASE.
+    NUMBER                             = 17
 
 
 class MppReg():
