@@ -33,7 +33,7 @@ from app.plugins.connection.connection_settings import (
 from app.plugins.connection.modbus_relay_server import ModbusRelayServer
 from app.src.components.log.config import get_logger, log_s
 from app.src.components.modbus.command_interface import ModbusCMCommand, ModbusMPPCommand
-from app.src.components.modbus.modbus_var import ModbusReg
+from app.src.components.modbus.modbus_reg import ModbusReg
 from app.src.components.modbus.worker import ModbusWorker
 
 
@@ -85,8 +85,8 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         # что уже сообщали в лог — гасит повтор одинаковых сообщений (см. _log_state)
         self._log_state_cache: dict[str, str | None] = {}
         # Дамп обмена по serial (TX/RX хексом, как в DockLight). По умолчанию выключен —
-        # иначе каждая команда сыплет в терминал. Включается: bar.serial_log_enabled = True
-        self.serial_log_enabled = False
+        # иначе каждая команда сыплет в терминал. Включается: bar.log_serial_exchange = True
+        self.log_serial_exchange = False
 
         # --- нулевой клиент для безопасных команд при отсутствии связи ---
         class _NullModbusClient(AsyncModbusSerialClient):
@@ -329,7 +329,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             try:
                 if self.client:
                     await self.client.write_registers(
-                        address=self.reg_ctrl.DEBUG_MODE_SWITCH, values=1, slave=self.cm_id
+                        address=self.ctrl_reg.DEBUG_MODE_SWITCH, values=1, slave=self.cm_id
                     )
                     await log_s(self.mw.send_handler.mess)
                     self.status_CM = 1
@@ -529,14 +529,14 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         cm_cli = cli if self.settings.poll_cm else self._null_client
         mpp_cli = cli if self.settings.poll_mpp else self._null_client
 
-        slog = self.serial_log_enabled
-        cm = ModbusCMCommand(cm_cli, logger, serial_log_enabled=slog)
+        slog = self.log_serial_exchange
+        cm = ModbusCMCommand(cm_cli, logger, log_serial_exchange=slog)
 
         cm.CM_ID = self.cm_id
         try:
-            mpp = ModbusMPPCommand(mpp_cli, logger, self.mpp_id, serial_log_enabled=slog)
+            mpp = ModbusMPPCommand(mpp_cli, logger, self.mpp_id, log_serial_exchange=slog)
         except Exception:
-            mpp = ModbusMPPCommand(mpp_cli, logger, serial_log_enabled=slog)
+            mpp = ModbusMPPCommand(mpp_cli, logger, log_serial_exchange=slog)
         return cm, mpp
 
     async def check_connection(self, only_cm=True, only_mpp=True) -> bool:

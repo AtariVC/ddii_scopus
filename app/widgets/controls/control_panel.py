@@ -12,7 +12,9 @@ class ControlPanel(NavList):
         self._parent = parent
         self._pages = {}
         self.mok_widget = QtWidgets.QWidget()
-        self.power_panel = PowerControlWidget(self._parent.client)
+        # ConnectionBar (нижняя панель связи): PowerControlWidget сам стартует
+        # опрос по её сигналу подключения к ЦМ.
+        self.power_panel = PowerControlWidget(self._parent.w_ser_dialog)
         self.build_navlist()
         self.sectionChanged.connect(self.on_screen_changed)
 

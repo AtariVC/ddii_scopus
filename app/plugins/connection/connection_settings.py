@@ -25,7 +25,7 @@ from qtpy.uic import loadUi
 from dark_pro_widgets import theme
 from dark_pro_widgets import ComboBox
 
-from app.src.components.modbus.modbus_var import ModbusReg
+from app.src.components.modbus.modbus_reg import ModbusReg
 
 # Организация/приложение для QSettings (macOS: ~/Library/Preferences, Win: реестр)
 _ORG = "ddii"

@@ -18,7 +18,7 @@ from qtpy.uic import loadUi
 from custom.widgets import widget_led_off, widget_led_on
 from app.plugins.connection.customComboBox_COMport import CustomComboBox_COMport
 from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
-from app.src.components.modbus.modbus_var import ModbusReg
+from app.src.components.modbus.modbus_reg import ModbusReg
 from app.src.components.log.config import log_init, log_s, get_logger
 from app.src.components.modbus.worker import ModbusWorker
 

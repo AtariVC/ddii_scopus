@@ -18,7 +18,7 @@ from pathlib import Path
 _initialized = False
 # Global flags to enable/disable logging at runtime
 LOG_ENABLED = True           # General loguru logging
-SERIAL_LOG_ENABLED = True    # TX/RX serial hex stream logging (log_s)
+LOG_SERIAL_EXCHANGE = True    # TX/RX serial hex stream logging (log_s)
 
 def log_init():
     """Инициализировать loguru один раз и вернуть общий logger.
@@ -115,7 +115,7 @@ def info_filter(record):
 
 async def log_s(message: list):
     # Respect global switch for serial TX/RX logging
-    if not SERIAL_LOG_ENABLED:
+    if not LOG_SERIAL_EXCHANGE:
         message.clear()
         return 0
     mess: list[str]= [r'']
@@ -149,7 +149,7 @@ def set_log_enabled(flag: bool) -> None:
     global LOG_ENABLED
     LOG_ENABLED = bool(flag)
 
-def set_serial_log_enabled(flag: bool) -> None:
-    """Enable/disable serial TX/RX logging performed by log_s()."""
-    global SERIAL_LOG_ENABLED
-    SERIAL_LOG_ENABLED = bool(flag)
+def apply_glob_serial_log_flag(flag: bool) -> None:
+    """Enable/disable serial TX/RX exchange logging performed by log_s()."""
+    global LOG_SERIAL_EXCHANGE
+    LOG_SERIAL_EXCHANGE = bool(flag)

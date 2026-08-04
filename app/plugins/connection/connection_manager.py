@@ -14,7 +14,7 @@ from pymodbus.datastore import (
 )
 
 try:
-    from app.src.components.modbus.modbus_var import ModbusReg
+    from app.src.components.modbus.modbus_reg import ModbusReg
     from app.src.components.log.config import log_s
     from app.src.components.modbus.worker import ModbusWorker
 except Exception:

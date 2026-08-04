@@ -2,7 +2,7 @@
 Парсер данных мпп
 Парсер log
 """
-from app.src.components.modbus.modbus_var import ModbusReg
+from app.src.components.modbus.modbus_reg import ModbusReg
 from app.src.components.modbus.worker import ModbusWorker
 from app.src.components.parsers.parsers_pack import LineEObj
 import struct

@@ -13,7 +13,7 @@ from modules.Main_Config.save_config import ConfigSaver
 
 from app.plugins.connection.main_serial_dialog_tcp import SerialConnect
 from app.src.components.modbus.ddii_command import ModbusCMCommand, ModbusMPPCommand
-from app.src.components.modbus.modbus_var import ModbusReg
+from app.src.components.modbus.modbus_reg import ModbusReg
 from app.src.components.log.config import log_init
 from app.src.util.async_task_manager import AsyncTaskManager
 from app.src.components.modbus.worker import ModbusWorker

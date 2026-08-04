@@ -1,8 +1,8 @@
 
-class DebugCtrlReg():
+class CmCtrlReg():
     DEBUG_MODE_SWITCH                  = 0
     CONST_MODE_SWITCH                  = 1
-    POWER__HVIP_SWITCH                 = 2
+    POWER_HVIP_SWITCH                  = 2
     SET_INTERVAL_MEAS                  = 3
     GET_FRAME                          = 4
     CM_CHECK_MEM                       = 5
@@ -20,7 +20,7 @@ class DebugCtrlReg():
     CM_RESET                           = 17
     NUMBER                             = 18
 
-class DebugDbgReg():
+class CmDbgReg():
     BASE                               = 100
     DBG_MODE                           = BASE + 0
     CONST_MODE                         = BASE + 1
@@ -37,26 +37,25 @@ class DebugDbgReg():
     MKO_ERROR_CNT                      = BASE + 12
     NUMBER                             = BASE + 13
 
-class DebugHvipReg():
+class CmHvipReg():
     BASE                               = 300
-    CH_SELECT                          = BASE + 0
-    MODE                               = BASE + 1
-    STATE                              = BASE + 2
-    PWM_RAW                            = BASE + 3
-    PWM_X100                           = BASE + 4
-    PWM_MAX_X100                       = BASE + 5
-    V_FB_X100                          = BASE + 6
-    V_HV_X100                          = BASE + 7
-    V_HV_DESIRED_X100                  = BASE + 8
-    CURRENT_X100                       = BASE + 9
-    MAX_CURRENT_X100                   = BASE + 10
-    FLAG_OVERVOLT                      = BASE + 11
-    PID_K_X10000                       = BASE + 12
-    PID_P_X10000                       = BASE + 13
-    PID_I_X10000                       = BASE + 14
-    PID_D_X10000                       = BASE + 15
-    PID_REACTION_MAX_X10000            = BASE + 16
-    PID_ERROR_X100                     = BASE + 17
+    MODE                               = BASE + 0
+    STATE                              = BASE + 1
+    PWM_RAW                            = BASE + 2
+    PWM_X100                           = BASE + 3
+    PWM_MAX_X100                       = BASE + 4
+    V_FB_X100                          = BASE + 5
+    V_HV_X100                          = BASE + 6
+    V_HV_DESIRED_X100                  = BASE + 7
+    CURRENT_X100                       = BASE + 8
+    MAX_CURRENT_X100                   = BASE + 9
+    FLAG_OVERVOLT                      = BASE + 10
+    PID_K_X10000                       = BASE + 11
+    PID_P_X10000                       = BASE + 12
+    PID_I_X10000                       = BASE + 13
+    PID_D_X10000                       = BASE + 14
+    PID_REACTION_MAX_X10000            = BASE + 15
+    PID_ERROR_X100                     = BASE + 16
 
 
 class MppReg():
@@ -86,10 +85,10 @@ class MppReg():
 
 
 class ModbusReg():
-    reg_ctrl = DebugCtrlReg()
-    reg_dbg = DebugDbgReg()
-    reg_hvip = DebugHvipReg()
-    reg_mpp = MppReg()
+    ctrl_reg = CmCtrlReg()
+    dbg_reg = CmDbgReg()
+    hvip_reg = CmHvipReg()
+    mpp_reg = MppReg()
 
     MB_F_CODE_16                       = 0x10
     MB_F_CODE_3                        = 0x03

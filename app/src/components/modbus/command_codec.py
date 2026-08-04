@@ -26,17 +26,17 @@ def mb_encode(func: _Command[P]) -> _Encoded[P]: ...
 
 
 @overload
-def mb_encode(*, serial_log: Optional[bool] = None) -> Callable[[_Command[P]], _Encoded[P]]: ...
+def mb_encode(*, log_serial_exchange: Optional[bool] = None) -> Callable[[_Command[P]], _Encoded[P]]: ...
 
 
-def mb_encode(func: Optional[Callable[..., Any]] = None, *, serial_log: Optional[bool] = None):
+def mb_encode(func: Optional[Callable[..., Any]] = None, *, log_serial_exchange: Optional[bool] = None):
     def decorator(command: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(command)
         async def wrapper(self: Any, *args: Any, **kwargs: Any) -> bytes:
             try:
                 response = await command(self, *args, **kwargs)
                 _validate_response(response)
-                if _serial_log_enabled(self, serial_log):
+                if _should_log_serial_exchange(self, log_serial_exchange):
                     await log_s(self.mw.send_handler.mess)
                 return _encode_payload(response)
             except Exception as ex:
@@ -61,10 +61,10 @@ def _encode_payload(response: ModbusResponse) -> bytes:
     return response.encode()[1:]
 
 
-def _serial_log_enabled(command_owner: Any, override: Optional[bool]) -> bool:
+def _should_log_serial_exchange(command_owner: Any, override: Optional[bool]) -> bool:
     if override is not None:
         return override
-    return bool(getattr(command_owner, "serial_log_enabled", True))
+    return bool(getattr(command_owner, "log_serial_exchange", True))
 
 
 def _log_modbus_error(command_owner: Any, command_name: str, error: Exception) -> None:

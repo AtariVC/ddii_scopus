@@ -11,11 +11,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PyQt6.QtWidgets import QHBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 from PyQt6.QtCore import pyqtSignal
 from dark_pro_widgets.core import theme
-from dark_pro_widgets.widgets.composite import PowerCtrlPanel
+from dark_pro_widgets.widgets.composite.control_power_panel import PowerCtrlPanel
+from dark_pro_widgets.widgets.composite.plot_graphiclegend import PlotGraphicLegend
 from app.src.components.modbus.command_interface import ModbusCMCommand
+from app.src.components.modbus.modbus_reg import ModbusReg
 from typing import Callable
 
 
@@ -41,13 +43,15 @@ class ChannelConfig:
 # Цвет закреплён за каналом, как на графиках: PIPS — зелёный, SiPM — янтарный,
 # черенковский счётчик — синий (accent).
 _CHANNELS: list[ChannelConfig] = [
-    ChannelConfig("pips", "Канал PIPS", theme.PIPS),
-    ChannelConfig("sipm", "Канал SiPM", theme.SIPM),
-    ChannelConfig("cherenkov", "Черенковский счётчик", theme.ACCENT),
+    ChannelConfig("pips", "PIPS", theme.PIPS),
+    ChannelConfig("sipm", "SiPM", theme.SIPM),
+    ChannelConfig("cherenkov", "Чер. счётчик", theme.ACCENT),
 ]
+_PLOT_TITLE = ("Напряжение, В", "Ток, мА", "PWM, %")
 
 # Набор плиток телеметрии и подпись уставки — одинаковы для всех трёх каналов.
-_TILES: list[tuple[str, str]] = [("Напряжение, V", "—"), ("Ток, µA", "—"), ("ШИМ, %", "—")]
+_TILES_LABEL = ("Напр., В", "Ток, мА", "PWM, %")
+_TILES: list[tuple[str, str]] = [(tiles, "—") for tiles in _TILES_LABEL]
 _SETPOINT_LABEL = "Уставка, V"
 
 
@@ -63,21 +67,54 @@ class PowerControlWidget(QWidget):
     panel_pips: PowerCtrlPanel
     panel_sipm: PowerCtrlPanel
     panel_cherenkov: PowerCtrlPanel
+    plot_voltage: PlotGraphicLegend
+    plot_current: PlotGraphicLegend
+    plot_pwm: PlotGraphicLegend
 
     def __init__(self, client=None, parent=None) -> None:
         super().__init__(parent)
         self.panels: dict[str, PowerCtrlPanel] = {}
-
         self.client = client
-        # командный интерфейс ВШ ЦМ; в demo/без подключения — None (getattr не падает)
         self.cm_ib: ModbusCMCommand | None = getattr(client, "cm", None)
+        self.reg = ModbusReg()
+        self._build_widget_wholly()
 
-        outer = QHBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(12)
-        # панели в ряд, равной ширины (stretch=1 на каждую)
+    def _build_widget_wholly(self):
+        """Собирает виджет целиком
+        """
+        vcontainer = QVBoxLayout(self)
+        vcontainer.setContentsMargins(0, 0, 0, 0)
+        vcontainer.setSpacing(12)
+        # панели в ряд
+        hbox_panel = QHBoxLayout()
+        hbox_panel.setContentsMargins(0, 0, 0, 0)
+        hbox_panel.setSpacing(12)
         for channel in _CHANNELS:
-            outer.addWidget(self._build_panel(channel), 1)
+            hbox_panel.addWidget(self._build_panel(channel), 1)
+        vcontainer.addLayout(hbox_panel)
+        # графики столбцом под панелями
+        vbox_plot = QVBoxLayout()
+        vbox_plot.setContentsMargins(0, 0, 0, 0)
+        vbox_plot.setSpacing(12)
+        for i, channel in enumerate(_CHANNELS):
+            vbox_plot.addWidget(self._build_plot(_PLOT_TITLE[i]))
+        vcontainer.addLayout(vbox_plot, 1)
+
+    def _build_plot(self, title: str):
+        """Собрать и настроить одну панель канала.
+
+        Args:
+            channel: конфигурация канала (цвет точки).
+
+        Returns:
+            Настроенная :class:`ChannelConfig`; ссылка также кладётся в
+            ``self.plot[channel.key]`` и в атрибут ``plot_<key>``.
+        """
+        plot = PlotGraphicLegend()
+        plot.set_title(title)
+        for channel in _CHANNELS:
+            plot.add_series(channel.title, channel.color, [], visible=True)
+        return plot
 
     def _build_panel(self, channel: ChannelConfig) -> PowerCtrlPanel:
         """Собрать и настроить одну панель канала.
@@ -96,6 +133,20 @@ class PowerControlWidget(QWidget):
         self.panels[channel.key] = panel
         setattr(self, f"panel_{channel.key}", panel)
         return panel
+
+
+    def _build_tiles_maps(self) -> None:
+        self.pips_panel_map = {
+            "voltage_tiles"
+        }
+
+    def _update_state_panel(self) -> None:
+        """Обновляет данные панелей
+        """
+
+
+    def _parser(self, bytes_data: bytes):
+        ...
 
     def panel(self, key: str) -> PowerCtrlPanel | None:
         """Панель канала по ключу (``'pips'``/``'sipm'``/``'cherenkov'``) или ``None``."""
