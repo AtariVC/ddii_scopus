@@ -1,8 +1,7 @@
 import asyncio
-import logging
 from collections.abc import Coroutine
 from typing import Any, Dict, List, Optional, Callable
-from logging import Logger
+from loguru import logger
 import qasync
 
 class PrintLogger:
@@ -18,7 +17,7 @@ class AsyncTaskManager:
     """
     Менеджер асинхронных задач: создаёт, отслеживает, отменяет.
     """
-    def __init__(self, logger: Optional[Logger] = None) -> None:
+    def __init__(self) -> None:
         self.tasks: Dict[str, asyncio.Task] = {}
         # Делаем logger вызываемым объектом
         self.logger = logger if logger is not None else PrintLogger()

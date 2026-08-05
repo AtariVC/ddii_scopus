@@ -21,6 +21,7 @@ from PyQt6 import QtWidgets
 from PyQt6.QtCore import pyqtSignal
 
 from custom.icons import load_svg_icon
+from loguru import logger
 
 from dark_pro_widgets import theme
 
@@ -59,7 +60,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
     # при частичной связи. По нему виджеты гасят/включают свои кнопки.
     device_state_changed = pyqtSignal(bool, bool)
 
-    def __init__(self, logger=None, parent=None) -> None:
+    def __init__(self, parent=None) -> None:
         # ConnectionBarUI: loadUi, тема, презентационная разводка сигналов.
         super().__init__(parent)
 

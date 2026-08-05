@@ -119,7 +119,7 @@ class MainUIDesigner(QtWidgets.QMainWindow):
         # порядок важен: панель запуска в конструкторе обращается к графикам,
         # счётчику частиц и связи
         self.w_graph_widget: GraphWidget = GraphWidget()
-        self.w_ser_dialog: ConnectionBar = ConnectionBar(self.logger)
+        self.w_ser_dialog: ConnectionBar = ConnectionBar()
         self.flux_widget: FluxWidget = FluxWidget()
         self.run_control_widget: RunControlWidget = RunControlWidget(self)
         self.client = self.w_ser_dialog.client

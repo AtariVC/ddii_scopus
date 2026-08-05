@@ -61,8 +61,8 @@ class RunControlWidget(QtWidgets.QDialog):
         self.parser = Parsers()
         self.graph_widget: GraphWidget = self.parent.w_graph_widget  # type: ignore
         self.w_ser_dialog: ConnectionBar = self.parent.w_ser_dialog  # type: ignore
-        self.logger = self.parent.logger  # type: ignore
-        self.task_manager = AsyncTaskManager(self.logger)
+        self.logger = logger  # type: ignore
+        self.task_manager = AsyncTaskManager()
 
         # ==== флаги ====
         self.enable_trig_meas_flag = "enable_trig_meas_flag"
@@ -171,15 +171,15 @@ class RunControlWidget(QtWidgets.QDialog):
         if not self.w_ser_dialog or not self.w_ser_dialog.is_modbus_ready():
             self.logger.warning("Modbus не готов: нет активного соединения")
             if self.w_ser_dialog:
-                self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+                self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
             return
         try:
             ready = await self.w_ser_dialog.check_connection()
         except Exception as e:
             self.logger.warning(f"Не удалось обновить статус ЦМ/МПП: {e}")
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
             return
-        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
         if not ready:
             self.logger.warning("ЦМ/МПП недоступны — запуск измерений невозможен")
 
@@ -187,7 +187,7 @@ class RunControlWidget(QtWidgets.QDialog):
     async def on_serial_disconnected(self) -> None:
         await self._stop_measuring("Связь потеряна")
         if self.w_ser_dialog:
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface(self.logger)
+            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
 
     # ===== запуск/остановка =====
     @qasync.asyncSlot()

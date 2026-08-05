@@ -95,6 +95,7 @@ class PowerControlWidget(QWidget):
         self.reg = ModbusReg()
         self.state = DeviceState()                    # накопленное состояние регистров
         self._tasks = AsyncTaskManager()
+
         self.logger = logger
         self._poll_interval = 2.0                      # период опроса HVIP, с (как в main_hvip_dialog)
         # окно чтения кадра HVIP начинается со STATE (offset == reg внутри канала)
@@ -121,9 +122,9 @@ class PowerControlWidget(QWidget):
         отвечает, (пере)запустить опрос."""
         self._refresh_cm()
         try:
-            ready = await self.client.check_connection()
+            ready = await self.client.check_connection() # type: ignore
         except Exception:
-            ready = self.client.is_modbus_ready()
+            ready = self.client.is_modbus_ready() # type: ignore
         if ready:
             self.start_polling()
 
@@ -133,7 +134,7 @@ class PowerControlWidget(QWidget):
 
     def _refresh_cm(self) -> None:
         """Свежий командный интерфейс ЦМ (как в run_control: get_commands_interface)."""
-        self.cm_ib, _mpp = self.client.get_commands_interface()
+        self.cm_ib, _mpp = self.client.get_commands_interface() # type: ignore
 
     def start_polling(self) -> None:
         """Запустить фоновый опрос HVIP (идемпотентно; без ЦМ — no-op)."""
@@ -192,7 +193,7 @@ class PowerControlWidget(QWidget):
         # прозрачный контейнер: сливаемся с фоном рабочей зоны (WORK_BG),
         # иначе QScrollArea красит свой фон серым из палитры
         scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
-        scroll.viewport().setStyleSheet("background: transparent;")
+        scroll.viewport().setStyleSheet("background: transparent;") # type: ignore
         return scroll
 
     def _build_plot(self, title: str):
