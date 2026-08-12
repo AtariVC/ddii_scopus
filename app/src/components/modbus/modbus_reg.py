@@ -37,6 +37,14 @@ class CmDbgReg():
     MKO_ERROR_CNT                      = BASE + 12
     NUMBER                             = BASE + 13
 
+class CmFrameReg():
+    """Кадры прибора в debug-регистрах ЦМ: читаются целиком одним окном."""
+    DDII_BASE                          = 200
+    DDII_NUMBER                        = 32
+    SYS_BASE                           = 240
+    SYS_NUMBER                         = 32
+
+
 class CmHvipReg():
     BASE                               = 300
     MODE                               = BASE + 0
@@ -91,6 +99,7 @@ class ModbusReg():
     ctrl_reg = CmCtrlReg()
     dbg_reg = CmDbgReg()
     hvip_reg = CmHvipReg()
+    frame_reg = CmFrameReg()
     mpp_reg = MppReg()
 
     MB_F_CODE_16                       = 0x10

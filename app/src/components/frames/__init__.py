@@ -3,6 +3,9 @@
 * :mod:`~app.src.components.frames.codec` — ``Field`` / ``Frame`` / типы + кодек.
 * :mod:`~app.src.components.frames.device_frames` — описания кадров + реестр ``FRAMES``.
 * :mod:`~app.src.components.frames.state` — ``DeviceState`` со слиянием частичных чтений.
+* :mod:`~app.src.components.frames.stream_frames` — системный кадр и кадр ДДИИ
+  (схемы ``bytes_parser``); импортируется напрямую, чтобы не тянуть pandas в
+  рантайм-путь опроса.
 """
 from app.src.components.frames.codec import (
     F32,

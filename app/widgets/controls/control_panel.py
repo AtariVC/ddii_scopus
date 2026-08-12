@@ -1,4 +1,5 @@
 from dark_pro_widgets.widgets.controls.nav_list import NavList
+from app.widgets.controls.frame_viewer import FrameViewerWidget
 from app.widgets.controls.power import PowerControlWidget
 from PyQt6 import QtWidgets
 
@@ -11,10 +12,11 @@ class ControlPanel(NavList):
         super().__init__()
         self._parent = parent
         self._pages = {}
-        self.mok_widget = QtWidgets.QWidget()
         # ConnectionBar (нижняя панель связи): PowerControlWidget сам стартует
         # опрос по её сигналу подключения к ЦМ.
         self.power_panel = PowerControlWidget(self._parent.w_ser_dialog)
+        # Просмотрщик кадров: тоже стартует опрос по сигналу подключения к ЦМ
+        self.frame_viewer = FrameViewerWidget(self._parent.w_ser_dialog)
         self.build_navlist()
         self.sectionChanged.connect(self.on_screen_changed)
 
@@ -27,11 +29,14 @@ class ControlPanel(NavList):
         self._parent.stack_control_panel.setCurrentIndex(index_current_navitems)
         
     def build_stack_widget(self):
-        self._pages = {_ITEMS_NAVLIST[0]: self.power_panel}
-        for widget in self._pages.values():
-            self._parent.stack_control_panel.addWidget(widget)
+        """Собирает стек страниц: порядок страниц = порядок пунктов навигации."""
+        self._pages = {_ITEMS_NAVLIST[0]: self.power_panel,
+                       _ITEMS_NAVLIST[2]: self.frame_viewer}
         for item in _ITEMS_NAVLIST:
-            if item not in self._pages.keys():
-                self._parent.stack_control_panel.addWidget(self.mok_widget)
+            # пункт без своей страницы — пустая заглушка, чтобы индексы стека
+            # совпадали с индексами навигации
+            page = self._pages.get(item)
+            self._parent.stack_control_panel.addWidget(page if page is not None
+                                                       else QtWidgets.QWidget())
 
     

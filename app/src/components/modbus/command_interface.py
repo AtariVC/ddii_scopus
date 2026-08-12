@@ -48,6 +48,32 @@ class ModbusCMCommand(ModbusReg):
         )
 
     @mb_encode
+    async def read_system_frame(self) -> ModbusResponse:
+        """Прочитать системный кадр целиком (64 байта).
+
+        Returns:
+            Сырые байты кадра или ``b"-1"`` при ошибке.
+        """
+        return await self.client.read_holding_registers(
+            self.frame_reg.SYS_BASE,
+            self.frame_reg.SYS_NUMBER,
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
+    async def read_ddii_frame(self) -> ModbusResponse:
+        """Прочитать кадр ДДИИ целиком (64 байта).
+
+        Returns:
+            Сырые байты кадра или ``b"-1"`` при ошибке.
+        """
+        return await self.client.read_holding_registers(
+            self.frame_reg.DDII_BASE,
+            self.frame_reg.DDII_NUMBER,
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
     async def set_vlotage_ch_hvip(self, ch: int, v: float) -> ModbusResponse:
         '''Устанавливает значение напряжения для канала HVIP
 
