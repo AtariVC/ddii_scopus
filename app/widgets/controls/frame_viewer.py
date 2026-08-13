@@ -6,6 +6,8 @@ API:
 * ``start_polling()`` / ``stop_polling()`` — запуск/остановка фонового опроса кадров.
 * ``set_intervals(intervals)`` — периоды опроса, мс (ключи ``'system'`` / ``'ddii'``).
 * ``set_history_depth(depth)`` — глубина окна истории.
+* ``set_frame_interval(seconds)`` / ``frame_interval()`` — время формирования кадра
+  в ЦМ (команда прибору, не локальная настройка).
 * ``push_frame(key, raw)`` — разобрать сырой кадр и положить в историю.
 * ``table(key)`` — таблица кадра (:class:`StatTable`) по ключу.
 
@@ -17,8 +19,10 @@ API:
 опросом, при листании назад — остаётся на выбранном кадре.
 
 Опрос — одна бесконечная задача в :class:`AsyncTaskManager` (шина одна, чтения
-идут по очереди), у каждого кадра свой период; периоды и глубина истории
-правятся кнопкой ⚙ в верхней панели.
+идут по очереди), у каждого кадра свой период; периоды, глубина истории и время
+формирования кадра правятся кнопкой ⚙ в верхней панели. Время формирования кадра
+уходит в ЦМ командой ``set_frame_interval`` — тем же циклом опроса, чтобы запись
+не делила шину с чтениями.
 """
 from __future__ import annotations
 
@@ -86,6 +90,13 @@ _MAX_INTERVAL_MS = 600_000
 _POLL_TICK = 0.01            # минимальный сон цикла опроса, с (защита от busy loop)
 _NUMBER_ROW = "Номер кадра"  # строка кадра, из которой берётся номер для навигации
 
+# Время формирования кадра в ЦМ (команда MB_CM_CMD_SET_INTERVAL_MEAS), с:
+# текущее значение прибора видно в кадре ДДИИ строкой «Длительность измерения, с».
+_DURATION_ROW = "Длительность измерения, с"
+_DEFAULT_FRAME_INTERVAL_S = 10
+_MIN_FRAME_INTERVAL_S = 1
+_MAX_FRAME_INTERVAL_S = 3600
+
 
 class FrameViewerWidget(QWidget):
     """Две таблицы кадров (системный · ДДИИ) с навигацией по истории.
@@ -116,6 +127,8 @@ class FrameViewerWidget(QWidget):
         }
         self._offset = 0                            # 0 — самый свежий кадр истории
         self._tables: dict[str, StatTable] = {}
+        self._frame_interval: int | None = None     # время формирования кадра в ЦМ, с
+        self._pending_frame_interval: int | None = None  # ждёт отправки циклом опроса
 
         self._build_widget_wholly()
         self._wire_connection()
@@ -275,11 +288,22 @@ class FrameViewerWidget(QWidget):
         """
         due = {cfg.key: 0.0 for cfg in _FRAMES}
         while True:
+            await self._flush_frame_interval()
             for cfg in _FRAMES:
                 if time.monotonic() >= due[cfg.key]:
                     await self._polling_step(cfg)
                     due[cfg.key] = time.monotonic() + self._intervals[cfg.key]
             await asyncio.sleep(max(min(due.values()) - time.monotonic(), _POLL_TICK))
+
+    async def _flush_frame_interval(self) -> None:
+        """Отправить отложенную команду «время формирования кадра», если она есть."""
+        seconds, self._pending_frame_interval = self._pending_frame_interval, None
+        if seconds is None or self.cm_ib is None:
+            return
+        if await self.cm_ib.set_frame_interval(seconds) == b"-1":
+            self.logger.error(f"ЦМ: не задано время формирования кадра ({seconds} с)")
+            return
+        self._frame_interval = seconds
 
     # --- история кадров ------------------------------------------------------
     def push_frame(self, key: str, raw: bytes) -> None:
@@ -294,7 +318,10 @@ class FrameViewerWidget(QWidget):
         except Exception as ex:  # noqa: BLE001 - битый кадр не должен ронять опрос
             self.logger.debug(f"Кадр '{key}' не разобран: {ex}")
             return
-        self._history[key].append(FrameRecord(self._frame_number(table), table))
+        self._history[key].append(FrameRecord(self._row_value(table, _NUMBER_ROW), table))
+        duration = self._row_value(table, _DURATION_ROW)
+        if duration is not None:
+            self._frame_interval = duration      # что прибор реально отдаёт сейчас
         if self._offset:
             # пользователь листает историю — держим тот же кадр, а не уезжаем за опросом
             self._offset = min(self._offset + 1, self._max_offset())
@@ -334,6 +361,25 @@ class FrameViewerWidget(QWidget):
     def intervals(self) -> dict[str, int]:
         """Текущие периоды опроса кадров, мс."""
         return {key: int(seconds * 1000) for key, seconds in self._intervals.items()}
+
+    def set_frame_interval(self, seconds: int) -> None:
+        """Задать время формирования кадра в ЦМ, с.
+
+        Команда ставится в очередь и уходит ближайшим проходом опроса (шина одна).
+        Совпадение с текущим значением команду не порождает.
+        """
+        seconds = max(_MIN_FRAME_INTERVAL_S, min(int(seconds), _MAX_FRAME_INTERVAL_S))
+        if seconds == self.frame_interval():
+            return
+        self._pending_frame_interval = seconds
+
+    def frame_interval(self) -> int:
+        """Время формирования кадра, с: из очереди отправки, иначе из кадра ДДИИ."""
+        if self._pending_frame_interval is not None:
+            return self._pending_frame_interval
+        if self._frame_interval is not None:
+            return self._frame_interval
+        return _DEFAULT_FRAME_INTERVAL_S
 
     def table(self, key: str) -> StatTable | None:
         """Таблица кадра по ключу (``'system'`` / ``'ddii'``) или ``None``."""
@@ -398,22 +444,24 @@ class FrameViewerWidget(QWidget):
                 f'<span style="color:{theme.TEXT_DIM}">· {depth - self._offset}/{depth}</span>')
 
     @staticmethod
-    def _frame_number(table) -> int | None:
-        """Номер кадра из разобранной таблицы (``None``, если строки нет)."""
+    def _row_value(table, label: str) -> int | None:
+        """Числовое значение строки разобранного кадра (``None``, если строки нет)."""
         labels = list(table[table.columns[0]])
-        if _NUMBER_ROW not in labels:
+        if label not in labels:
             return None
-        return int(list(table["Numeric"])[labels.index(_NUMBER_ROW)])
+        return int(list(table["Numeric"])[labels.index(label)])
 
     # --- настройки -----------------------------------------------------------
     def open_settings(self) -> None:
         """Открыть диалог настройки периодов опроса и глубины истории."""
-        dialog = FramePollSettingsDialog(self.intervals(), self._depth, self)
+        dialog = FramePollSettingsDialog(self.intervals(), self._depth,
+                                         self.frame_interval(), self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        intervals, depth = dialog.values()
+        intervals, depth, frame_interval = dialog.values()
         self.set_intervals(intervals)
         self.set_history_depth(depth)
+        self.set_frame_interval(frame_interval)
 
     def closeEvent(self, a0) -> None:  # noqa: N802 - имя из Qt
         """Снять фоновые задачи вместе с виджетом."""
@@ -422,15 +470,20 @@ class FrameViewerWidget(QWidget):
 
 
 class FramePollSettingsDialog(QDialog):
-    """Диалог настройки опроса: период по каждому кадру и глубина истории.
+    """Диалог настройки: периоды опроса, глубина истории, время формирования кадра.
+
+    Первые два — локальный опрос, последнее — команда ЦМ.
 
     Attributes:
         spinBox_depth (SpinBox): глубина окна истории, кадров.
+        spinBox_frame_interval (SpinBox): время формирования кадра в ЦМ, с.
     """
 
     spinBox_depth: SpinBox
+    spinBox_frame_interval: SpinBox
 
-    def __init__(self, intervals: dict[str, int], depth: int, parent=None) -> None:
+    def __init__(self, intervals: dict[str, int], depth: int, frame_interval: int,
+                 parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Настройка опроса кадров")
         self._spins: dict[str, SpinBox] = {}
@@ -446,6 +499,11 @@ class FramePollSettingsDialog(QDialog):
         self.spinBox_depth = self._build_spin(
             _MIN_HISTORY_DEPTH, _MAX_HISTORY_DEPTH, depth, step=5)
         form.addRow("Глубина истории, кадров", self.spinBox_depth)
+        self.spinBox_frame_interval = self._build_spin(
+            _MIN_FRAME_INTERVAL_S, _MAX_FRAME_INTERVAL_S, frame_interval, step=1)
+        self.spinBox_frame_interval.setToolTip(
+            "Команда ЦМ: интервал измерения, с которым прибор формирует кадр")
+        form.addRow("Время формирования кадра (ЦМ), с", self.spinBox_frame_interval)
 
         buttons = QHBoxLayout()
         buttons.setSpacing(8)
@@ -467,10 +525,12 @@ class FramePollSettingsDialog(QDialog):
         spin.setValue(int(value))
         return spin
 
-    def values(self) -> tuple[dict[str, int], int]:
-        """Настройки из полей: ``({ключ кадра: период, мс}, глубина истории)``."""
+    def values(self) -> tuple[dict[str, int], int, int]:
+        """Настройки из полей: ``({ключ кадра: период, мс}, глубина истории,
+        время формирования кадра, с)``."""
         return ({key: spin.value() for key, spin in self._spins.items()},
-                self.spinBox_depth.value())
+                self.spinBox_depth.value(),
+                self.spinBox_frame_interval.value())
 
 
 if __name__ == "__main__":

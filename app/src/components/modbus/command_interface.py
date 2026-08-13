@@ -48,6 +48,19 @@ class ModbusCMCommand(ModbusReg):
         )
 
     @mb_encode
+    async def set_frame_interval(self, seconds: int) -> ModbusResponse:
+        """Задать время формирования кадра ЦМ.
+
+        Args:
+            seconds (int): интервал измерения (формирования кадра), с.
+        """
+        return await self.client.write_registers(
+            self.ctrl_reg.SET_INTERVAL_MEAS,
+            [int(seconds) & 0xFFFF],
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
     async def read_system_frame(self) -> ModbusResponse:
         """Прочитать системный кадр целиком (64 байта).
 
