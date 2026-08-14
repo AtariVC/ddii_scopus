@@ -60,13 +60,13 @@ class FrameConfig:
         title (str): заголовок карточки до первого разбора.
         dot (str): цвет точки состояния — токен темы.
         reader (str): метод :class:`ModbusCMCommand`, читающий сырой кадр.
-        interval_ms (int): период опроса по умолчанию, мс.
+        interval_s (int): период опроса по умолчанию, с.
     """
     key: str
     title: str
     dot: str
     reader: str
-    interval_ms: int
+    interval_s: int
 
 
 @dataclass(frozen=True)
@@ -78,16 +78,16 @@ class FrameRecord:
 
 # Карточки идут слева направо в этом порядке (как в макете).
 _FRAMES: list[FrameConfig] = [
-    FrameConfig("system", "Системный кадр", theme.ACCENT, "read_system_frame", 1000),
-    FrameConfig("ddii", "Кадр ДДИИ", theme.OK, "read_ddii_frame", 1000),
+    FrameConfig("system", "Системный кадр", theme.ACCENT, "read_system_frame", 10),
+    FrameConfig("ddii", "Кадр ДДИИ", theme.OK, "read_ddii_frame", 10),
 ]
 
-_HISTORY_DEPTH = 50          # окно истории кадров (FIFO: новый вытесняет самый старый)
-_MIN_HISTORY_DEPTH = 5
-_MAX_HISTORY_DEPTH = 500
-_MIN_INTERVAL_MS = 100
-_MAX_INTERVAL_MS = 600_000
-_POLL_TICK = 0.01            # минимальный сон цикла опроса, с (защита от busy loop)
+_HISTORY_DEPTH = 1          # окно истории кадров (FIFO: новый вытесняет самый старый)
+_MIN_HISTORY_DEPTH = 1
+_MAX_HISTORY_DEPTH = 10
+_MIN_INTERVAL_S = 1
+_MAX_INTERVAL_S = 60
+_POLL_TICK = 1            # минимальный сон цикла опроса, с (защита от busy loop)
 _NUMBER_ROW = "Номер кадра"  # строка кадра, из которой берётся номер для навигации
 
 # Время формирования кадра в ЦМ (команда MB_CM_CMD_SET_INTERVAL_MEAS), с:
@@ -121,7 +121,7 @@ class FrameViewerWidget(QWidget):
         self._tasks = AsyncTaskManager()
 
         self._depth = _HISTORY_DEPTH
-        self._intervals = {cfg.key: cfg.interval_ms / 1000 for cfg in _FRAMES}
+        self._intervals = {cfg.key: cfg.interval_s for cfg in _FRAMES}
         self._history: dict[str, deque[FrameRecord]] = {
             cfg.key: deque(maxlen=self._depth) for cfg in _FRAMES
         }
@@ -352,15 +352,15 @@ class FrameViewerWidget(QWidget):
 
         Применяется на лету: работающая задача опроса берёт период каждый проход.
         """
-        for key, interval_ms in intervals.items():
+        for key, interval_s in intervals.items():
             if key not in self._intervals:
                 continue
-            self._intervals[key] = max(_MIN_INTERVAL_MS, min(int(interval_ms),
-                                                             _MAX_INTERVAL_MS)) / 1000
+            self._intervals[key] = max(_MIN_INTERVAL_S, min(int(interval_s),
+                                                             _MAX_INTERVAL_S))
 
     def intervals(self) -> dict[str, int]:
         """Текущие периоды опроса кадров, мс."""
-        return {key: int(seconds * 1000) for key, seconds in self._intervals.items()}
+        return {key: int(seconds) for key, seconds in self._intervals.items()}
 
     def set_frame_interval(self, seconds: int) -> None:
         """Задать время формирования кадра в ЦМ, с.
@@ -493,9 +493,9 @@ class FramePollSettingsDialog(QDialog):
         form.setSpacing(12)
         for cfg in _FRAMES:
             self._spins[cfg.key] = self._build_spin(
-                _MIN_INTERVAL_MS, _MAX_INTERVAL_MS, intervals.get(cfg.key, cfg.interval_ms),
-                step=100)
-            form.addRow(f"{cfg.title}, мс", self._spins[cfg.key])
+                _MIN_INTERVAL_S, _MAX_INTERVAL_S, intervals.get(cfg.key, cfg.interval_s),
+                step=1)
+            form.addRow(f"{cfg.title}, с", self._spins[cfg.key])
         self.spinBox_depth = self._build_spin(
             _MIN_HISTORY_DEPTH, _MAX_HISTORY_DEPTH, depth, step=5)
         form.addRow("Глубина истории, кадров", self.spinBox_depth)
