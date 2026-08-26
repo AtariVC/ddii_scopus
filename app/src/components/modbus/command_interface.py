@@ -5,6 +5,7 @@ from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.pdu import ModbusResponse
 from loguru import logger
 
+from app.src.components.frames import HVIP
 from app.src.components.log.config import apply_glob_serial_log_flag
 from app.src.components.modbus.command_codec import mb_encode
 from app.src.components.modbus.modbus_reg import ModbusReg
@@ -46,6 +47,60 @@ class ModbusCMCommand(ModbusReg):
             count,
             slave=self.CM_ID,
         )
+
+    @mb_encode
+    async def write_registers(self, address: int, values: list[int]) -> ModbusResponse:
+        """Записать значения в регистры ЦМ подряд, начиная с адреса.
+
+        Args:
+            address (int): адрес первого регистра.
+            values (list[int]): значения регистров (по 16 бит).
+        """
+        return await self.client.write_registers(
+            address,
+            values,
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
+    async def read_hvip(self, ch: int) -> ModbusResponse:
+        """Прочитать блок регистров одного канала HVIP целиком (MODE … PID_ERROR).
+
+        Args:
+            ch (int): номер канала HVIP [0..HVIP_CH_NUM-1].
+
+        Returns:
+            Сырые байты блока (2 байта на регистр) или ``b"-1"`` при ошибке.
+        """
+        return await self.client.read_holding_registers(
+            self.hvip_reg.BASE + ch * self.hvip_reg.NUMBER,
+            self.hvip_reg.NUMBER,
+            slave=self.CM_ID,
+        )
+
+    async def write_hvip(self, ch: int, values: dict[str, float]) -> bytes:
+        """Записать rw-поля канала HVIP по именам полей кадра.
+
+        Пакеты собирает кадр :data:`~app.src.components.frames.HVIP`: смежные поля
+        уходят одной записью, адрес каждой группы — ``BASE + ch*NUMBER + offset``.
+        Поля только для чтения кадр отбрасывает сам.
+
+        Args:
+            ch (int): номер канала HVIP [0..HVIP_CH_NUM-1].
+            values (dict[str, float]): значения полей в инженерных единицах
+                (напр. ``{"voltage_desired": 900.0, "mode": 1}``).
+
+        Returns:
+            Ответ последней записи или ``b"-1"``, если хотя бы одна не прошла;
+            ``b""`` — если писать было нечего.
+        """
+        base = self.hvip_reg.BASE + ch * self.hvip_reg.NUMBER
+        result = b""
+        for offset, words in HVIP.encode(values):
+            result = await self.write_registers(base + offset, words)
+            if result == b"-1":
+                return b"-1"
+        return result
 
     @mb_encode
     async def set_frame_interval(self, seconds: int) -> ModbusResponse:

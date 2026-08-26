@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass
 
 import qasync
 from loguru import logger
@@ -31,31 +30,9 @@ from app.src.components.frames import HVIP, DeviceState
 from app.src.components.modbus.command_interface import ModbusCMCommand
 from app.src.components.modbus.modbus_reg import ModbusReg
 from app.src.util.async_task_manager import AsyncTaskManager
+from app.widgets.controls.hvip_channels import CHANNELS, ChannelConfig
 
 
-@dataclass(frozen=True)
-class ChannelConfig:
-    """Конфигурация одной панели канала питания.
-
-    Attributes:
-        key (str): ключ канала (``'pips'``/``'sipm'``/``'cherenkov'``).
-        title (str): заголовок панели.
-        color (str): цвет точки состояния — токен темы, закреплённый за каналом.
-        ch (int): индекс канала HVIP в прошивке (адресация регистров).
-    """
-    key: str
-    title: str
-    color: str
-    ch: int
-
-
-# Цвет закреплён за каналом, как на графиках: PIPS — зелёный, SiPM — янтарный,
-# черенковский счётчик — синий (accent).
-_CHANNELS: list[ChannelConfig] = [
-    ChannelConfig("pips", "PIPS", theme.PIPS, ch=0),
-    ChannelConfig("sipm", "SiPM", theme.SIPM, ch=1),
-    ChannelConfig("cherenkov", "Чер. счётчик", theme.ACCENT, ch=2),
-]
 _PLOT_TITLE = ("Напряжение, В", "Ток, мА", "PWM, %")
 
 # Набор плиток телеметрии и подпись уставки — одинаковы для всех трёх каналов.
@@ -100,7 +77,7 @@ class PowerControlWidget(QWidget):
         self._poll_interval = 2.0                      # период опроса HVIP, с (как в main_hvip_dialog)
         # окно чтения кадра HVIP начинается со STATE (offset == reg внутри канала)
         self._hvip_window_start = self.reg.hvip_reg.STATE - self.reg.hvip_reg.BASE
-        self.hystory_measure = {ch.key: [] for ch in _CHANNELS}
+        self.hystory_measure = {ch.key: [] for ch in CHANNELS}
         self._plots: dict[str, PlotGraphicLegend] = {}          # метрика -> график
         self._plot_framed: dict[str, bool] = {m: False for m in _PLOT_METRICS}
         self._history_points = int(_HISTORY_SECONDS / self._poll_interval)  # ~точек в окне
@@ -156,7 +133,7 @@ class PowerControlWidget(QWidget):
         hbox_panel = QHBoxLayout()
         hbox_panel.setContentsMargins(0, 0, 0, 0)
         hbox_panel.setSpacing(12)
-        for channel in _CHANNELS:
+        for channel in CHANNELS:
             hbox_panel.addWidget(self._build_panel(channel), 1)
         vcontainer.addLayout(hbox_panel)
         # графики — в прокручиваемой колонке: их минимальная высота больше не
@@ -208,7 +185,7 @@ class PowerControlWidget(QWidget):
         """
         plot = PlotGraphicLegend()
         plot.set_title(title)
-        for channel in _CHANNELS:
+        for channel in CHANNELS:
             plot.add_series(channel.title, channel.color, [], visible=True)
         return plot
 
@@ -232,7 +209,7 @@ class PowerControlWidget(QWidget):
     
     def _update_all_tiles(self) -> None:
         """Обновить плитки всех панелей из накопленного состояния."""
-        for channel in _CHANNELS:
+        for channel in CHANNELS:
             self._apply_channel_tiles(channel)
 
     def _apply_channel_tiles(self, channel: ChannelConfig) -> None:
@@ -267,7 +244,7 @@ class PowerControlWidget(QWidget):
     async def _polling_step(self) -> None:
         """Один проход опроса: по каждому каналу прочитать окно, разобрать кадром
         HVIP в состояние (частичное слияние), обновить плитки, историю и графики."""
-        for channel in _CHANNELS:
+        for channel in CHANNELS:
             raw = await self._request_ch_hvip(channel.ch)
             self.state.update(f"hvip:{channel.ch}", HVIP, raw, start=self._hvip_window_start)
         self._update_all_tiles()
@@ -278,7 +255,7 @@ class PowerControlWidget(QWidget):
         """Дописать текущие значения каналов в историю и выкинуть старше 10 минут."""
         now = time.monotonic()
         horizon = now - _HISTORY_SECONDS
-        for channel in _CHANNELS:
+        for channel in CHANNELS:
             fields = self.state.get(f"hvip:{channel.ch}")
             if not all(metric in fields for metric in _PLOT_METRICS):
                 continue  # неполные данные (напр. ошибка чтения) — этот кадр пропускаем
@@ -293,10 +270,10 @@ class PowerControlWidget(QWidget):
     def _update_plots(self) -> None:
         """Отрисовать историю каналов на графиках; после первой отрисовки — фикс вида."""
         for metric, plot in self._plots.items():
-            for index, channel in enumerate(_CHANNELS):
+            for index, channel in enumerate(CHANNELS):
                 hist = self.hystory_measure[channel.key]
                 plot.set_data(index, [record[metric] for record in hist])
-            if not self._plot_framed[metric] and any(self.hystory_measure[c.key] for c in _CHANNELS):
+            if not self._plot_framed[metric] and any(self.hystory_measure[c.key] for c in CHANNELS):
                 self._freeze_plot_view(plot)
                 self._plot_framed[metric] = True
 
