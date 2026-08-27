@@ -4,7 +4,7 @@ API:
 * ``FrameViewerWidget(client=None, parent=None)`` — две таблицы кадров и навигация
   по истории; ``client`` (ConnectionBar) даёт командный интерфейс ЦМ, в demo — ``None``.
 * ``start_polling()`` / ``stop_polling()`` — запуск/остановка фонового опроса кадров.
-* ``set_intervals(intervals)`` — периоды опроса, мс (ключи ``'system'`` / ``'ddii'``).
+* ``set_intervals(intervals)`` — периоды опроса, с (ключи ``'system'`` / ``'ddii'``).
 * ``set_history_depth(depth)`` — глубина окна истории.
 * ``set_frame_interval(seconds)`` / ``frame_interval()`` — время формирования кадра
   в ЦМ (команда прибору, не локальная настройка).
@@ -22,7 +22,7 @@ API:
 идут по очереди), у каждого кадра свой период; периоды, глубина истории и время
 формирования кадра правятся кнопкой ⚙ в верхней панели. Время формирования кадра
 уходит в ЦМ командой ``set_frame_interval`` — тем же циклом опроса, чтобы запись
-не делила шину с чтениями.
+не делила шину с чтениями, и повторяется, пока прибор не подтвердит запись.
 """
 from __future__ import annotations
 
@@ -96,6 +96,7 @@ _DURATION_ROW = "Длительность измерения, с"
 _DEFAULT_FRAME_INTERVAL_S = 10
 _MIN_FRAME_INTERVAL_S = 1
 _MAX_FRAME_INTERVAL_S = 3600
+_FRAME_INTERVAL_RETRIES = 5  # попыток записать время формирования кадра в ЦМ
 
 
 class FrameViewerWidget(QWidget):
@@ -129,6 +130,7 @@ class FrameViewerWidget(QWidget):
         self._tables: dict[str, StatTable] = {}
         self._frame_interval: int | None = None     # время формирования кадра в ЦМ, с
         self._pending_frame_interval: int | None = None  # ждёт отправки циклом опроса
+        self._pending_attempts = 0                  # попыток отправить отложенную команду
 
         self._build_widget_wholly()
         self._wire_connection()
@@ -146,6 +148,7 @@ class FrameViewerWidget(QWidget):
     def _build_topbar(self) -> QWidget:
         """Верхняя панель: ⚙ слева, навигация по кадрам справа."""
         bar = QWidget()
+        bar.setStyleSheet("background: transparent;")  # прозрачность
         hbox = QHBoxLayout(bar)
         hbox.setContentsMargins(0, 0, 0, 0)
         hbox.setSpacing(8)
@@ -296,14 +299,30 @@ class FrameViewerWidget(QWidget):
             await asyncio.sleep(max(min(due.values()) - time.monotonic(), _POLL_TICK))
 
     async def _flush_frame_interval(self) -> None:
-        """Отправить отложенную команду «время формирования кадра», если она есть."""
-        seconds, self._pending_frame_interval = self._pending_frame_interval, None
+        """Отправить отложенную команду «время формирования кадра», если она есть.
+
+        Значение снимается с очереди только после подтверждённой записи. Шина
+        мультимастерная — команда штатно теряется в коллизии, и если забыть её
+        сразу, ближайший кадр ДДИИ вернёт в поле старое значение прибора: для
+        пользователя это выглядит как самопроизвольный сброс настройки. Поэтому
+        команда повторяется следующими проходами опроса, суммарно
+        ``_FRAME_INTERVAL_RETRIES`` попыток; после этого сдаёмся с ошибкой в лог.
+        """
+        seconds = self._pending_frame_interval
         if seconds is None or self.cm_ib is None:
             return
-        if await self.cm_ib.set_frame_interval(seconds) == b"-1":
-            self.logger.error(f"ЦМ: не задано время формирования кадра ({seconds} с)")
+        self._pending_attempts += 1
+        if await self.cm_ib.set_frame_interval(seconds) != b"-1":
+            self._pending_frame_interval = None
+            self._frame_interval = seconds
             return
-        self._frame_interval = seconds
+        if self._pending_attempts >= _FRAME_INTERVAL_RETRIES:
+            self._pending_frame_interval = None
+            self.logger.error(f"ЦМ: не задано время формирования кадра ({seconds} с) "
+                              f"за {_FRAME_INTERVAL_RETRIES} попыток")
+        else:
+            self.logger.debug(f"ЦМ: время формирования кадра ({seconds} с) не записано, "
+                              f"попытка {self._pending_attempts} — повтор")
 
     # --- история кадров ------------------------------------------------------
     def push_frame(self, key: str, raw: bytes) -> None:
@@ -348,7 +367,7 @@ class FrameViewerWidget(QWidget):
         self._refresh_view()
 
     def set_intervals(self, intervals: dict[str, int]) -> None:
-        """Задать периоды опроса кадров в мс (ключи ``'system'`` / ``'ddii'``).
+        """Задать периоды опроса кадров в с (ключи ``'system'`` / ``'ddii'``).
 
         Применяется на лету: работающая задача опроса берёт период каждый проход.
         """
@@ -359,19 +378,21 @@ class FrameViewerWidget(QWidget):
                                                              _MAX_INTERVAL_S))
 
     def intervals(self) -> dict[str, int]:
-        """Текущие периоды опроса кадров, мс."""
+        """Текущие периоды опроса кадров, с."""
         return {key: int(seconds) for key, seconds in self._intervals.items()}
 
     def set_frame_interval(self, seconds: int) -> None:
         """Задать время формирования кадра в ЦМ, с.
 
-        Команда ставится в очередь и уходит ближайшим проходом опроса (шина одна).
+        Команда ставится в очередь и уходит ближайшим проходом опроса (шина одна),
+        при неудаче повторяется — см. :meth:`_flush_frame_interval`.
         Совпадение с текущим значением команду не порождает.
         """
         seconds = max(_MIN_FRAME_INTERVAL_S, min(int(seconds), _MAX_FRAME_INTERVAL_S))
         if seconds == self.frame_interval():
             return
         self._pending_frame_interval = seconds
+        self._pending_attempts = 0
 
     def frame_interval(self) -> int:
         """Время формирования кадра, с: из очереди отправки, иначе из кадра ДДИИ."""
@@ -526,7 +547,7 @@ class FramePollSettingsDialog(QDialog):
         return spin
 
     def values(self) -> tuple[dict[str, int], int, int]:
-        """Настройки из полей: ``({ключ кадра: период, мс}, глубина истории,
+        """Настройки из полей: ``({ключ кадра: период, с}, глубина истории,
         время формирования кадра, с)``."""
         return ({key: spin.value() for key, spin in self._spins.items()},
                 self.spinBox_depth.value(),

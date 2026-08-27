@@ -116,6 +116,69 @@ class ModbusCMCommand(ModbusReg):
         )
 
     @mb_encode
+    async def set_mpp_hh_levels(self, levels_kev: list[int]) -> ModbusResponse:
+        """Записать пороговые уровни МПП в регистры ЦМ.
+
+        Уровни идут в кэВ: перевод в кванты АЦП делает сама прошивка ЦМ
+        (``mpp_hh_level_array_kev_to_lsb``) по коэффициентам ``SET_COEFF_ELV_LSB_MPP``.
+
+        Args:
+            levels_kev (list[int]): уровни HH в кэВ (``MPP_HH_LEVEL_NUM`` штук).
+        """
+        return await self.client.write_registers(
+            self.ctrl_reg.SET_HH_MPP,
+            [int(level) & 0xFFFF for level in levels_kev],
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
+    async def set_mpp_coef_elv_lsb(self, pd_k: int, sc_k: int, pd_b: int) -> ModbusResponse:
+        """Записать коэффициенты пересчёта кэВ → кванты АЦП.
+
+        Args:
+            pd_k (int): ``pd_k_elv_lsb`` — коэффициент ПД1, кв. АЦП/МэВ.
+            sc_k (int): ``sc_k_elv_lsb`` — коэффициент СцД1, кв. АЦП/МэВ.
+            pd_b (int): ``pd_b_elv_lsb`` — смещение, кв. АЦП.
+        """
+        return await self.client.write_registers(
+            self.ctrl_reg.SET_COEFF_ELV_LSB_MPP,
+            [int(pd_k) & 0xFFFF, int(sc_k) & 0xFFFF, int(pd_b) & 0xFFFF],
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
+    async def save_state_config(self) -> ModbusResponse:
+        """Сохранить текущее состояние ЦМ как конфигурацию."""
+        return await self.client.write_registers(
+            self.ctrl_reg.SAVE_CURRENT_STATE_CFG,
+            [1],
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
+    async def load_state_config(self) -> ModbusResponse:
+        """Применить сохранённую конфигурацию ЦМ."""
+        return await self.client.write_registers(
+            self.ctrl_reg.LOAD_STATE_CFG,
+            [1],
+            slave=self.CM_ID,
+        )
+
+    async def update_config(self) -> bytes:
+        """Обновить конфигурацию ЦМ: сохранить текущее состояние и применить его.
+
+        Две команды подряд — так конфигурация, записанная в регистры, попадает и в
+        память, и в работу прибора.
+
+        Returns:
+            Ответ последней команды или ``b"-1"``, если упала любая из двух.
+        """
+        result = await self.save_state_config()
+        if result == b"-1":
+            return result
+        return await self.load_state_config()
+
+    @mb_encode
     async def read_system_frame(self) -> ModbusResponse:
         """Прочитать системный кадр целиком (64 байта).
 

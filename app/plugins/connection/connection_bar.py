@@ -329,9 +329,9 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         if self.settings.poll_cm:
             try:
                 if self.client:
-                    await self.client.write_registers(
-                        address=self.ctrl_reg.DEBUG_MODE_SWITCH, values=1, slave=self.cm_id
-                    )
+                    # await self.client.write_registers(
+                    #     address=self.ctrl_reg.DEBUG_MODE_SWITCH, values=1, slave=self.cm_id
+                    # )
                     await log_s(self.mw.send_handler.mess)
                     self.status_CM = 1
                     self._log_state("cm", None)

@@ -48,6 +48,7 @@ from app.widgets.viewer.explorer_widget import ExplorerHDF5Widget
 from app.widgets.viewer.filter_viewer_widget import FilterViewerWidget
 from app.widgets.viewer.graph_viewer_widget import GraphViewerWidget
 from app.widgets.oscilloscope.test_impact_ctrl import TestImpactControl
+from app.widgets.settings.settings_panel import SettingPanel
 
 _FONT = theme.FONT_FAMILY.split(",")[0].strip()
 
@@ -69,6 +70,7 @@ class MainUIDesigner(QtWidgets.QMainWindow):
     layout_connection: QVBoxLayout
     stack: QStackedWidget
     stack_control_panel: QStackedWidget
+    stack_setting_panel: QStackedWidget
     action_quit: QtCore.QObject
 
     def __init__(self) -> None:
@@ -134,9 +136,14 @@ class MainUIDesigner(QtWidgets.QMainWindow):
         # self.mpp_settings_widget: MppSettingsWidget = MppSettingsWidget(self)
         # self.cm_settings_widget: CmSettingsWidget = CmSettingsWidget(self)
         self.test_impact_ctrl: TestImpactControl = TestImpactControl(self)
+        # у каждого экрана со списком разделов свой стек страниц: индекс страницы
+        # = индекс пункта навигации, поэтому стеки не делятся между экранами
         self.stack_control_panel = QStackedWidget()
+        self.stack_setting_panel = QStackedWidget()
         self.control_panel = ControlPanel(self)
+        self.setting_panel = SettingPanel(self)
         self.control_panel.build_stack_widget()
+        self.setting_panel.build_stack_widget()
 
     # --- модель экранов ------------------------------------------------------
     def screen_model(self) -> dict:
@@ -150,32 +157,31 @@ class MainUIDesigner(QtWidgets.QMainWindow):
                 "work": self.w_graph_widget,
                 "inspector": {"Счётчик частиц": self.flux_widget},
             },
-            "Смотрилка": {
-                "icon": "history",
-                "breadcrumb": "Архив прогонов",
+            "Просмотр": {
+                "icon": "open",
+                "breadcrumb": "Просмотр",
                 "sidebar": {"Файл менеджер": self.explorer_hdf5_widget},
                 "work": self.graph_viewer_widget,
                 "inspector": {"Фильтр кадров": self.graph_filter_widget},
             },
-            "Управление и настройка": {
-                "icon": "settings",
-                "breadcrumb": "Настройки",
+            "Состояние": {
+                "icon": "register",
+                "breadcrumb": "Состояние",
                 "sidebar": {
                     "Опрос телеметрии": self.control_panel,
                 },
                 "work": self.stack_control_panel,
                 "inspector": None,
             },
-            # "Общее состояние прибора": {
-            #     "icon": "bug-report",
-            #     "breadcrumb": "Параметры прибора и связи",
-            #     "sidebar": {
-            #         "МПП": self.mpp_settings_widget,
-            #         "ЦМ: Питание": self.cm_settings_widget,
-            #     },
-            #     "work": None,
-            #     "inspector": None,
-            # },
+            "Настройка": {
+                "icon": "settings",
+                "breadcrumb": "Настройка",
+                "sidebar": {
+                    "Настройка": self.setting_panel,
+                },
+                "work": self.stack_setting_panel,
+                "inspector": None,
+            },
 
         }
 
