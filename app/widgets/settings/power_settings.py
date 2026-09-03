@@ -40,7 +40,7 @@ from dark_pro_widgets.widgets.composite.channel_power_panel import ChannelPowerP
 from app.src.components.frames import HVIP, DeviceState
 from app.src.components.modbus.command_interface import ModbusCMCommand
 from app.src.util.async_task_manager import AsyncTaskManager
-from app.widgets.controls.hvip_channels import CHANNELS, ChannelConfig
+from app.widgets.settings.hvip_channels import CHANNELS, ChannelConfig
 
 
 @dataclass(frozen=True)

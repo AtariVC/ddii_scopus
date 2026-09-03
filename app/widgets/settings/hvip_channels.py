@@ -37,7 +37,7 @@ class ChannelConfig:
 # Цвет закреплён за каналом, как на графиках: PIPS — зелёный, SiPM — янтарный,
 # черенковский счётчик — синий (accent).
 CHANNELS: list[ChannelConfig] = [
-    ChannelConfig("pips", "PIPS", theme.PIPS, ch=0),
+    ChannelConfig("pips", "PIPS", theme.PIPS, ch=2),
     ChannelConfig("sipm", "SiPM", theme.SIPM, ch=1),
-    ChannelConfig("cherenkov", "Чер. счётчик", theme.ACCENT, ch=2),
+    ChannelConfig("cherenkov", "Чер. счётчик", theme.ACCENT, ch=0),
 ]

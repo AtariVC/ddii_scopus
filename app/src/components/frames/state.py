@@ -24,7 +24,7 @@ class DeviceState:
         self._state: dict[str, dict[str, float]] = {}
 
     def update(self, slot: str, frame: Frame, raw: bytes, start: int = 0) -> dict[str, float]:
-        """Разобрать окно и слить его поля в слот (частично, не затирая прочие).
+        """Разобрать окно и слить его поля в слот.
 
         Args:
             slot (str): ключ слота, напр. ``"hvip:0"`` (кадр+канал).

@@ -22,7 +22,6 @@ class AsyncTaskManager:
         # Делаем logger вызываемым объектом
         self.logger = logger if logger is not None else PrintLogger()
 
-
     def create_task(self, coroutine: Coroutine[Any, Any, Any], task_name: str) -> None:
         """
         Создаёт задачу, если она ещё не активна.
@@ -32,6 +31,7 @@ class AsyncTaskManager:
         existing_task = self.tasks.get(task_name)
         if existing_task and not existing_task.done():
             self.logger.warning(f"Задача '{task_name}' уже выполняется")
+            coroutine.close()   # иначе брошенная корутина даст RuntimeWarning "was never awaited"
             return
 
         try:
@@ -40,6 +40,7 @@ class AsyncTaskManager:
             task.add_done_callback(lambda t: self._handle_task_completion(t, task_name))
             self.logger.info(f"Задача '{task_name}' запущена")
         except Exception as e:
+            coroutine.close()
             self.logger.warning(f"Ошибка при запуске задачи '{task_name}': {e}")
 
     def cancel_task(self, task_name: str) -> None:

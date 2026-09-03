@@ -35,7 +35,8 @@ class CmDbgReg():
     IB_NANS_CNT                        = BASE + 10
     MKO_ERROR                          = BASE + 11
     MKO_ERROR_CNT                      = BASE + 12
-    NUMBER                             = BASE + 13
+    AUTOTEST_BUSY                      = BASE + 13
+    NUMBER                             = BASE + 14
 
 class CmFrameReg():
     """Кадры прибора в debug-регистрах ЦМ: читаются целиком одним окном."""

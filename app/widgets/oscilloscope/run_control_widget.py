@@ -336,11 +336,11 @@ class RunControlWidget(QtWidgets.QDialog):
                     data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, **common)
                     data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, **common)
                     common["clear"] = False
-                    await self.graph_widget.hp_pips.draw_hist(
-                        [max(data_pips[1])],**common)
-                    await self.graph_widget.hp_sipm.draw_hist(
-                        [max(data_sipm[1])],**common
-                    )
+                    if self.flags[self.enable_trig_meas_flag] and max(data_pips[1]) > lvl:
+                        await self.graph_widget.hp_pips.draw_hist(
+                            [max(data_pips[1])],**common)
+                        await self.graph_widget.hp_sipm.draw_hist(
+                            [max(data_sipm[1])],**common)
                     self.graph_widget.refresh_badges()
                 except asyncio.exceptions.CancelledError:
                     return None

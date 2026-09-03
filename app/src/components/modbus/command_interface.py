@@ -81,23 +81,28 @@ class ModbusCMCommand(ModbusReg):
     async def write_hvip(self, ch: int, values: dict[str, float]) -> bytes:
         """Записать rw-поля канала HVIP по именам полей кадра.
 
+        Чтение HVIP поканальное (блок ``BASE + ch*NUMBER``), а **запись —
+        командная**: адрес всегда базовый (``BASE + offset``, без умножения на
+        канал), а номер канала идёт первым словом данных. Прошивка так и
+        разбирает пакет: «номер канала и хотя бы одно значение», меньше двух слов
+        отвергается как ILLEGAL_DATA_VALUE.
+
         Пакеты собирает кадр :data:`~app.src.components.frames.HVIP`: смежные поля
-        уходят одной записью, адрес каждой группы — ``BASE + ch*NUMBER + offset``.
-        Поля только для чтения кадр отбрасывает сам.
+        уходят одной записью ``[ch, знач, знач, …]``. Поля только для чтения кадр
+        отбрасывает сам.
 
         Args:
             ch (int): номер канала HVIP [0..HVIP_CH_NUM-1].
             values (dict[str, float]): значения полей в инженерных единицах
-                (напр. ``{"voltage_desired": 900.0, "mode": 1}``).
+                (напр. ``{"voltage_desired": 300.0, "mode": 1}``).
 
         Returns:
             Ответ последней записи или ``b"-1"``, если хотя бы одна не прошла;
             ``b""`` — если писать было нечего.
         """
-        base = self.hvip_reg.BASE + ch * self.hvip_reg.NUMBER
         result = b""
         for offset, words in HVIP.encode(values):
-            result = await self.write_registers(base + offset, words)
+            result = await self.write_registers(self.hvip_reg.BASE + offset, [ch, *words])
             if result == b"-1":
                 return b"-1"
         return result
@@ -114,69 +119,6 @@ class ModbusCMCommand(ModbusReg):
             [int(seconds) & 0xFFFF],
             slave=self.CM_ID,
         )
-
-    @mb_encode
-    async def set_mpp_hh_levels(self, levels_kev: list[int]) -> ModbusResponse:
-        """Записать пороговые уровни МПП в регистры ЦМ.
-
-        Уровни идут в кэВ: перевод в кванты АЦП делает сама прошивка ЦМ
-        (``mpp_hh_level_array_kev_to_lsb``) по коэффициентам ``SET_COEFF_ELV_LSB_MPP``.
-
-        Args:
-            levels_kev (list[int]): уровни HH в кэВ (``MPP_HH_LEVEL_NUM`` штук).
-        """
-        return await self.client.write_registers(
-            self.ctrl_reg.SET_HH_MPP,
-            [int(level) & 0xFFFF for level in levels_kev],
-            slave=self.CM_ID,
-        )
-
-    @mb_encode
-    async def set_mpp_coef_elv_lsb(self, pd_k: int, sc_k: int, pd_b: int) -> ModbusResponse:
-        """Записать коэффициенты пересчёта кэВ → кванты АЦП.
-
-        Args:
-            pd_k (int): ``pd_k_elv_lsb`` — коэффициент ПД1, кв. АЦП/МэВ.
-            sc_k (int): ``sc_k_elv_lsb`` — коэффициент СцД1, кв. АЦП/МэВ.
-            pd_b (int): ``pd_b_elv_lsb`` — смещение, кв. АЦП.
-        """
-        return await self.client.write_registers(
-            self.ctrl_reg.SET_COEFF_ELV_LSB_MPP,
-            [int(pd_k) & 0xFFFF, int(sc_k) & 0xFFFF, int(pd_b) & 0xFFFF],
-            slave=self.CM_ID,
-        )
-
-    @mb_encode
-    async def save_state_config(self) -> ModbusResponse:
-        """Сохранить текущее состояние ЦМ как конфигурацию."""
-        return await self.client.write_registers(
-            self.ctrl_reg.SAVE_CURRENT_STATE_CFG,
-            [1],
-            slave=self.CM_ID,
-        )
-
-    @mb_encode
-    async def load_state_config(self) -> ModbusResponse:
-        """Применить сохранённую конфигурацию ЦМ."""
-        return await self.client.write_registers(
-            self.ctrl_reg.LOAD_STATE_CFG,
-            [1],
-            slave=self.CM_ID,
-        )
-
-    async def update_config(self) -> bytes:
-        """Обновить конфигурацию ЦМ: сохранить текущее состояние и применить его.
-
-        Две команды подряд — так конфигурация, записанная в регистры, попадает и в
-        память, и в работу прибора.
-
-        Returns:
-            Ответ последней команды или ``b"-1"``, если упала любая из двух.
-        """
-        result = await self.save_state_config()
-        if result == b"-1":
-            return result
-        return await self.load_state_config()
 
     @mb_encode
     async def read_system_frame(self) -> ModbusResponse:
@@ -204,27 +146,26 @@ class ModbusCMCommand(ModbusReg):
             slave=self.CM_ID,
         )
 
-    @mb_encode
-    async def set_vlotage_ch_hvip(self, ch: int, v: float) -> ModbusResponse:
+    async def set_vlotage_ch_hvip(self, ch: int, v: float) -> bytes:
         '''Устанавливает значение напряжения для канала HVIP
 
+        Адрес считает кадр HVIP (``BASE + ch*NUMBER + offset``): регистр
+        V_HV_DESIRED_X100 именно этого канала.
+
         Args:
-            ch(int): Канал HVIP
+            ch(int): Канал HVIP [0..HVIP_CH_NUM-1]
             v(float): Напряжение с точностью до второго знака
         '''
-        return await self.client.write_registers(
-            self.hvip_reg.V_HV_DESIRED_X100,
-            [ch, int(round(v, 2)*100)],
-            slave=self.CM_ID,
-        )
+        return await self.write_hvip(ch, {"voltage_desired": v})
 
-    @mb_encode
-    async def enable_ch_hvip(self, ch: int, state: int) -> ModbusResponse:
-        return await self.client.write_registers(
-            self.hvip_reg.STATE,
-            [ch, state],
-            slave=self.CM_ID,
-        )
+    async def enable_ch_hvip(self, ch: int, state: int) -> bytes:
+        """Включить/выключить канал HVIP (регистр MODE этого канала).
+
+        Args:
+            ch (int): номер канала HVIP [0..HVIP_CH_NUM-1].
+            state (int): 1 — включить, 0 — выключить.
+        """
+        return await self.write_hvip(ch, {"mode": int(bool(state))})
 
 class ModbusMPPCommand(ModbusReg):
     device_name = "МПП"
