@@ -267,9 +267,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             self.stop_tcp_server()
         if self.tcp_client is not None:
             self.disconnect_tcp_client()
-        if self.client is not None:
-            self.client.close()
-            self.client = None
+        self._close_serial_client()
         self.set_connected(False)
         self._update_state_label()
         self.disconnected.emit()
@@ -290,10 +288,16 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             parity="N",
             stopbits=1,
             handle_local_echo=True,
+            # Соединением управляет кнопка панели, а не pymodbus. С дефолтным
+            # reconnect_delay=0.1 первый же таймаут запроса поднимал фоновую
+            # задачу переподключения: она успевала создать новый транспорт, и
+            # наш close() падал на нём с io.UnsupportedOperation (см.
+            # _close_serial_client), оставляя порт занятым.
+            reconnect_delay=0,
         )
         connected: bool = await self.client.connect()
         if not connected:
-            self.client = None
+            self._close_serial_client()
             self._set_status("Порт занят", theme.ERR)
             return
 
@@ -343,13 +347,27 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
 
         # Ни одно из затребованных устройств не ответило — связи с ДДИИ нет
         if not self._any_required_ok() and self.client:
-            self.client.close()
+            self._close_serial_client()
             await asyncio.sleep(1)
-            self.client = None
             self.set_connected(False)
             self._set_status("Нет связи", theme.ERR)
             self._update_state_label()
             self.disconnected.emit()
+
+    def _close_serial_client(self) -> None:
+        """Закрывает Serial-клиент и обнуляет ссылку, чем бы ни кончился close().
+
+        На Windows транспорт pymodbus местами дёргает ``fileno()`` у pyserial,
+        которого там нет (``io.UnsupportedOperation``). Исключение из ``close()``
+        раньше улетало наружу, оставляя ``self.client`` живым, а порт — занятым.
+        """
+        client, self.client = self.client, None
+        if client is None:
+            return
+        try:
+            client.close()
+        except Exception as e:  # noqa: BLE001 — закрытие не должно ронять UI
+            self.logger.debug(f"Ошибка при закрытии Serial-клиента: {e}")
 
     def _log_state(self, key: str, message: str | None, level: str = "debug") -> None:
         """Пишет в лог только при смене состояния по ключу.
@@ -381,7 +399,8 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         try:
             await self._tcp_preflight_diagnostics(host, port)
 
-            tcp_client = AsyncModbusTcpClient(host=host, port=port, timeout=2)
+            # reconnect_delay=0 — переподключением управляет кнопка панели, не pymodbus
+            tcp_client = AsyncModbusTcpClient(host=host, port=port, timeout=2, reconnect_delay=0)
             connected = await tcp_client.connect()
             if connected:
                 self.tcp_client = tcp_client
