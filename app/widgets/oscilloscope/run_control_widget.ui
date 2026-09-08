@@ -2,84 +2,168 @@
 <ui version="4.0">
  <class>RunControlWidget</class>
  <widget class="QWidget" name="RunControlWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>216</width>
+    <height>268</height>
+   </rect>
+  </property>
   <layout class="QVBoxLayout" name="root">
-   <property name="leftMargin"><number>0</number></property>
-   <property name="topMargin"><number>0</number></property>
-   <property name="rightMargin"><number>0</number></property>
-   <property name="bottomMargin"><number>0</number></property>
-   <property name="spacing"><number>14</number></property>
-
-   <!-- Параметры: сетка, а не отдельные строки со спейсером — иначе позиция
-        поля зависит от длины подписи и на широком шрифте строки разъезжаются -->
+   <property name="spacing">
+    <number>14</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
    <item>
-    <!-- columnstretch: колонка подписей тянется, колонка полей фиксированная -->
     <layout class="QGridLayout" name="grid_params" columnstretch="1,0">
-     <property name="horizontalSpacing"><number>12</number></property>
-     <property name="verticalSpacing"><number>14</number></property>
+     <property name="horizontalSpacing">
+      <number>12</number>
+     </property>
+     <property name="verticalSpacing">
+      <number>14</number>
+     </property>
      <item row="0" column="0">
       <widget class="QLabel" name="label_trigger">
-       <property name="text"><string>Тригер, lsb</string></property>
+       <property name="text">
+        <string>Тригер, lsb</string>
+       </property>
       </widget>
      </item>
      <item row="0" column="1">
       <widget class="QLineEdit" name="lineEdit_trigger">
-       <property name="minimumSize"><size><width>112</width><height>34</height></size></property>
-       <property name="maximumSize"><size><width>112</width><height>34</height></size></property>
-       <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
-       <property name="text"><string>10</string></property>
-       <property name="toolTip"><string>Порог запуска измерения, lsb</string></property>
+       <property name="minimumSize">
+        <size>
+         <width>112</width>
+         <height>34</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>112</width>
+         <height>34</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Порог запуска измерения, lsb</string>
+       </property>
+       <property name="text">
+        <string>10</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
       </widget>
      </item>
      <item row="1" column="0">
       <widget class="QLabel" name="label_interval">
-       <property name="text"><string>Интервал опроса, с</string></property>
+       <property name="text">
+        <string>Интервал опроса, с</string>
+       </property>
       </widget>
      </item>
      <item row="1" column="1">
       <widget class="QLineEdit" name="lineEdit_interval">
-       <property name="minimumSize"><size><width>112</width><height>34</height></size></property>
-       <property name="maximumSize"><size><width>112</width><height>34</height></size></property>
-       <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
-       <property name="text"><string>10</string></property>
-       <property name="toolTip"><string>Период опроса счётчиков частиц, с</string></property>
+       <property name="minimumSize">
+        <size>
+         <width>112</width>
+         <height>34</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>112</width>
+         <height>34</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Период опроса счётчиков частиц, с</string>
+       </property>
+       <property name="text">
+        <string>10</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
       </widget>
      </item>
     </layout>
    </item>
-
-   <!-- флаги -->
    <item>
-    <widget class="QCheckBox" name="checkBox_trigger_start">
-     <property name="text"><string>Запуск по тригеру</string></property>
-     <property name="checked"><bool>true</bool></property>
-     <property name="toolTip"><string>Ждать превышения порога вместо принудительного запуска</string></property>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout_trig">
+     <item>
+      <widget class="QCheckBox" name="checkBox_trigger_start">
+       <property name="toolTip">
+        <string>Ждать превышения порога вместо принудительного запуска</string>
+       </property>
+       <property name="text">
+        <string>Тригер</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <widget class="QCheckBox" name="checkBox_counters">
-     <property name="text"><string>Опрос счётчиков</string></property>
-     <property name="checked"><bool>true</bool></property>
-     <property name="toolTip"><string>Опрашивать гистограммы и счётчики частиц МПП</string></property>
+     <property name="toolTip">
+      <string>Опрашивать гистограммы и счётчики частиц МПП</string>
+     </property>
+     <property name="text">
+      <string>Опрос счётчиков</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
     </widget>
    </item>
    <item>
     <widget class="QCheckBox" name="checkBox_waveform">
-     <property name="text"><string>Чтение осциллограмм</string></property>
-     <property name="checked"><bool>true</bool></property>
-     <property name="toolTip"><string>Читать осциллограммы каналов PIPS и SiPM</string></property>
+     <property name="toolTip">
+      <string>Читать осциллограммы каналов PIPS и SiPM</string>
+     </property>
+     <property name="text">
+      <string>Чтение осциллограмм</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
     </widget>
    </item>
    <item>
     <widget class="QCheckBox" name="checkBox_write_log">
-     <property name="text"><string>Запись лог</string></property>
-     <property name="toolTip"><string>Сохранять измерения в HDF5</string></property>
+     <property name="toolTip">
+      <string>Сохранять измерения в HDF5</string>
+     </property>
+     <property name="text">
+      <string>Запись лог</string>
+     </property>
     </widget>
    </item>
-
    <item>
     <widget class="_RunButton" name="pushButton_run">
-     <property name="minimumSize"><size><width>0</width><height>44</height></size></property>
-     <property name="text"><string>Начать измерение</string></property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>44</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>Начать измерение</string>
+     </property>
     </widget>
    </item>
   </layout>

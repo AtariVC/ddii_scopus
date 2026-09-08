@@ -83,12 +83,14 @@ class MppReg():
     MPP_HIST_32                        = 44
     MPP_HIST_16                        = 56
     MPP_HIST_HCP                       = 62
+    MPP_REG_TRIG_SEL                   = 120
     MPP_LEVEL                          = 0x0079
     CALIBR_ALL_CH                      = 0x0050
     OSCILL_CH0                         = 0xA000
     OSCILL_CH1                         = 0xA200
 
     MPP_LEVEL_TRIG                     = 1
+    MPP_TRIG_SEL                       = 3
     MPP_TRIG_CNT_CLEAR                 = 11
 
     MPP_START_MEASURE: list[int]       = [0x0002, 0x0001]

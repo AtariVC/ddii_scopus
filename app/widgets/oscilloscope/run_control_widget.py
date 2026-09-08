@@ -19,10 +19,11 @@ from app.src.event.event import Event
 from app.src.util.async_task_manager import AsyncTaskManager
 from app.widgets.oscilloscope.graph_widget import GraphWidget
 from types import SimpleNamespace
+from dark_pro_widgets.widgets.controls.segmented_control import SegmentedControl
 
 # 12-битные внешние счётчики (0..4095) — для детекции переполнения/сброса
 _COUNTER_MODULUS = 4096
-
+_SEG_TITLES = ["ACQ1", "ACQ2"]
 
 class _DrawArgs(TypedDict):
     """Общие параметры draw_graph"""
@@ -44,6 +45,7 @@ class _RunButton(ToggleButton):
 
 
 class RunControlWidget(QtWidgets.QDialog):
+    horizontalLayout_trig: QtWidgets.QHBoxLayout
     lineEdit_trigger: QtWidgets.QLineEdit
     lineEdit_interval: QtWidgets.QLineEdit
     checkBox_trigger_start: QtWidgets.QCheckBox
@@ -128,6 +130,12 @@ class RunControlWidget(QtWidgets.QDialog):
         self.w_ser_dialog.disconnected.connect(self.on_serial_disconnected)
         self.pushButton_run.clicked.connect(self.pushButton_run_handler)
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
+        self._rebuild_widget()
+
+    def _rebuild_widget(self):
+        self.seg_trig_sel = SegmentedControl(_SEG_TITLES)
+        self.seg_trig_sel.setCurrentIndex(0)
+        self.horizontalLayout_trig.addWidget(self.seg_trig_sel)
 
     # ===== флаги =====
     def init_flags(self) -> None:
@@ -230,8 +238,6 @@ class RunControlWidget(QtWidgets.QDialog):
                 hh_task: Callable[[], Awaitable[None]] = self.asyncio_HH_loop_request
                 self.task_manager.create_task(hh_task(), "HH_task")
                 if not self.flags[self.read_waveform_flag]:
-                    await self.mpp_cmd.set_level(self._trigger_level())
-                    await self.mpp_cmd.start_measure(on=1)
                     peak_task: Callable[[], Awaitable[None]] = self.asyncio_ACQ_Peak_loop_request
                     self.task_manager.create_task(peak_task(), "ACQ_Peak_task")
         except Exception as e:
@@ -294,6 +300,7 @@ class RunControlWidget(QtWidgets.QDialog):
             if self.flags[self.enable_trig_meas_flag]:
                 await self.mpp_cmd.set_level(lvl)
                 await self.mpp_cmd.start_measure(on=1)
+                await self.mpp_cmd.set_trig_sel(self.seg_trig_sel.currentIndex())
             common: _DrawArgs = {
                 "name_file_save_data": self.name_file_save,
                 "name_data": self.name_data,
@@ -301,6 +308,7 @@ class RunControlWidget(QtWidgets.QDialog):
                 "save_log": save,
                 "clear": True,
             }
+            
             while 1:
                 if not self.w_ser_dialog.is_modbus_ready():
                     await self._stop_measuring("Потеряно соединение")
@@ -309,7 +317,7 @@ class RunControlWidget(QtWidgets.QDialog):
                 self.parent.shared_bfr_update_event.emit(self.name_data)  # type: ignore
                 if not self.flags[self.enable_trig_meas_flag]:
                     await self.mpp_cmd.start_measure_forced(0)
-                    await self.mpp_cmd.start_measure_forced(1)
+                    # await self.mpp_cmd.start_measure_forced(1) # запуск по второму каналу не нужен, ДДИИ запускает по первому каналу
                 else:
                     await self.mpp_cmd.issue_waveform()
                 await self.mpp_cmd.waveform_release()
@@ -322,7 +330,8 @@ class RunControlWidget(QtWidgets.QDialog):
                 if self.flags[self.wr_log_flag]:
                     peak0 = max(result_ch0_int)
                     peak1 = max(result_ch1_int)
-                    save = (peak0 & 0xFFF > lvl) or (peak1 & 0xFFF > 5)
+                    save = (((peak0 & 0xFFF > lvl) or (peak1 & 0xFFF > 5)) and  \
+                    ((peak0 < 2000) and (peak1 < 2000)))
                 else:
                     save = False
                 # name_data и save меняются каждую итерацию — common собран до цикла,
@@ -336,7 +345,8 @@ class RunControlWidget(QtWidgets.QDialog):
                     data_pips = await self.graph_widget.gp_pips.draw_graph(result_ch0_int, **common)
                     data_sipm = await self.graph_widget.gp_sipm.draw_graph(result_ch1_int, **common)
                     common["clear"] = False
-                    if self.flags[self.enable_trig_meas_flag] and max(data_pips[1]) > lvl:
+                    cond = (max(data_pips[1]) < 2000 and max(data_sipm[1]) < 2000)
+                    if self.flags[self.enable_trig_meas_flag] and max(data_pips[1]) > lvl and cond:
                         await self.graph_widget.hp_pips.draw_hist(
                             [max(data_pips[1])],**common)
                         await self.graph_widget.hp_sipm.draw_hist(
@@ -348,7 +358,7 @@ class RunControlWidget(QtWidgets.QDialog):
             await self._stop_measuring(f"Ошибка (осциллограммы): {e}")
             return
 
-    # ===== цикл опроса счётчиков (бывший run_flux) =====
+    # ===== цикл опроса счётчиков  =====
     async def init_HH_request(self, delay, path_to_save: Path, name_file_save: str,
                               save_log_file: bool) -> bool:
         self.delay = delay
@@ -449,8 +459,16 @@ class RunControlWidget(QtWidgets.QDialog):
             "save_log": self.save_log_file,
             "clear": False,
         }
+        if self.flags[self.enable_trig_meas_flag]:
+            await self.mpp_cmd.set_level(self._trigger_level())
+            await self.mpp_cmd.start_measure(on=1)
+            await self.mpp_cmd.set_trig_sel(self.seg_trig_sel.currentIndex())
+        trig_sel_b = await self.mpp_cmd.get_mpp_trig_sel()
+        trig_sel = await self.parser.mpp_pars_16b(trig_sel_b)
         while 1:
-            await asyncio.sleep(0.0005)
+            if not self.flags[self.enable_trig_meas_flag]:
+                await self.mpp_cmd.start_measure_forced(0)
+            await asyncio.sleep(0.5)
             if not self.w_ser_dialog.is_modbus_ready():
                 await self._stop_measuring("Потеряно соединение")
                 return
@@ -473,25 +491,26 @@ class RunControlWidget(QtWidgets.QDialog):
             acq1_value = acq1[0] if acq1 else 0
             acq2_value = acq2[0] if acq2 else 0
             tmp_count_value = tmp_count[0] if tmp_count else 0
-            self.get_acq_event.emit([str(acq1_value), str(acq2_value)])
+            if acq1_value < 2000 and acq2_value < 2000:
+                self.get_acq_event.emit([str(acq1_value), str(acq2_value)])
 
-            try:
-                if self.TmpCount != tmp_count_value:
-                    self.TmpCount = tmp_count_value
-                    await self.graph_widget.hp_pips.draw_hist(
-                        [acq1_value], bin_count=4096,
-                        data_is_hist=False,
-                        **common
-                    )
-                    await self.graph_widget.hp_sipm.draw_hist(
-                        [acq2_value], bin_count=4096,
-                        data_is_hist=False,
-                        **common
-                    )
-                    self.graph_widget.refresh_badges()
-            except asyncio.exceptions.CancelledError as e:
-                self.logger.error(str(e))
-                return None
+                try:
+                    if self.TmpCount != tmp_count_value:
+                        self.TmpCount = tmp_count_value
+                        await self.graph_widget.hp_pips.draw_hist(
+                            [acq1_value], bin_count=4096,
+                            data_is_hist=False,
+                            **common
+                        )
+                        await self.graph_widget.hp_sipm.draw_hist(
+                            [acq2_value], bin_count=4096,
+                            data_is_hist=False,
+                            **common
+                        )
+                        self.graph_widget.refresh_badges()
+                except asyncio.exceptions.CancelledError as e:
+                    self.logger.error(str(e))
+                    return None
 
     def _accumulate_with_reset(self, prev, acc, curr):
         """Накопление по бинам с детекцией сброса и переполнения счётчика.
@@ -545,7 +564,7 @@ if __name__ == "__main__":
     host_parent = SimpleNamespace(
         w_graph_widget=GraphWidget(),
         flux_widget=FluxWidget(),
-        w_ser_dialog=ConnectionBar(logger),
+        w_ser_dialog=ConnectionBar(),
         logger=logger,
         shared_bfr_update_event=Event(str),
     )

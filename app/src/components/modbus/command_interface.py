@@ -371,6 +371,10 @@ class ModbusMPPCommand(ModbusReg):
         await asyncio.sleep(0.1)
         return await self.write_mpp_ctrl_reg(0x08) # type: ignore
 
+    async def set_trig_sel(self, trig_sel: int) -> ModbusResponse:
+        cmd = [self.mpp_reg.MPP_TRIG_SEL, trig_sel]
+        return await self.write_mpp_ctrl_reg(cmd)
+
     @mb_encode
     async def write_mpp_reg_hh(self, hh: list[int]) -> ModbusResponse:
         return await self.client.write_registers(
@@ -390,6 +394,14 @@ class ModbusMPPCommand(ModbusReg):
         return await self.client.read_holding_registers(
             self.mpp_reg.MPP_HH,
             32,
+            slave=self.MPP_ID,
+        )
+
+    @mb_encode
+    async def get_mpp_trig_sel(self) -> ModbusResponse:
+        return await self.client.read_holding_registers(
+            self.mpp_reg.MPP_REG_TRIG_SEL,
+            1,
             slave=self.MPP_ID,
         )
 
