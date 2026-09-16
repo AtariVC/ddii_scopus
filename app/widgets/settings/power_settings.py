@@ -290,21 +290,43 @@ class PowerSettingsWidget(QWidget):
         и запустить опрос; потеряно — остановить."""
         if self.client is None:
             return
-        self._refresh_cm()  # начальный интерфейс (до подключения — null-клиент)
+        self._refresh_cm()  # начальный интерфейс (до подключения — None)
         self.client.coroutine_finished.connect(self._on_connection_finished)
         self.client.disconnected.connect(self._on_disconnected)
+        self.client.settingsChanged.connect(self._on_settings_changed)
 
     @qasync.asyncSlot()
     async def _on_connection_finished(self) -> None:
-        """Соединение установлено: обновить интерфейс ЦМ и, если ЦМ отвечает,
-        (пере)запустить опрос."""
+        """Соединение установлено — пересмотреть опрос."""
+        await self._resync_connection()
+
+    @qasync.asyncSlot(object)
+    async def _on_settings_changed(self, _settings=None) -> None:
+        """Сменился режим опроса — пересмотреть опрос, не дожидаясь переподключения."""
+        await self._resync_connection()
+
+    async def _resync_connection(self) -> None:
+        """Взять свежий интерфейс ЦМ и решить, нужен ли наш опрос.
+
+        ``cm_ib is None`` — ЦМ выключен режимом опроса (или нет транспорта):
+        цикл не запускаем, иначе он вечно крутился бы вхолостую, засоряя лог.
+        """
         self._refresh_cm()
+        if self.cm_ib is None:
+            self.stop_polling()
+            self._pending.clear()   # слать правки некуда
+            return
         try:
-            ready = await self.client.check_connection()  # type: ignore
+            ready = await self.client.check_connection(only_cm=True, only_mpp=False)  # type: ignore
         except Exception:
             ready = self.client.is_modbus_ready()  # type: ignore
         if ready:
+            # start_polling идемпотентен; гасить живую задачу ради рестарта нельзя —
+            # cancel() отрабатывает только на следующем проходе цикла, и рестарт
+            # был бы отброшен дедупом AsyncTaskManager.
             self.start_polling()
+        else:
+            self.stop_polling()
 
     def _on_disconnected(self) -> None:
         """Связь потеряна — остановить опрос и выбросить неотправленные правки."""

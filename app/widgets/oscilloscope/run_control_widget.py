@@ -182,14 +182,14 @@ class RunControlWidget(QtWidgets.QDialog):
                 self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
             return
         try:
-            ready = await self.w_ser_dialog.check_connection()
+            ready = await self.w_ser_dialog.check_connection(only_cm=False, only_mpp=True)
         except Exception as e:
             self.logger.warning(f"Не удалось обновить статус ЦМ/МПП: {e}")
             self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
             return
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
-        if not ready:
-            self.logger.warning("ЦМ/МПП недоступны — запуск измерений невозможен")
+        if not ready or self.mpp_cmd is None:
+            self.logger.warning("МПП недоступен — запуск измерений невозможен")
 
     @qasync.asyncSlot()
     async def on_serial_disconnected(self) -> None:
@@ -207,8 +207,8 @@ class RunControlWidget(QtWidgets.QDialog):
         if not (self.flags[self.read_waveform_flag] or self.flags[self.poll_counters_flag]):
             self.logger.error("Нечего запускать: отметьте чтение осциллограмм или опрос счётчиков")
             return
-        if not await self.w_ser_dialog.check_connection():
-            self.logger.error("Нет подключения (ЦМ/МПП недоступны)")
+        if not await self.w_ser_dialog.check_connection(only_cm=False, only_mpp=True):
+            self.logger.error("Нет подключения (МПП недоступен)")
             return
 
         self.path_to_save = self._init_path_to_save()
@@ -217,6 +217,10 @@ class RunControlWidget(QtWidgets.QDialog):
         self.delay = self._interval()
 
         await self.init_mb_cmd()
+        if self.mpp_cmd is None:
+            # МПП выключен режимом опроса — измерять нечем
+            self.logger.error("МПП выключен режимом опроса — измерение не запущено")
+            return
         self.graph_widget.hp_pips.hist_clear()
         self.graph_widget.hp_sipm.hist_clear()
 

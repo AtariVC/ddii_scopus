@@ -169,7 +169,7 @@ class ModbusCMCommand(ModbusReg):
 
 class ModbusMPPCommand(ModbusReg):
     device_name = "МПП"
-    log_serial_exchange = False
+    log_serial_exchange = True
 
     """Регистр 0x00 ..... 0x00 0x01
                             |    |—команда МПП

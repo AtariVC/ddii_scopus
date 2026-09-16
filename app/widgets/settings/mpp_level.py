@@ -122,7 +122,7 @@ def coef_elv_lsb(index: int, pd_k: int, sc_k: int, pd_b: int) -> int:
         return (pd_k + pd_b) & _MAX_U16
     if (index - 8) % 4 < 2:
         return (pd_k + pd_b) & _MAX_U16
-    return (8 * sc_k + pd_b) & _MAX_U16
+    return (8 * sc_k) & _MAX_U16
 
 
 def kev_to_lsb(kev: int, coef: int) -> int:
@@ -433,16 +433,32 @@ class MPPLevel(QWidget):
         уровни из МПП; связь потеряна — забыть интерфейсы."""
         if self.client is None:
             return
-        self._refresh_interfaces()   # начальные интерфейсы (до подключения — null-клиент)
+        self._refresh_interfaces()   # начальные интерфейсы (до подключения — None)
         self.client.coroutine_finished.connect(self._on_connection_finished)
         self.client.disconnected.connect(self._on_disconnected)
+        self.client.settingsChanged.connect(self._on_settings_changed)
 
     @qasync.asyncSlot()
     async def _on_connection_finished(self) -> None:
         """Соединение установлено: обновить интерфейсы и прочитать уровни из МПП."""
+        await self._resync_connection()
+
+    @qasync.asyncSlot(object)
+    async def _on_settings_changed(self, _settings=None) -> None:
+        """Сменился режим опроса — пересобрать интерфейсы (МПП мог отключиться)."""
+        await self._resync_connection()
+
+    async def _resync_connection(self) -> None:
+        """Свежие интерфейсы и, если МПП доступен, чтение уровней.
+
+        ``mpp_ib is None`` — МПП выключен режимом опроса (или нет транспорта):
+        читать нечего и в шину лезть незачем.
+        """
         self._refresh_interfaces()
+        if self.mpp_ib is None:
+            return
         try:
-            ready = await self.client.check_connection()  # type: ignore
+            ready = await self.client.check_connection(only_cm=False, only_mpp=True)  # type: ignore
         except Exception:
             ready = self.client.is_modbus_ready()  # type: ignore
         if ready:

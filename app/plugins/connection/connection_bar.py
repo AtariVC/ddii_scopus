@@ -2,7 +2,7 @@
 
 Публичный API для потребителей:
   * сигналы ``coroutine_finished``, ``disconnected``;
-  * ``get_commands_interface(logger) -> (ModbusCMCommand, ModbusMPPCommand)``;
+  * ``get_commands_interface() -> (ModbusCMCommand | None, ModbusMPPCommand | None)``;
   * ``check_connection(only_cm, only_mpp) -> bool`` (async);
   * ``is_modbus_ready() -> bool``;
   * атрибуты ``client``, ``tcp_client``, ``relay_server``, ``mpp_id``;
@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import asyncio
 import getpass
+import os
 import socket
+import time
 
 import qasync
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
@@ -88,25 +90,6 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         # Дамп обмена по serial (TX/RX хексом, как в DockLight). По умолчанию выключен —
         # иначе каждая команда сыплет в терминал. Включается: bar.log_serial_exchange = True
         self.log_serial_exchange = False
-
-        # --- нулевой клиент для безопасных команд при отсутствии связи ---
-        class _NullModbusClient(AsyncModbusSerialClient):
-            def __init__(self):
-                pass
-
-            async def read_holding_registers(self, *args, **kwargs):
-                raise RuntimeError("No Modbus client connected")
-
-            async def write_registers(self, *args, **kwargs):
-                raise RuntimeError("No Modbus client connected")
-
-            async def connect(self, *args, **kwargs):
-                return False
-
-            def close(self):
-                return None
-
-        self._null_client = _NullModbusClient()
 
         # SVG-иконка ⚙ залита чёрным — перекрашиваем под тему (иконку ставит владелец UI)
         self.settings_btn.setIcon(load_svg_icon("settings", theme.TEXT_DIM))
@@ -288,17 +271,21 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             parity="N",
             stopbits=1,
             handle_local_echo=True,
-            # Соединением управляет кнопка панели, а не pymodbus. С дефолтным
-            # reconnect_delay=0.1 первый же таймаут запроса поднимал фоновую
-            # задачу переподключения: она успевала создать новый транспорт, и
-            # наш close() падал на нём с io.UnsupportedOperation (см.
-            # _close_serial_client), оставляя порт занятым.
+            # Соединением управляет кнопка панели, а не pymodbus: без этого первый
+            # же таймаут запроса поднимал фоновую задачу переподключения, которая
+            # молча открывала порт заново уже после нашего close().
             reconnect_delay=0,
         )
         connected: bool = await self.client.connect()
         if not connected:
             self._close_serial_client()
             self._set_status("Порт занят", theme.ERR)
+            return
+
+        if not await self._await_serial_transport_ready():
+            self.logger.error(f"{port}: транспорт pymodbus не поднялся — порт освобождён")
+            self._close_serial_client()
+            self._set_status("Порт не открылся", theme.ERR)
             return
 
         self.logger.debug(f"{port}, Baudrate={baudrate}, Parity=None, Stopbits=1, Bytesize=8")
@@ -333,9 +320,9 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         if self.settings.poll_cm:
             try:
                 if self.client:
-                    # await self.client.write_registers(
-                    #     address=self.ctrl_reg.DEBUG_MODE_SWITCH, values=1, slave=self.cm_id
-                    # )
+                    await self.client.read_holding_registers(
+                        address=self.dbg_reg.CM_STATUS, count=1, slave=self.cm_id
+                    )
                     await log_s(self.mw.send_handler.mess)
                     self.status_CM = 1
                     self._log_state("cm", None)
@@ -353,6 +340,33 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             self._set_status("Нет связи", theme.ERR)
             self._update_state_label()
             self.disconnected.emit()
+
+    async def _await_serial_transport_ready(self, timeout: float = 2.0) -> bool:
+        """Дождаться, пока pymodbus действительно поднимет Serial-транспорт.
+
+        ``create_serial_connection()`` только планирует ``SerialTransport.setup()``
+        через ``loop.call_soon`` и сразу отдаёт транспорт, а ``connect()`` возвращает
+        True. Под qasync (Qt-таймеры вместо очереди asyncio) этот callback успевает
+        отработать не всегда, а от ``connect()`` до первой команды у нас нет ни одной
+        точки передачи управления циклу. Пока ``setup()`` не отработал, ``poll_task``
+        пуст, и ``SerialTransport.write()`` уходит в ветку
+        ``add_writer(self.sync_serial.fileno())`` — а у pyserial на Windows нет
+        ``fileno()`` (``io.UnsupportedOperation``). Ждём появления задачи опроса
+        порта: она и есть признак, что транспорт умеет писать.
+
+        На POSIX ``setup()`` вместо задачи вешает ``add_reader`` и ``poll_task``
+        остаётся пустым навсегда — там ждать нечего (кроме отладочного
+        ``SerialTransport.force_poll``, который мы не включаем).
+        """
+        if os.name != "nt":
+            return True
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            transport = getattr(self.client, "transport", None)
+            if getattr(transport, "poll_task", None) is not None:
+                return True
+            await asyncio.sleep(0.01)
+        return False
 
     def _close_serial_client(self) -> None:
         """Закрывает Serial-клиент и обнуляет ссылку, чем бы ни кончился close().
@@ -535,41 +549,55 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         # Готовность при наличии любого транспорта: Serial или TCP‑клиента
         return (self.client is not None) or (self.tcp_client is not None)
 
-    def get_commands_interface(self) -> tuple[ModbusCMCommand, ModbusMPPCommand]:
+    def get_commands_interface(self) -> tuple[ModbusCMCommand | None, ModbusMPPCommand | None]:
         """Команды с актуальным клиентом и адресами из настроек.
 
-        Устройство, выключенное режимом опроса, получает null-клиент: любая
-        попытка обратиться к нему честно упадёт, а не уйдёт молча в шину.
+        ``None`` вместо команды означает «этим устройством сейчас работать
+        нельзя»: нет транспорта или устройство выключено режимом опроса.
+        Потребители уже проверяют ``is None`` перед каждой командой — так
+        выключенный ЦМ не порождает ни трафика в шину, ни вечного цикла опроса,
+        молча падающего в ``b"-1"``.
         """
-        cli = (
-            self.client
-            if self.client is not None
-            else (self.tcp_client if self.tcp_client is not None else self._null_client)
-        )
-        cm_cli = cli if self.settings.poll_cm else self._null_client
-        mpp_cli = cli if self.settings.poll_mpp else self._null_client
+        cli = self.client if self.client is not None else self.tcp_client
+        if cli is None:
+            return None, None
 
         slog = self.log_serial_exchange
-        cm = ModbusCMCommand(cm_cli, log_serial_exchange=slog)
+        cm = None
+        if self.settings.poll_cm:
+            cm = ModbusCMCommand(cli, log_serial_exchange=slog)
 
-        cm.CM_ID = self.cm_id
-        try:
-            mpp = ModbusMPPCommand(mpp_cli, self.mpp_id, log_serial_exchange=slog)
-        except Exception:
-            mpp = ModbusMPPCommand(mpp_cli, log_serial_exchange=slog)
+        mpp = None
+        if self.settings.poll_mpp:
+            try:
+                mpp = ModbusMPPCommand(cli, self.mpp_id, log_serial_exchange=slog)
+            except Exception:
+                mpp = ModbusMPPCommand(cli, log_serial_exchange=slog)
         return cm, mpp
 
     async def check_connection(self, only_cm=True, only_mpp=True) -> bool:
         """Готово ли соединение для работы вызывающего.
 
-        Устройство считается обязательным, если оно нужно вызывающему
-        (``only_cm``/``only_mpp``) И включено режимом опроса. Так виджет,
-        которому нужен только МПП, не падает из-за выключенного ЦМ.
+        ``only_cm``/``only_mpp`` — что нужно вызывающему. Устройство, выключенное
+        режимом опроса, для того, кто его запросил, недоступно: виджет ЦМ в
+        режиме «только МПП» обязан получить ``False`` и не запускать свой опрос,
+        а не ориентироваться на статус чужого устройства. Поэтому флаги нужно
+        указывать честно — дефолт ``True/True`` означает «нужны оба».
         """
         if not self.is_modbus_ready():
             self._log_state("transport", "Modbus клиент не подключен")
             return False
         self._log_state("transport", None)
+
+        # Отказ по режиму опроса — до любого обращения к шине
+        if only_cm and not self.settings.poll_cm:
+            self._log_state("need_cm", f"ЦМ выключен режимом опроса ({self.settings.poll_label()})")
+            return False
+        self._log_state("need_cm", None)
+        if only_mpp and not self.settings.poll_mpp:
+            self._log_state("need_mpp", f"МПП выключен режимом опроса ({self.settings.poll_label()})")
+            return False
+        self._log_state("need_mpp", None)
         # Как TCP‑клиент считаем подключение готовым — проверка на стороне сервера
         if self.tcp_client is not None and self.client is None:
             self.status_CM = 1 if self.settings.poll_cm else 0
@@ -579,8 +607,8 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
 
         await self._check_connect()
 
-        required_cm = bool(only_cm and self.settings.poll_cm)
-        required_mpp = bool(only_mpp and self.settings.poll_mpp)
+        required_cm = bool(only_cm)
+        required_mpp = bool(only_mpp)
         if not required_cm and not required_mpp:
             # Вызывающему из опрашиваемых устройств ничего не нужно — достаточно живого транспорта
             return self.is_modbus_ready()

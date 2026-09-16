@@ -29,10 +29,13 @@ class TestImpactControl(QtWidgets.QDialog):
     # ===== запуск/остановка =====
     @qasync.asyncSlot()
     async def pushButton_impact_handler(self) -> None:
-        if not await self.w_ser_dialog.check_connection():
-            self.logger.error("Нет подключения (ЦМ/МПП недоступны)")
+        if not await self.w_ser_dialog.check_connection(only_cm=True, only_mpp=False):
+            self.logger.error("Нет подключения (ЦМ недоступен)")
             return
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
+        if self.cm_cmd is None:
+            self.logger.error("ЦМ выключен режимом опроса — воздействие не выполнено")
+            return
         await self.cm_cmd.set_gpio_impact_autotest()
 
 if __name__ == "__main__":
