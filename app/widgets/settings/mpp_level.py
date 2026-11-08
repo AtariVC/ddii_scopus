@@ -412,7 +412,7 @@ class MPPLevel(QWidget):
         """Заголовок секции: прописные, разреженные, акцентного цвета."""
         label = QLabel(text)
         label.setStyleSheet(
-            f"color: {theme.TEXT_LABLE}; font-family: '{_FONT}'; font-size: 13px; "
+            f"color: {theme.TEXT_DIM}; font-family: '{_FONT}'; font-size: 13px; "
             "font-weight: 700; letter-spacing: 2px; background: transparent; border: none;")
         return label
 
