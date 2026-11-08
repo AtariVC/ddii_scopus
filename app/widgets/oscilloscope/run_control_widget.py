@@ -17,7 +17,8 @@ from app.src.components.modbus.worker import ModbusWorker
 from app.src.components.parsers.custom_parsers import Parsers
 from app.src.event.event import Event
 from app.src.util.async_task_manager import AsyncTaskManager
-from app.widgets.oscilloscope.graph_widget import GraphWidget
+from app.src.util.write_data_to_file import write_to_hdf5_file
+from app.widgets.oscilloscope.graph_widget import GraphWidget, SIPM_WEIGHT, SUM_BIN_COUNT
 from types import SimpleNamespace
 from dark_pro_widgets.widgets.controls.segmented_control import SegmentedControl
 
@@ -223,6 +224,7 @@ class RunControlWidget(QtWidgets.QDialog):
             return
         self.graph_widget.hp_pips.hist_clear()
         self.graph_widget.hp_sipm.hist_clear()
+        self.graph_widget.hp_sum.hist_clear()
 
         if self.flags[self.poll_counters_flag]:
             ready = await self.init_HH_request(self.delay, self.path_to_save,
@@ -355,6 +357,9 @@ class RunControlWidget(QtWidgets.QDialog):
                             [max(data_pips[1])],**common)
                         await self.graph_widget.hp_sipm.draw_hist(
                             [max(data_sipm[1])],**common)
+                        await self.graph_widget.hp_sum.draw_hist(
+                            [max(data_pips[1]) + SIPM_WEIGHT * max(data_sipm[1])],
+                            bin_count=SUM_BIN_COUNT, **common)
                     self.graph_widget.refresh_badges()
                 except asyncio.exceptions.CancelledError:
                     return None
@@ -383,17 +388,9 @@ class RunControlWidget(QtWidgets.QDialog):
     async def asyncio_HH_loop_request(self) -> None:
         """Опрос счётчика частиц."""
         data: list[int] = []
-        self.graph_widget.hp_counter.hist_clear()
         self._prev_electron = self._acc_electron = None
         self._prev_proton = self._acc_proton = None
         self._prev_hcp = self._acc_hcp = None
-        common: _DrawArgs = {
-            "name_file_save_data": self.name_file_save,
-            "name_data": self.name_data,
-            "path_to_save": self.path_to_save,
-            "save_log": self.save_log_file,
-            "clear": False,
-        }
         while 1:
             await asyncio.sleep(self.delay)
             if not self.w_ser_dialog.is_modbus_ready():
@@ -409,10 +406,6 @@ class RunControlWidget(QtWidgets.QDialog):
 
             if not self.name_data:
                 self.name_data = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")[:24]
-            # common собран до цикла — обновляем метку кадра, иначе h_counter
-            # каждую итерацию пишется под тем же именем и перезаписывается
-            common["name_data"] = self.name_data
-
             result_hist32_int: list[int] = await self.parser.mpp_pars_32b(result_hist32)
             result_hist16_int: list[int] = await self.parser.mpp_pars_16b(result_hist16)
             result_hcp_hist_int: list[int] = await self.parser.mpp_pars_16b(result_hcp_hist)
@@ -437,12 +430,11 @@ class RunControlWidget(QtWidgets.QDialog):
                     data = self._acc_electron.tolist() + self._acc_proton.tolist() + self._acc_hcp.tolist()
                 else:
                     data = result_hist32_int + result_hist16_int + result_hcp_hist_int
-                await self.graph_widget.hp_counter.draw_hist(
-                    data, bin_count=len(data),
-                    **common,
-                    data_is_hist=True,
-                )
-                self.graph_widget.refresh_badges()
+                if self.save_log_file:
+                    write_to_hdf5_file(
+                        [list(range(len(data))), data], "h_counter", self.path_to_save,
+                        self.name_file_save, self.name_data,
+                    )
                 # сбрасываем имя — нужно для синхронизации с другими процессами
                 self.name_data = ""
             except asyncio.exceptions.CancelledError as e:
@@ -452,7 +444,6 @@ class RunControlWidget(QtWidgets.QDialog):
 
     async def asyncio_ACQ_Peak_loop_request(self) -> None:
         """Опрос пиков АЦП напрямую из регистров."""
-        self.graph_widget.hp_counter.hist_clear()
         self._prev_electron = self._acc_electron = None
         self._prev_proton = self._acc_proton = None
         self._prev_hcp = self._acc_hcp = None
@@ -510,6 +501,10 @@ class RunControlWidget(QtWidgets.QDialog):
                             [acq2_value], bin_count=4096,
                             data_is_hist=False,
                             **common
+                        )
+                        await self.graph_widget.hp_sum.draw_hist(
+                            [acq1_value + SIPM_WEIGHT * acq2_value],
+                            bin_count=SUM_BIN_COUNT, **common,
                         )
                         self.graph_widget.refresh_badges()
                 except asyncio.exceptions.CancelledError as e:

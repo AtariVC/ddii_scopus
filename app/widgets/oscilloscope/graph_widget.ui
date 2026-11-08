@@ -178,41 +178,41 @@
     </widget>
    </item>
    <item row="2" column="0" colspan="2">
-    <widget class="QFrame" name="card_counter">
-     <layout class="QVBoxLayout" name="lay_card_counter">
+    <widget class="QFrame" name="card_sum">
+     <layout class="QVBoxLayout" name="lay_card_sum">
       <property name="leftMargin"><number>12</number></property>
       <property name="topMargin"><number>10</number></property>
       <property name="rightMargin"><number>12</number></property>
       <property name="bottomMargin"><number>12</number></property>
       <property name="spacing"><number>10</number></property>
       <item>
-       <layout class="QHBoxLayout" name="head_card_counter">
+       <layout class="QHBoxLayout" name="head_card_sum">
         <property name="spacing"><number>8</number></property>
         <item>
-         <widget class="QLabel" name="dot_card_counter">
+         <widget class="QLabel" name="dot_card_sum">
           <property name="text"><string>●</string></property>
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="title_card_counter">
-          <property name="text"><string>Счётчик событий телескопа</string></property>
+         <widget class="QLabel" name="title_card_sum">
+          <property name="text"><string>Гистограмма PIPS + 8 × SiPM</string></property>
          </widget>
         </item>
         <item>
-         <spacer name="sp_card_counter">
+         <spacer name="sp_card_sum">
           <property name="orientation"><enum>Qt::Horizontal</enum></property>
           <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
          </spacer>
         </item>
         <item>
-         <widget class="QLabel" name="badge_counter">
+         <widget class="QLabel" name="badge_sum">
           <property name="text"><string>Σ —</string></property>
          </widget>
         </item>
        </layout>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="vLayout_hist_counter">
+       <layout class="QVBoxLayout" name="vLayout_hist_sum">
         <property name="spacing"><number>0</number></property>
        </layout>
       </item>

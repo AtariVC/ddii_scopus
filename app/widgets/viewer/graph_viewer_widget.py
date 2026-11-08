@@ -57,6 +57,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
     card_hist_pips: QtWidgets.QFrame
     card_hist_sipm: QtWidgets.QFrame
     card_counter: QtWidgets.QFrame
+    title_card_counter: QtWidgets.QLabel
     badge_pips: QtWidgets.QLabel
     badge_sipm: QtWidgets.QLabel
     badge_hist_pips: QtWidgets.QLabel
@@ -126,7 +127,7 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.name_pen_sipm = "sipm"
         self.name_pen_h_pips = "h_pips"
         self.name_pen_h_sipm = "h_sipm"
-        self.name_pen_counter = "h_counter"
+        self.name_pen_counter = "h_sum"
         self.amount_measurements = 0
         self.measure_time_list = []
         self.dataset_pips: dict = {}
@@ -238,7 +239,15 @@ class GraphViewerWidget(QtWidgets.QWidget):
         self.dataset_sipm = read_hdf5_file(Path(path), self.name_pen_sipm)
         self.dataset_h_pips = read_hdf5_file(Path(path), self.name_pen_h_pips)
         self.dataset_h_sipm = read_hdf5_file(Path(path), self.name_pen_h_sipm)
+        self.name_pen_counter = "h_sum"
         self.dataset_h_counter = read_hdf5_file(Path(path), self.name_pen_counter)
+        if self.dataset_h_counter:
+            self.title_card_counter.setText("Гистограмма PIPS + 8 × SiPM")
+        else:
+            self.name_pen_counter = "h_counter"
+            self.dataset_h_counter = read_hdf5_file(Path(path), self.name_pen_counter)
+            self.title_card_counter.setText("Счётчик событий")
+        self.counter_h.name_frame = self.name_pen_counter
         self.amount_measurements = len(self.dataset_h_pips)
         if self.amount_measurements:
             self.measure_time_list = list(self.dataset_h_pips.keys())

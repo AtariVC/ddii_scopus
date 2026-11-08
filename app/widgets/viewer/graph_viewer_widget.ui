@@ -213,7 +213,7 @@
           </item>
           <item>
            <widget class="QLabel" name="title_card_counter">
-            <property name="text"><string>Счётчик событий</string></property>
+            <property name="text"><string>Гистограмма PIPS + 8 × SiPM</string></property>
            </widget>
           </item>
           <item>

@@ -1,4 +1,4 @@
-"""Рабочая область осциллографа: детекторы PIPS/SiPM и их гистограммы.
+"""Рабочая область осциллографа: детекторы PIPS/SiPM и гистограмма PIPS + 8 × SiPM.
 
 Разметка — ``graph_widget.ui``: пять карточек (заголовок + бейдж + место под
 график). Сами графики рисует прежний движок ``GraphPen``/``HistPen`` — в нём
@@ -32,10 +32,13 @@ _MONO = theme.MONO_FAMILY.split(",")[0].strip()
 # со шкалой значения нужны — поставь False, если хочется «как на картинке».
 SHOW_AXES = True
 
+SIPM_WEIGHT = 8
+SUM_BIN_COUNT = (1 + SIPM_WEIGHT) * 4095 + 1
+
 # Цвет закреплён за каналом и используется и для графика, и для точки у заголовка
 COLOR_PIPS = theme.PIPS        # зелёный
 COLOR_SIPM = theme.SIPM        # янтарный
-COLOR_COUNTER = theme.ACCENT   # синий
+COLOR_SUM = theme.ACCENT   # синий
 
 # Цифры в бейджах (пик, Σ) — приглушённые, чтобы не спорить с цветом канала
 BADGE_COLOR = theme.TEXT_DIM
@@ -54,18 +57,18 @@ class GraphWidget(QtWidgets.QWidget):
     vLayout_sipm: QtWidgets.QVBoxLayout
     vLayout_hist_pips: QtWidgets.QVBoxLayout
     vLayout_hist_sipm: QtWidgets.QVBoxLayout
-    vLayout_hist_counter: QtWidgets.QVBoxLayout
+    vLayout_hist_sum: QtWidgets.QVBoxLayout
     # карточки и бейджи
     card_pips: QtWidgets.QFrame
     card_sipm: QtWidgets.QFrame
     card_hist_pips: QtWidgets.QFrame
     card_hist_sipm: QtWidgets.QFrame
-    card_counter: QtWidgets.QFrame
+    card_sum: QtWidgets.QFrame
     badge_pips: QtWidgets.QLabel
     badge_sipm: QtWidgets.QLabel
     badge_hist_pips: QtWidgets.QLabel
     badge_hist_sipm: QtWidgets.QLabel
-    badge_counter: QtWidgets.QLabel
+    badge_sum: QtWidgets.QLabel
 
     def __init__(self) -> None:
         super().__init__()
@@ -79,15 +82,15 @@ class GraphWidget(QtWidgets.QWidget):
         pg.setConfigOptions(antialias=True, background=theme.PANEL_BG, foreground=theme.TEXT_DIM)
 
         # Цвет закреплён за каналом: PIPS — зелёный, SiPM — янтарный (осциллограмма
-        # и гистограмма одним цветом), счётчик телескопа — синий.
+        # и гистограмма одним цветом), взвешенная сумма — синий.
         self.gp_pips = GraphPen(layout=self.vLayout_pips, name="pips", color=_rgb(COLOR_PIPS))
         self.gp_sipm = GraphPen(layout=self.vLayout_sipm, name="sipm", color=_rgb(COLOR_SIPM))
         self.hp_pips = HistPen(layout=self.vLayout_hist_pips, name="h_pips",
                                color=_rgb(COLOR_PIPS, 150))
         self.hp_sipm = HistPen(layout=self.vLayout_hist_sipm, name="h_sipm",
                                color=_rgb(COLOR_SIPM, 150))
-        self.hp_counter = HistPen(layout=self.vLayout_hist_counter, name="h_counter",
-                                  color=_rgb(COLOR_COUNTER, 150))
+        self.hp_sum = HistPen(layout=self.vLayout_hist_sum, name="h_sum",
+                              color=_rgb(COLOR_SUM, 150))
 
         self._apply_theme()
         # Бейджи обновляются только по вызову refresh_badges() — дёргай её после
@@ -102,7 +105,7 @@ class GraphWidget(QtWidgets.QWidget):
             self.card_hist_pips: COLOR_PIPS,
             self.card_sipm: COLOR_SIPM,
             self.card_hist_sipm: COLOR_SIPM,
-            self.card_counter: COLOR_COUNTER,
+            self.card_sum: COLOR_SUM,
         }
         for card, color in cards.items():
             name = card.objectName()
@@ -123,12 +126,12 @@ class GraphWidget(QtWidgets.QWidget):
                 )
 
         # Гистограммы: контур той же краской, что и заливка (в движке он белый)
-        for hist in (self.hp_pips, self.hp_sipm, self.hp_counter):
+        for hist in (self.hp_pips, self.hp_sipm, self.hp_sum):
             hist.outline_pen = pg.mkPen(hist.color, width=1.6)
 
         for widget in (self.gp_pips.plt_widget, self.gp_sipm.plt_widget,
                        self.hp_pips.hist_widget, self.hp_sipm.hist_widget,
-                       self.hp_counter.hist_widget):
+                       self.hp_sum.hist_widget):
             self._style_plot(widget)
 
     @staticmethod
@@ -165,7 +168,7 @@ class GraphWidget(QtWidgets.QWidget):
         """Все PlotWidget'ы (pyqtgraph) в порядке карточек."""
         return [self.gp_pips.plt_widget, self.hp_pips.hist_widget,
                 self.gp_sipm.plt_widget, self.hp_sipm.hist_widget,
-                self.hp_counter.hist_widget]
+                self.hp_sum.hist_widget]
 
     def fit_view(self) -> None:
         """Вписать все графики в область — то же, что кнопка авторазмера.
@@ -223,7 +226,7 @@ class GraphWidget(QtWidgets.QWidget):
         # Σ по накопленным данным гистограмм
         for hist, badge in ((self.hp_pips, self.badge_hist_pips),
                             (self.hp_sipm, self.badge_hist_sipm),
-                            (self.hp_counter, self.badge_counter)):
+                            (self.hp_sum, self.badge_sum)):
             total = self._total_of(hist)
             self._set_badge(badge, f"Σ {format_count(total)}" if total else "Σ —", BADGE_COLOR)
 
@@ -269,6 +272,10 @@ if __name__ == "__main__":
         await widget.gp_sipm.draw_graph((trace * 0.92).astype(int).tolist(), clear=True)
         await widget.hp_pips.draw_hist(peaks.tolist(), clear=True)
         await widget.hp_sipm.draw_hist((peaks * 0.95).astype(int).tolist(), clear=True)
+        await widget.hp_sum.draw_hist(
+            (peaks + SIPM_WEIGHT * (peaks * 0.95).astype(int)).tolist(),
+            bin_count=SUM_BIN_COUNT, clear=True,
+        )
         widget.refresh_badges()
 
     QtCore.QTimer.singleShot(0, lambda: asyncio.ensure_future(_draw_demo()))
