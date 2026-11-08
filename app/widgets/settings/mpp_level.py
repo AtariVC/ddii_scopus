@@ -100,47 +100,52 @@ _MAX_U16 = 0xFFFF
 
 
 # --- пересчёт кэВ ↔ кв. АЦП (перенос сишного кода прошивки ЦМ) ---------------
-def coef_elv_lsb(index: int, pd_k: int, sc_k: int, pd_b: int) -> int:
-    """Коэффициент пересчёта одного уровня HH, кв. АЦП/МэВ.
+def coef_elv_lsb(index: int, pd_k: int, sc_k: int, pd_b: int) -> tuple[int, int]:
+    """Коэффициенты пересчёта одного уровня HH: наклон (кв. АЦП/МэВ) и 
+    смещение (кв. АЦП).
 
-    Перенос ``mpp_hh_level_get_coef_elv_lsb``: у уровней 0..5 и 7 в коэффициент
-    входит восьмикратный СцД1, у уровня 6 — только ПД1, а в протонных группах
-    (с 8-го) первые два уровня идут по ПД1, вторые два — по СцД1.
+    Перенос ``mpp_hh_level_get_coef_elv_lsb``: у уровней 0..5 и 7 наклон — ПД1 плюс
+    восьмикратный СцД1, у уровня 6 — только ПД1, а в протонных группах (с 8-го)
+    первые два уровня идут по ПД1, вторые два — по СцД1. Смещение ``pd_b``
+    относится к тракту ПД1, поэтому у чисто «сцинтилляторных» уровней оно 0.
 
     Args:
         index (int): номер уровня HH [0..``HH_LEVEL_NUM``).
         pd_k (int): коэффициент ПД1 (``pd_k_elv_lsb``).
         sc_k (int): коэффициент СцД1 (``sc_k_elv_lsb``).
-        pd_b (int): смещение (``pd_b_elv_lsb``).
+        pd_b (int): смещение ПД1 (``pd_b_elv_lsb``).
 
     Returns:
-        Коэффициент, обрезанный до uint16 — как в прошивке.
+        ``(k, b)`` — наклон и смещение, обрезанные до uint16, как в прошивке.
     """
     if index < 6 or index == 7:
-        return (pd_k + 8 * sc_k + pd_b) & _MAX_U16
-    if index == 6:
-        return (pd_k + pd_b) & _MAX_U16
-    if (index - 8) % 4 < 2:
-        return (pd_k + pd_b) & _MAX_U16
-    return (8 * sc_k) & _MAX_U16
+        return (pd_k + 8 * sc_k)//2 & _MAX_U16, pd_b & _MAX_U16
+    if index == 6 or (index - 8) % 4 < 2:
+        return pd_k & _MAX_U16, pd_b & _MAX_U16
+    return (8 * sc_k) & _MAX_U16, 0
 
 
-def kev_to_lsb(kev: int, coef: int) -> int:
-    """Уровень из кэВ в кванты АЦП (перенос ``mpp_hh_level_kev_to_lsb``)."""
-    return ((kev * coef + 500) // 1000) & _MAX_U16
+def kev_to_lsb(kev: int, coef: int, b: int = 0) -> int:
+    """Уровень из кэВ в кванты АЦП: ``lsb = kev * coef / 1000 + b`` с округлением.
+
+    Перенос ``mpp_hh_level_kev_to_lsb``; ``coef`` — кв. АЦП/МэВ, ``b`` — кв. АЦП.
+    """
+    return ((kev * coef + 500) // 1000 + b) & _MAX_U16
 
 
-def lsb_to_kev(lsb: int, coef: int) -> int:
+def lsb_to_kev(lsb: int, coef: int, b: int = 0) -> int:
     """Уровень из квантов АЦП обратно в кэВ (обратная к :func:`kev_to_lsb`).
 
-    Прямой пересчёт — целочисленный с округлением, поэтому в один квант АЦП
-    попадает целая полоса кэВ ``[lsb*1000 - 500, lsb*1000 + 499] / coef``. Берём
-    из этой полосы целое, ближайшее к середине: тогда обратный ход не «уезжает»
+    Сначала снимается смещение ``b``, дальше — как без него. Прямой пересчёт
+    целочисленный с округлением, поэтому в один квант АЦП попадает целая полоса
+    кэВ ``[x*1000 - 500, x*1000 + 499] / coef`` (``x = lsb - b``). Берём из этой
+    полосы целое, ближайшее к середине: тогда обратный ход не «уезжает»
     (``kev_to_lsb(lsb_to_kev(x)) == x``). При ``coef > 1000`` квант мельче одного
     кэВ, и в полосе целого может не оказаться — тогда возвращается ближайшее кэВ,
-    и точный обратный ход невозможен в принципе.
+    и точный обратный ход невозможен в принципе. Уровень ниже смещения — 0 кэВ.
     """
-    if coef <= 0:
+    lsb -= b
+    if coef <= 0 or lsb < 0:
         return 0
     nearest = round(lsb * 1000 / coef)
     low = -((500 - lsb * 1000) // coef)          # ceil((lsb*1000 - 500) / coef)
@@ -598,7 +603,7 @@ class MPPLevel(QWidget):
         for key, edit in self._coef_edits.items():
             edit.setText(str(self._coef[key]))
         self._levels_kev = list(config.levels_kev)
-        self._levels_lsb = [kev_to_lsb(kev, self._coef_at(index))
+        self._levels_lsb = [kev_to_lsb(kev, *self._coef_at(index))
                             for index, kev in enumerate(self._levels_kev)]
 
     # --- значения уровней ----------------------------------------------------
@@ -617,14 +622,14 @@ class MPPLevel(QWidget):
     def set_levels_kev(self, levels: list[int]) -> None:
         """Задать уровни в кэВ; кванты АЦП пересчитываются по коэффициентам."""
         self._levels_kev = [self._clamp(value) for value in levels]
-        self._levels_lsb = [kev_to_lsb(kev, self._coef_at(index))
+        self._levels_lsb = [kev_to_lsb(kev, *self._coef_at(index))
                             for index, kev in enumerate(self._levels_kev)]
         self._refresh_table()
 
     def set_levels_lsb(self, levels: list[int]) -> None:
         """Задать уровни в квантах АЦП (как их отдаёт МПП); кэВ — обратным пересчётом."""
         self._levels_lsb = [self._clamp(value) for value in levels]
-        self._levels_kev = [lsb_to_kev(lsb, self._coef_at(index))
+        self._levels_kev = [lsb_to_kev(lsb, *self._coef_at(index))
                             for index, lsb in enumerate(self._levels_lsb)]
         self._refresh_table()
 
@@ -636,7 +641,7 @@ class MPPLevel(QWidget):
             self._coef_edits[key].setText(str(self._coef[key]))
         self.set_levels_kev(self._levels_kev)
 
-    def _coef_at(self, index: int) -> int:
+    def _coef_at(self, index: int) -> tuple:
         """Коэффициент пересчёта уровня ``index`` при текущих ``pd_k``/``sc_k``/``pd_b``."""
         return coef_elv_lsb(index, **self._coef)
 
@@ -678,13 +683,13 @@ class MPPLevel(QWidget):
         """
         index = _GROUP_START[row] + col
         value = self._clamp(text)
-        coef = self._coef_at(index)
+        coef, b = self._coef_at(index)
         if self._unit_is_kev():
             self._levels_kev[index] = value
-            self._levels_lsb[index] = kev_to_lsb(value, coef)
+            self._levels_lsb[index] = kev_to_lsb(value, coef, b)
         else:
             self._levels_lsb[index] = value
-            self._levels_kev[index] = lsb_to_kev(value, coef)
+            self._levels_kev[index] = lsb_to_kev(value, coef, b)
         self._refresh_cell(row, col)
 
     def _on_coef_edited(self, key: str) -> None:
