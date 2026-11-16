@@ -17,6 +17,7 @@ API:
 ``_HISTORY_DEPTH`` кадров: окно FIFO — новый кадр вытесняет самый старый.
 Стрелки листают историю; на самом свежем кадре (``offset == 0``) вид едет за
 опросом, при листании назад — остаётся на выбранном кадре.
+Чтение возвращает последний сформированный кадр, не запускает его формирование.
 
 Опрос — одна бесконечная задача в :class:`AsyncTaskManager` (шина одна, чтения
 идут по очереди), у каждого кадра свой период; периоды, глубина истории и время
@@ -46,6 +47,7 @@ from dark_pro_widgets.widgets.controls.spin_box import SpinBox
 
 from app.src.components.frames.stream_frames import FRAME_SIZE, parse_stream_frame
 from app.src.components.modbus.command_interface import ModbusCMCommand
+from app.src.components.modbus.modbus_reg import CM_FRAME_INTERVAL_MAX_S, CM_FRAME_INTERVAL_MIN_S
 from app.src.util.async_task_manager import AsyncTaskManager
 
 _MONO = theme.MONO_FAMILY.split(",")[0].strip()
@@ -91,11 +93,9 @@ _POLL_TICK = 1            # минимальный сон цикла опрос�
 _NUMBER_ROW = "Номер кадра"  # строка кадра, из которой берётся номер для навигации
 
 # Время формирования кадра в ЦМ (команда MB_CM_CMD_SET_INTERVAL_MEAS), с:
-# текущее значение прибора видно в кадре ДДИИ строкой «Длительность измерения, с».
+# длительность в кадре — фактическое время измерения, а не заданный интервал.
 _DURATION_ROW = "Длительность измерения, с"
 _DEFAULT_FRAME_INTERVAL_S = 10
-_MIN_FRAME_INTERVAL_S = 1
-_MAX_FRAME_INTERVAL_S = 3600
 _FRAME_INTERVAL_RETRIES = 5  # попыток записать время формирования кадра в ЦМ
 
 
@@ -128,7 +128,8 @@ class FrameViewerWidget(QWidget):
         }
         self._offset = 0                            # 0 — самый свежий кадр истории
         self._tables: dict[str, StatTable] = {}
-        self._frame_interval: int | None = None     # время формирования кадра в ЦМ, с
+        self._frame_interval: int | None = None     # последний подтверждённый интервал, с
+        self._measured_interval: int | None = None  # длительность из кадра до первой записи
         self._pending_frame_interval: int | None = None  # ждёт отправки циклом опроса
         self._pending_attempts = 0                  # попыток отправить отложенную команду
 
@@ -267,6 +268,8 @@ class FrameViewerWidget(QWidget):
     def _on_disconnected(self) -> None:
         """Связь потеряна — остановить опрос."""
         self.stop_polling()
+        self._frame_interval = None
+        self._measured_interval = None
 
     def _refresh_cm(self) -> None:
         """Свежий командный интерфейс ЦМ."""
@@ -360,8 +363,8 @@ class FrameViewerWidget(QWidget):
             return
         self._history[key].append(FrameRecord(self._row_value(table, _NUMBER_ROW), table))
         duration = self._row_value(table, _DURATION_ROW)
-        if duration is not None:
-            self._frame_interval = duration      # что прибор реально отдаёт сейчас
+        if duration is not None and CM_FRAME_INTERVAL_MIN_S <= duration <= CM_FRAME_INTERVAL_MAX_S:
+            self._measured_interval = duration
         if self._offset:
             # пользователь листает историю — держим тот же кадр, а не уезжаем за опросом
             self._offset = min(self._offset + 1, self._max_offset())
@@ -407,20 +410,24 @@ class FrameViewerWidget(QWidget):
 
         Команда ставится в очередь и уходит ближайшим проходом опроса (шина одна),
         при неудаче повторяется — см. :meth:`_flush_frame_interval`.
-        Совпадение с текущим значением команду не порождает.
+        Повтор ожидающей или уже подтверждённой настройки команду не порождает.
         """
-        seconds = max(_MIN_FRAME_INTERVAL_S, min(int(seconds), _MAX_FRAME_INTERVAL_S))
-        if seconds == self.frame_interval():
+        seconds = max(CM_FRAME_INTERVAL_MIN_S, min(int(seconds), CM_FRAME_INTERVAL_MAX_S))
+        if seconds == self._pending_frame_interval:
+            return
+        if self._pending_frame_interval is None and seconds == self._frame_interval:
             return
         self._pending_frame_interval = seconds
         self._pending_attempts = 0
 
     def frame_interval(self) -> int:
-        """Время формирования кадра, с: из очереди отправки, иначе из кадра ДДИИ."""
+        """Интервал: ожидающий записи, подтверждённый, оценка из кадра или начальный."""
         if self._pending_frame_interval is not None:
             return self._pending_frame_interval
         if self._frame_interval is not None:
             return self._frame_interval
+        if self._measured_interval is not None:
+            return self._measured_interval
         return _DEFAULT_FRAME_INTERVAL_S
 
     def table(self, key: str) -> StatTable | None:
@@ -542,7 +549,7 @@ class FramePollSettingsDialog(QDialog):
             _MIN_HISTORY_DEPTH, _MAX_HISTORY_DEPTH, depth, step=5)
         form.addRow("Глубина истории, кадров", self.spinBox_depth)
         self.spinBox_frame_interval = self._build_spin(
-            _MIN_FRAME_INTERVAL_S, _MAX_FRAME_INTERVAL_S, frame_interval, step=1)
+            CM_FRAME_INTERVAL_MIN_S, CM_FRAME_INTERVAL_MAX_S, frame_interval, step=1)
         self.spinBox_frame_interval.setToolTip(
             "Команда ЦМ: интервал измерения, с которым прибор формирует кадр")
         form.addRow("Время формирования кадра (ЦМ), с", self.spinBox_frame_interval)

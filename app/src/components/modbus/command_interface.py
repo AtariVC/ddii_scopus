@@ -8,7 +8,9 @@ from loguru import logger
 from app.src.components.frames import HVIP
 from app.src.components.log.config import apply_glob_serial_log_flag
 from app.src.components.modbus.command_codec import mb_encode
-from app.src.components.modbus.modbus_reg import ModbusReg
+from app.src.components.modbus.modbus_reg import (
+    CM_FRAME_INTERVAL_MAX_S, CM_FRAME_INTERVAL_MIN_S, ModbusReg,
+)
 from app.src.components.modbus.worker import ModbusWorker
 
 
@@ -112,11 +114,12 @@ class ModbusCMCommand(ModbusReg):
         """Задать время формирования кадра ЦМ.
 
         Args:
-            seconds (int): интервал измерения (формирования кадра), с.
+            seconds (int): интервал измерения, ограничивается диапазоном 1–60 с.
         """
+        seconds = max(CM_FRAME_INTERVAL_MIN_S, min(int(seconds), CM_FRAME_INTERVAL_MAX_S))
         return await self.client.write_registers(
             self.ctrl_reg.SET_INTERVAL_MEAS,
-            [int(seconds) & 0xFFFF],
+            [seconds],
             slave=self.CM_ID,
         )
 

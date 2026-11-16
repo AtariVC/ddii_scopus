@@ -1,3 +1,7 @@
+# Ограничения CTRL_SET_INTERVAL_MEAS из modbus_debug.c.
+CM_FRAME_INTERVAL_MIN_S = 1
+CM_FRAME_INTERVAL_MAX_S = 60
+
 
 class CmCtrlReg():
     DEBUG_MODE_SWITCH                  = 0
