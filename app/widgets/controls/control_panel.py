@@ -22,11 +22,7 @@ class ControlPanel(NavList):
         nav_items = _ITEMS_NAVLIST
         self.set_items(nav_items)
 
-    def _udate_breadcrumb(self, name_picked_row: str):
-        self._parent.right_lay
-        
-    def on_screen_changed(self, name_picked_row):
-        self._udate_breadcrumb(str(name_picked_row))
+    def on_screen_changed(self) -> None:
         index_current_navitems = self.current_index()
         self._parent.stack_control_panel.setCurrentIndex(index_current_navitems)
         

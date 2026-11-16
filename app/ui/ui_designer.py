@@ -24,7 +24,7 @@ from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QStackedWidget, QVBoxLayout, QWidget
 from qtpy.uic import loadUi
 
-from dark_pro_widgets import NavRail, qss, theme
+from dark_pro_widgets import NavList, NavRail, qss, theme
 
 from custom.icons import load_svg_icon
 
@@ -230,7 +230,9 @@ class MainUIDesigner(QtWidgets.QMainWindow):
         right_lay = QVBoxLayout(right)
         right_lay.setContentsMargins(0, 0, 0, 0)
         right_lay.setSpacing(0)
-        right_lay.addWidget(self._build_header(name, cfg.get("breadcrumb", "")))
+        nav = next((widget for widget in (cfg.get("sidebar") or {}).values()
+                    if isinstance(widget, NavList)), None)
+        right_lay.addWidget(self._build_header(name, cfg.get("breadcrumb", ""), nav))
 
         body = QWidget()
         body_lay = QHBoxLayout(body)
@@ -259,9 +261,10 @@ class MainUIDesigner(QtWidgets.QMainWindow):
         row.addWidget(right, stretch=1)
         return screen
 
-    def _build_header(self, title: str, breadcrumb: str) -> QWidget:
+    def _build_header(self, title: str, breadcrumb: str, nav: NavList | None = None) -> QWidget:
         """Шапка экрана: заголовок и хлебная крошка, во всю ширину над рабочей
-        областью и инспектором, отделённая линией."""
+        областью и инспектором. Крошка следует за выбором NavList, если он есть.
+        """
         head = QWidget()
         head.setObjectName("ScreenHeader")
         head.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -278,7 +281,9 @@ class MainUIDesigner(QtWidgets.QMainWindow):
             f"color: {theme.TEXT}; font-family: '{_FONT}'; font-size: 20px; "
             "font-weight: 700; background: transparent; border: none;"
         )
-        label_crumb = QLabel(breadcrumb)
+        label_crumb = QLabel(nav.current_text() if nav is not None else breadcrumb)
+        if nav is not None:
+            nav.sectionChanged.connect(label_crumb.setText)
         label_crumb.setStyleSheet(
             f"color: {theme.TEXT_DIM}; background: transparent; border: none;"
         )
