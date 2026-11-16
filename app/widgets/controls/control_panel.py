@@ -1,4 +1,4 @@
-from dark_pro_widgets.widgets.controls.nav_list import NavList
+from dark_pro_widgets import NavList
 from app.widgets.controls.frame_viewer import FrameViewerWidget
 from app.widgets.controls.power import PowerControlWidget
 from app.widgets.settings.power_settings import PowerSettingsWidget
@@ -21,8 +21,12 @@ class ControlPanel(NavList):
     def build_navlist(self):
         nav_items = _ITEMS_NAVLIST
         self.set_items(nav_items)
+
+    def _udate_breadcrumb(self, name_picked_row: str):
+        self._parent.right_lay
         
-    def on_screen_changed(self):
+    def on_screen_changed(self, name_picked_row):
+        self._udate_breadcrumb(str(name_picked_row))
         index_current_navitems = self.current_index()
         self._parent.stack_control_panel.setCurrentIndex(index_current_navitems)
         

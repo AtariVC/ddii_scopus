@@ -159,14 +159,14 @@ class MainUIDesigner(QtWidgets.QMainWindow):
             },
             "Просмотр": {
                 "icon": "open",
-                "breadcrumb": "Просмотр",
+                "breadcrumb": "HDF5 · CSV",
                 "sidebar": {"Файл менеджер": self.explorer_hdf5_widget},
                 "work": self.graph_viewer_widget,
                 "inspector": {"Фильтр кадров": self.graph_filter_widget},
             },
             "Состояние": {
                 "icon": "register",
-                "breadcrumb": "Состояние",
+                "breadcrumb": "",
                 "sidebar": {
                     "Опрос телеметрии": self.control_panel,
                 },
@@ -175,7 +175,7 @@ class MainUIDesigner(QtWidgets.QMainWindow):
             },
             "Настройка": {
                 "icon": "settings",
-                "breadcrumb": "Настройка",
+                "breadcrumb": "",
                 "sidebar": {
                     "Настройка": self.setting_panel,
                 },
