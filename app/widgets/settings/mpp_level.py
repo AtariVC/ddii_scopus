@@ -48,6 +48,7 @@ from dark_pro_widgets.widgets.controls.segmented_control import SegmentedControl
 from app.src.components.modbus.command_interface import (ModbusCMCommand,
                                                          ModbusMPPCommand)
 from app.src.components.parsers.custom_parsers import Parsers
+from app.src.util.async_task_manager import AsyncTaskManager
 
 _FONT = theme.FONT_FAMILY.split(",")[0].strip()
 
@@ -225,6 +226,7 @@ class MPPLevel(QWidget):
         self.mpp_ib: ModbusMPPCommand | None = None
         self.logger = logger
         self.parser = Parsers()
+        self._tasks = AsyncTaskManager()
 
         self._coef: dict[str, int] = dict(_DEFAULT_COEF)
         self._levels_kev: list[int] = [0] * HH_LEVEL_NUM
@@ -434,48 +436,18 @@ class MPPLevel(QWidget):
 
     # --- связь ---------------------------------------------------------------
     def _wire_connection(self) -> None:
-        """Подписка на события связи: подключились — взять интерфейсы и прочитать
-        уровни из МПП; связь потеряна — забыть интерфейсы."""
-        if self.client is None:
-            return
-        self._refresh_interfaces()   # начальные интерфейсы (до подключения — None)
-        self.client.coroutine_finished.connect(self._on_connection_finished)
-        self.client.disconnected.connect(self._on_disconnected)
-        self.client.settingsChanged.connect(self._on_settings_changed)
+        if self.client is not None:
+            self._connection = self.client.bind_device(
+                self, "mpp", self._tasks, self._on_device_ready, self._on_disconnected,
+            )
 
-    @qasync.asyncSlot()
-    async def _on_connection_finished(self) -> None:
-        """Соединение установлено: обновить интерфейсы и прочитать уровни из МПП."""
-        await self._resync_connection()
-
-    @qasync.asyncSlot(object)
-    async def _on_settings_changed(self, _settings=None) -> None:
-        """Сменился режим опроса — пересобрать интерфейсы (МПП мог отключиться)."""
-        await self._resync_connection()
-
-    async def _resync_connection(self) -> None:
-        """Свежие интерфейсы и, если МПП доступен, чтение уровней.
-
-        ``mpp_ib is None`` — МПП выключен режимом опроса (или нет транспорта):
-        читать нечего и в шину лезть незачем.
-        """
-        self._refresh_interfaces()
-        if self.mpp_ib is None:
-            return
-        try:
-            ready = await self.client.check_connection(only_cm=False, only_mpp=True)  # type: ignore
-        except Exception:
-            ready = self.client.is_modbus_ready()  # type: ignore
-        if ready:
-            await self._read_levels()
+    def _on_device_ready(self, command: ModbusMPPCommand) -> None:
+        self.cm_ib, self.mpp_ib = self.client.get_commands_interface()
+        self._tasks.create_task(self._read_levels(), "mpp_levels_init")
 
     def _on_disconnected(self) -> None:
-        """Связь потеряна — командные интерфейсы больше не действительны."""
+        """Забыть интерфейсы закрытой сессии."""
         self.cm_ib = self.mpp_ib = None
-
-    def _refresh_interfaces(self) -> None:
-        """Свежие командные интерфейсы ЦМ и МПП."""
-        self.cm_ib, self.mpp_ib = self.client.get_commands_interface()  # type: ignore
 
     # --- уровни: чтение и запись в прибор ------------------------------------
     @qasync.asyncSlot()

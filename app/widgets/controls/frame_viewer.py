@@ -224,56 +224,22 @@ class FrameViewerWidget(QWidget):
 
     # --- связь ---------------------------------------------------------------
     def _wire_connection(self) -> None:
-        """Подписка на события связи: соединение установлено — взять интерфейс ЦМ
-        и запустить опрос; потеряно — остановить."""
-        if self.client is None:
-            return
-        self._refresh_cm()  # начальный интерфейс (до подключения — None)
-        self.client.coroutine_finished.connect(self._on_connection_finished)
-        self.client.disconnected.connect(self._on_disconnected)
-        self.client.settingsChanged.connect(self._on_settings_changed)
+        if self.client is not None:
+            self._connection = self.client.bind_device(
+                self, "cm", self._tasks, self._on_device_ready, self._on_disconnected,
+            )
 
-    @qasync.asyncSlot()
-    async def _on_connection_finished(self) -> None:
-        """Соединение установлено — пересмотреть опрос."""
-        await self._resync_connection()
-
-    @qasync.asyncSlot(object)
-    async def _on_settings_changed(self, _settings=None) -> None:
-        """Сменился режим опроса — пересмотреть опрос, не дожидаясь переподключения."""
-        await self._resync_connection()
-
-    async def _resync_connection(self) -> None:
-        """Взять свежий интерфейс ЦМ и решить, нужен ли наш опрос.
-
-        ``cm_ib is None`` — ЦМ выключен режимом опроса (или нет транспорта):
-        цикл не запускаем, иначе он вечно крутился бы вхолостую, засоряя лог.
-        """
-        self._refresh_cm()
-        if self.cm_ib is None:
-            self.stop_polling()
-            return
-        try:
-            ready = await self.client.check_connection(only_cm=True, only_mpp=False)  # type: ignore
-        except Exception:
-            ready = self.client.is_modbus_ready()  # type: ignore
-        if ready:
-            # start_polling идемпотентен; гасить живую задачу ради рестарта нельзя —
-            # cancel() отрабатывает только на следующем проходе цикла, и рестарт
-            # был бы отброшен дедупом AsyncTaskManager.
-            self.start_polling()
-        else:
-            self.stop_polling()
+    def _on_device_ready(self, command: ModbusCMCommand) -> None:
+        self.cm_ib = command
+        self.start_polling()
 
     def _on_disconnected(self) -> None:
         """Связь потеряна — остановить опрос."""
-        self.stop_polling()
+        self.cm_ib = None
         self._frame_interval = None
         self._measured_interval = None
-
-    def _refresh_cm(self) -> None:
-        """Свежий командный интерфейс ЦМ."""
-        self.cm_ib, _mpp = self.client.get_commands_interface()  # type: ignore
+        self._pending_frame_interval = None
+        self._pending_attempts = 0
 
     # --- опрос ---------------------------------------------------------------
     def start_polling(self) -> None:

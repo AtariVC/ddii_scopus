@@ -84,4 +84,5 @@ class AsyncTaskManager:
         except Exception as e:
             self.logger.error(f"Ошибка обработки завершения: {e}")
         finally:
-            self.tasks.pop(task_name, None)
+            if self.tasks.get(task_name) is task:
+                self.tasks.pop(task_name, None)

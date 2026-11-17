@@ -13,6 +13,10 @@ class ModbusCommandError(Exception):
     pass
 
 
+class ConnectionClosedError(Exception):
+    """Сессия уже закрыта; причина сообщена владельцем подключения."""
+
+
 P = ParamSpec("P")
 
 # Декоратор объявляет то, что реально делает: команда возвращает ModbusResponse,
@@ -39,6 +43,8 @@ def mb_encode(func: Optional[Callable[..., Any]] = None, *, log_serial_exchange:
                 if _should_log_serial_exchange(self, log_serial_exchange):
                     await log_s(self.mw.send_handler.mess)
                 return _encode_payload(response)
+            except ConnectionClosedError:
+                return b"-1"
             except Exception as ex:
                 _log_modbus_error(self, command.__name__, ex)
                 return b"-1"

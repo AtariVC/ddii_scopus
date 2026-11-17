@@ -5,6 +5,7 @@
   * ``get_commands_interface() -> (ModbusCMCommand | None, ModbusMPPCommand | None)``;
   * ``check_connection(only_cm, only_mpp) -> bool`` (async);
   * ``is_modbus_ready() -> bool``;
+  * ``bind_device(owner, device, tasks, on_ready, on_stop)`` — задачи потребителя;
   * атрибуты ``client``, ``tcp_client``, ``relay_server``, ``mpp_id``;
   * ``label_state_w`` — QLabel состояния (алиас статуса панели).
 
@@ -34,8 +35,11 @@ from app.plugins.connection.connection_settings import (
     list_serial_ports,
 )
 from app.plugins.connection.modbus_relay_server import ModbusRelayServer
-from app.src.components.log.config import get_logger, log_s
+from app.plugins.connection.device_binding import DeviceBinding
+from app.plugins.connection.session import ConnectionSession
+from app.src.components.log.config import get_logger
 from app.src.components.modbus.command_interface import ModbusCMCommand, ModbusMPPCommand
+from app.src.components.modbus.command_codec import ConnectionClosedError
 from app.src.components.modbus.modbus_reg import ModbusReg
 from app.src.components.modbus.worker import ModbusWorker
 
@@ -80,8 +84,11 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             self.settings.tcp_host = self._get_local_ip()
 
         # --- состояние бэкенда ---
-        self.status_CM = 1
-        self.status_MPP = 1
+        self.status_CM = 0
+        self.status_MPP = 0
+        self._session: ConnectionSession | None = None
+        self._commands = (None, None)
+        self._connect_task: asyncio.Task | None = None
         self.client: AsyncModbusSerialClient | None = None
         self.tcp_client: AsyncModbusTcpClient | None = None
         self.relay_server: ModbusRelayServer | None = None
@@ -99,6 +106,8 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         # --- сигналы: UI шлёт намерение, бэкенд выполняет действие ---
         self.connectToggled.connect(self._on_conn_toggled)
         self.settingsClicked.connect(self.open_settings)
+        self.transportChanged.connect(self._on_transport_changed)
+        QtWidgets.QApplication.instance().aboutToQuit.connect(self._disconnect)
 
         # --- начальное состояние ---
         self.transport.setCurrentIndex(0)  # Serial
@@ -151,7 +160,10 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         dialog = ConnectionSettingsDialog(self.settings, self)
         if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
             return
-        self.settings = dialog.result_settings()
+        settings = dialog.result_settings()
+        if settings != self.settings:
+            self._disconnect()
+        self.settings = settings
         self.settings.save()
         self.logger.info(
             f"Настройки соединения: {self.settings.poll_label()}, "
@@ -239,21 +251,68 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
 
     async def connect_clicked(self) -> None:
         """Подключение согласно выбранному транспорту (Serial / TCP-клиент)."""
-        if self.current_transport().lower().startswith("serial"):
-            await self._serial_connect()
-        else:
-            await self._tcp_connect()
+        if self._connect_task is not None or self.is_modbus_ready():
+            return
+        self._connect_task = asyncio.current_task()
+        task = self._connect_task
+        try:
+            if self.is_serial_transport():
+                await self._serial_connect()
+            else:
+                await self._tcp_connect()
+        except asyncio.CancelledError:
+            if self._connect_task is task:
+                self._disconnect()
+        except ConnectionClosedError:
+            pass  # сессия уже выполнила отключение и сообщила причину
+        except Exception as error:
+            self._disconnect(f"Ошибка подключения: {error}")
+        finally:
+            if self._connect_task is asyncio.current_task():
+                self._connect_task = None
 
     async def disconnect_clicked(self) -> None:
         """Полное отключение: relay-сервер, TCP-клиент, Serial-клиент."""
-        if self.relay_server is not None:
-            self.stop_tcp_server()
-        if self.tcp_client is not None:
-            self.disconnect_tcp_client()
-        self._close_serial_client()
+        self._disconnect()
+
+    def _on_transport_changed(self, _transport: str) -> None:
+        self._disconnect()
+
+    def _disconnect(self, reason: str | None = None) -> None:
+        """Единая остановка: запрет запросов, закрытие транспорта, сброс UI и задач."""
+        session, self._session = self._session, None
+        was_active = session is not None or self.client is not None or self.tcp_client is not None
+        self._commands = (None, None)
+        self.status_CM = self.status_MPP = 0
+        if session is not None:
+            session.close()
+        connecting, self._connect_task = self._connect_task, None
+        if connecting is not None and not connecting.done():
+            try:
+                current = asyncio.current_task()
+            except RuntimeError:
+                current = None
+            if connecting is not current:
+                connecting.cancel()
         self.set_connected(False)
         self._update_state_label()
-        self.disconnected.emit()
+        if was_active:
+            self.disconnected.emit()
+        if self.relay_server is not None:
+            self.stop_tcp_server()
+        self.disconnect_tcp_client()
+        self._close_serial_client()
+        if reason:
+            self._set_status("Нет связи", theme.ERR)
+            self.logger.error(reason)
+
+    def _on_session_failure(self, session: ConnectionSession, reason: str) -> None:
+        if session is self._session:
+            self._disconnect(reason)
+
+    def bind_device(self, owner, device: str, tasks, on_ready, on_stop) -> DeviceBinding:
+        """Связать задачи виджета с сессией ЦМ/МПП без собственного опроса связи."""
+        return DeviceBinding(self, owner, device, tasks, on_ready, on_stop)
 
     # ===== Serial =====
     async def _serial_connect(self) -> None:
@@ -275,71 +334,48 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             # же таймаут запроса поднимал фоновую задачу переподключения, которая
             # молча открывала порт заново уже после нашего close().
             reconnect_delay=0,
+            retries=0,
         )
         connected: bool = await self.client.connect()
         if not connected:
-            self._close_serial_client()
-            self._set_status("Порт занят", theme.ERR)
+            self._disconnect("Порт занят или недоступен")
             return
 
         if not await self._await_serial_transport_ready():
-            self.logger.error(f"{port}: транспорт pymodbus не поднялся — порт освобождён")
-            self._close_serial_client()
-            self._set_status("Порт не открылся", theme.ERR)
+            self._disconnect(f"{port}: транспорт pymodbus не поднялся — порт освобождён")
             return
 
         self.logger.debug(f"{port}, Baudrate={baudrate}, Parity=None, Stopbits=1, Bytesize=8")
-        await self._check_connect()
-        if self.client is not None:
+        self._session = ConnectionSession(self.client, self._on_session_failure)
+        if await self._check_connect():
             self.set_connected(True)
             self._update_state_label()
             self.coroutine_finished.emit()
 
-    async def _check_connect(self) -> None:
+    async def _check_connect(self) -> bool:
         """Опрашивает только те устройства, что включены режимом опроса.
 
         Статус выключенного устройства = 0 и в поле State он не показывается —
         так «не отвечает» не путается с «не опрашивали».
         """
-        self.status_CM = 0
-        self.status_MPP = 0
-
-        ######## MPP #######
-        if self.settings.poll_mpp:
-            try:
-                if self.client:
-                    await self.client.read_holding_registers(0x0000, 4, slave=self.mpp_id)
-                    await log_s(self.mw.send_handler.mess)
-                    self.status_MPP = 1
-                    self._log_state("mpp", None)
-            except Exception as e:
-                self.status_MPP = 0
-                self._log_state("mpp", f"МПП (id={self.mpp_id}) не отвечает: {e}", "warning")
-
-        #### CM ####
-        if self.settings.poll_cm:
-            try:
-                if self.client:
-                    await self.client.read_holding_registers(
-                        address=self.dbg_reg.CM_STATUS, count=1, slave=self.cm_id
-                    )
-                    await log_s(self.mw.send_handler.mess)
-                    self.status_CM = 1
-                    self._log_state("cm", None)
-            except Exception as e:
-                self.status_CM = 0
-                self._log_state("cm", f"ЦМ (id={self.cm_id}) не отвечает: {e}", "warning")
-
-        self._update_state_label()
-
-        # Ни одно из затребованных устройств не ответило — связи с ДДИИ нет
-        if not self._any_required_ok() and self.client:
-            self._close_serial_client()
-            await asyncio.sleep(1)
-            self.set_connected(False)
-            self._set_status("Нет связи", theme.ERR)
-            self._update_state_label()
-            self.disconnected.emit()
+        session = self._session
+        if session is None:
+            return False
+        self.status_CM = self.status_MPP = 0
+        probes = ((self.settings.poll_cm, "ЦМ", self.cm_id, self.dbg_reg.CM_STATUS, 1),
+                  (self.settings.poll_mpp, "МПП", self.mpp_id, 0, 4))
+        for enabled, name, slave, address, count in probes:
+            if not enabled:
+                continue
+            response = await session.read_holding_registers(address, count, slave=slave)
+            if response.isError():
+                self._disconnect(f"{name} (id={slave}): проверка подключения отклонена: {response}")
+                return False
+            if name == "ЦМ":
+                self.status_CM = 1
+            else:
+                self.status_MPP = 1
+        return session.active
 
     async def _await_serial_transport_ready(self, timeout: float = 2.0) -> bool:
         """Дождаться, пока pymodbus действительно поднимет Serial-транспорт.
@@ -398,12 +434,6 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         if message:
             getattr(self.logger, level, self.logger.debug)(message)
 
-    def _any_required_ok(self) -> bool:
-        """Ответило ли хоть одно устройство из включённых в опрос."""
-        return bool(
-            (self.settings.poll_cm and self.status_CM) or (self.settings.poll_mpp and self.status_MPP)
-        )
-
     # ===== TCP-клиент =====
     async def _tcp_connect(self) -> None:
         host, port = self.settings.tcp_host, int(self.settings.tcp_port)
@@ -414,43 +444,40 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             await self._tcp_preflight_diagnostics(host, port)
 
             # reconnect_delay=0 — переподключением управляет кнопка панели, не pymodbus
-            tcp_client = AsyncModbusTcpClient(host=host, port=port, timeout=2, reconnect_delay=0)
+            tcp_client = AsyncModbusTcpClient(host=host, port=port, timeout=2, reconnect_delay=0, retries=0)
+            self.tcp_client = tcp_client
             connected = await tcp_client.connect()
             if connected:
-                self.tcp_client = tcp_client
-                # Опрос выполняет сервер-ретранслятор — считаем включённые устройства доступными
-                self.status_CM = 1 if self.settings.poll_cm else 0
-                self.status_MPP = 1 if self.settings.poll_mpp else 0
+                self._session = ConnectionSession(tcp_client, self._on_session_failure)
+                if not await self._check_connect():
+                    return
                 self.set_connected(True)
                 self._update_state_label()
                 self.tcp_status_changed.emit(f"Подключено к {host}:{port}", True)
                 self.logger.info(f"Подключено к TCP серверу {host}:{port}")
                 try:
-                    await self._send_client_identity(tcp_client)
+                    await self._send_client_identity(self._session)
                 except Exception as e:
                     self.logger.warning(f"Не удалось отправить идентификатор: {e}")
-                self.coroutine_finished.emit()
+                if self.is_modbus_ready():
+                    self.coroutine_finished.emit()
             else:
-                try:
-                    tcp_client.close()
-                except Exception:
-                    pass
-                self.logger.error(
-                    f"AsyncModbusTcpClient.connect() вернул False (host={host}, port={port}).\n"
-                    "Проверьте, что сервер запущен, порт не занят и брандмауэр не блокирует соединение."
-                )
-                self._set_status("Нет связи", theme.ERR)
+                self._disconnect(f"Не удалось подключиться к {host}:{port}")
                 self.tcp_status_changed.emit("Не удалось подключиться", False)
+        except ConnectionClosedError:
+            return
         except Exception as e:
-            self._set_status("Ошибка связи", theme.ERR)
+            self._disconnect(f"Ошибка TCP подключения: {e}")
             self.tcp_status_changed.emit(f"Ошибка подключения: {e}", False)
-            self.logger.error(f"Ошибка TCP подключения: {e}")
 
     def disconnect_tcp_client(self) -> None:
         """Отключение TCP клиента"""
-        if self.tcp_client:
-            self.tcp_client.close()
-            self.tcp_client = None
+        client, self.tcp_client = self.tcp_client, None
+        if client is not None:
+            try:
+                client.close()
+            except Exception as error:
+                self.logger.debug(f"Ошибка закрытия TCP: {error}")
             self.tcp_status_changed.emit("Отключено", False)
             self.logger.info("TCP подключение закрыто")
 
@@ -470,8 +497,11 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             regs: list[int] = []
             for i in range(0, len(data), 2):
                 regs.append(int.from_bytes(data[i : i + 2], byteorder="big", signed=False))
-            await tcp_client.write_registers(address=80, values=regs, unit=1)
+            slave = self.cm_id if self.settings.poll_cm else self.mpp_id
+            await tcp_client.write_registers(address=80, values=regs, slave=slave)
             self.logger.info("Отправлен идентификатор серверу")
+        except ConnectionClosedError:
+            return
         except Exception as e:
             self.logger.warning(f"Ошибка при формировании/отправке идентификации клиента: {e}")
 
@@ -507,7 +537,11 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         """Запуск локального relay-сервера, проксирующего TCP → Serial."""
         host = host or self.settings.tcp_host or self._get_local_ip()
         port = int(port or self.settings.tcp_port)
-        relay_server = ModbusRelayServer(self.client, host, port, cm_id=self.cm_id, mpp_id=self.mpp_id)
+        if not self.is_modbus_ready() or self.client is None:
+            return False
+        relay_server = ModbusRelayServer(self._session, host, port,
+                                        cm_id=self.cm_id if self.settings.poll_cm else None,
+                                        mpp_id=self.mpp_id if self.settings.poll_mpp else None)
         if await relay_server.start_server():
             self.relay_server = relay_server
             self.logger.info(f"TCP сервер УСПЕШНО запущен на {host}:{port}")
@@ -518,9 +552,12 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
 
     def stop_tcp_server(self) -> None:
         """Остановка relay-сервера."""
-        if self.relay_server:
-            self.relay_server.stop_server()
-            self.relay_server = None
+        server, self.relay_server = self.relay_server, None
+        if server is not None:
+            try:
+                server.stop_server()
+            except Exception as error:
+                self.logger.debug(f"Ошибка остановки relay: {error}")
             self.tcp_status_changed.emit("Сервер остановлен", False)
             self.logger.info("TCP сервер остановлен")
 
@@ -546,8 +583,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
 
     # ===== публичный API для потребителей (совместимость с SerialConnect) =====
     def is_modbus_ready(self) -> bool:
-        # Готовность при наличии любого транспорта: Serial или TCP‑клиента
-        return (self.client is not None) or (self.tcp_client is not None)
+        return bool(self._connected and self._session is not None and self._session.active)
 
     def get_commands_interface(self) -> tuple[ModbusCMCommand | None, ModbusMPPCommand | None]:
         """Команды с актуальным клиентом и адресами из настроек.
@@ -558,25 +594,28 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         выключенный ЦМ не порождает ни трафика в шину, ни вечного цикла опроса,
         молча падающего в ``b"-1"``.
         """
-        cli = self.client if self.client is not None else self.tcp_client
-        if cli is None:
+        if not self.is_modbus_ready():
             return None, None
-
+        if any(command is not None for command in self._commands):
+            return self._commands
+        cli = self._session
         slog = self.log_serial_exchange
         cm = None
         if self.settings.poll_cm:
             cm = ModbusCMCommand(cli, log_serial_exchange=slog)
+            cm.CM_ID = self.cm_id
 
         mpp = None
         if self.settings.poll_mpp:
-            try:
-                mpp = ModbusMPPCommand(cli, self.mpp_id, log_serial_exchange=slog)
-            except Exception:
-                mpp = ModbusMPPCommand(cli, log_serial_exchange=slog)
-        return cm, mpp
+            mpp = ModbusMPPCommand(cli, self.mpp_id, log_serial_exchange=slog)
+        self._commands = (cm, mpp)
+        return self._commands
 
     async def check_connection(self, only_cm=True, only_mpp=True) -> bool:
         """Готово ли соединение для работы вызывающего.
+
+        Не обращается к шине: устройства проверены при подключении, последующие
+        запросы контролирует ConnectionSession.
 
         ``only_cm``/``only_mpp`` — что нужно вызывающему. Устройство, выключенное
         режимом опроса, для того, кто его запросил, недоступно: виджет ЦМ в
@@ -598,15 +637,6 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             self._log_state("need_mpp", f"МПП выключен режимом опроса ({self.settings.poll_label()})")
             return False
         self._log_state("need_mpp", None)
-        # Как TCP‑клиент считаем подключение готовым — проверка на стороне сервера
-        if self.tcp_client is not None and self.client is None:
-            self.status_CM = 1 if self.settings.poll_cm else 0
-            self.status_MPP = 1 if self.settings.poll_mpp else 0
-            self._update_state_label()
-            return True
-
-        await self._check_connect()
-
         required_cm = bool(only_cm)
         required_mpp = bool(only_mpp)
         if not required_cm and not required_mpp:
@@ -621,6 +651,10 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         # конкретика по устройствам уже ушла в лог из _check_connect
         self._log_state("ready", None if ok else "Подключение потеряно", "error")
         return ok
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self._disconnect()
+        super().closeEvent(event)
 
 
 if __name__ == "__main__":

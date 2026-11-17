@@ -13,6 +13,7 @@ from dark_pro_widgets import theme
 from dark_pro_widgets.widgets.controls.buttons import ToggleButton
 
 from app.plugins.connection.connection_bar import ConnectionBar
+from app.src.components.modbus.command_interface import ModbusMPPCommand
 from app.src.components.modbus.worker import ModbusWorker
 from app.src.components.parsers.custom_parsers import Parsers
 from app.src.event.event import Event
@@ -127,8 +128,9 @@ class RunControlWidget(QtWidgets.QDialog):
         self.lineEdit_trigger.editingFinished.connect(self._on_trigger_changed)
         self._on_trigger_changed()
 
-        self.w_ser_dialog.coroutine_finished.connect(self.init_mb_cmd)
-        self.w_ser_dialog.disconnected.connect(self.on_serial_disconnected)
+        self._connection = self.w_ser_dialog.bind_device(
+            self, "mpp", self.task_manager, self._on_device_ready, self.on_serial_disconnected,
+        )
         self.pushButton_run.clicked.connect(self.pushButton_run_handler)
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
         self._rebuild_widget()
@@ -174,29 +176,20 @@ class RunControlWidget(QtWidgets.QDialog):
             return 2
 
     # ===== подключение =====
-    @qasync.asyncSlot()
     async def init_mb_cmd(self) -> None:
-        """Инициализация командного интерфейса МПП и ЦМ."""
-        if not self.w_ser_dialog or not self.w_ser_dialog.is_modbus_ready():
-            self.logger.warning("Modbus не готов: нет активного соединения")
-            if self.w_ser_dialog:
-                self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
-            return
-        try:
-            ready = await self.w_ser_dialog.check_connection(only_cm=False, only_mpp=True)
-        except Exception as e:
-            self.logger.warning(f"Не удалось обновить статус ЦМ/МПП: {e}")
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
-            return
+        """Взять интерфейсы текущей сессии, не опрашивая устройства повторно."""
         self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
-        if not ready or self.mpp_cmd is None:
-            self.logger.warning("МПП недоступен — запуск измерений невозможен")
 
-    @qasync.asyncSlot()
-    async def on_serial_disconnected(self) -> None:
-        await self._stop_measuring("Связь потеряна")
-        if self.w_ser_dialog:
-            self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
+    def _on_device_ready(self, command: ModbusMPPCommand) -> None:
+        self.cm_cmd, self.mpp_cmd = self.w_ser_dialog.get_commands_interface()
+
+    def on_serial_disconnected(self) -> None:
+        """Сбросить измерение без попыток писать в уже закрытое соединение."""
+        self.cm_cmd = self.mpp_cmd = None
+        self.flags[self.start_measure_flag] = False
+        self.pushButton_run.setChecked(False)
+        self.pushButton_run.setText("Начать измерение")
+        self._set_controls_enabled(True)
 
     # ===== запуск/остановка =====
     @qasync.asyncSlot()
