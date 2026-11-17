@@ -22,7 +22,8 @@ class CmCtrlReg():
     SAVE_CURRENT_STATE_CFG             = 15
     RESET_DEFAULT_CRG                  = 16
     CM_RESET                           = 17
-    NUMBER                             = 18
+    CTRL_CM_SYS_PRP                    = 18
+    NUMBER                             = 19
 
 class CmDbgReg():
     BASE                               = 100
