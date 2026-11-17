@@ -127,11 +127,27 @@ class ModbusCMCommand(ModbusReg):
         Returns:
             Сырые байты кадра или ``b"-1"`` при ошибке.
         """
+        await self.cm_frame_prep()
+        await asyncio.sleep(0.2)
         return await self.client.read_holding_registers(
             self.frame_reg.SYS_BASE,
             self.frame_reg.SYS_NUMBER,
             slave=self.CM_ID,
         )
+
+    @mb_encode
+    async def cm_frame_prep(self) -> ModbusResponse:
+        """Подготовить системный кадр
+
+        Returns:
+            ModbusResponse
+        """
+        return await self.client.write_registers(
+            self.ctrl_reg.CTRL_CM_SYS_PRP,
+            self.ctrl_reg.CTRL_CM_SYS_PRP,
+            slave=self.CM_ID,
+        )
+
 
     @mb_encode
     async def read_ddii_frame(self) -> ModbusResponse:
