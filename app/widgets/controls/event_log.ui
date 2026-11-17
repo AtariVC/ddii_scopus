@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EventLogWidget</class>
+ <widget class="QWidget" name="EventLogWidget">
+  <layout class="QVBoxLayout" name="layout_root">
+   <property name="leftMargin"><number>16</number></property>
+   <property name="topMargin"><number>14</number></property>
+   <property name="rightMargin"><number>16</number></property>
+   <property name="bottomMargin"><number>14</number></property>
+   <property name="spacing"><number>14</number></property>
+   <item>
+    <layout class="QHBoxLayout" name="layout_header">
+     <item><widget class="QLabel" name="label_title"><property name="text"><string>Поток</string></property></widget></item>
+     <item><spacer name="spacer_header"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>0</height></size></property></spacer></item>
+     <item><layout class="QHBoxLayout" name="layout_filters"><property name="spacing"><number>6</number></property></layout></item>
+    </layout>
+   </item>
+   <item><layout class="QVBoxLayout" name="layout_log"/></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

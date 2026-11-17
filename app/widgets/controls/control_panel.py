@@ -1,4 +1,5 @@
 from dark_pro_widgets import NavList
+from app.widgets.controls.event_log import EventLogWidget
 from app.widgets.controls.frame_viewer import FrameViewerWidget
 from app.widgets.controls.power import PowerControlWidget
 from app.widgets.settings.power_settings import PowerSettingsWidget
@@ -14,6 +15,7 @@ class ControlPanel(NavList):
         self._parent = parent
         self._pages = {}
         self.power_panel = PowerControlWidget(self._parent.w_ser_dialog)
+        self.event_log = EventLogWidget()
         self.frame_viewer = FrameViewerWidget(self._parent.w_ser_dialog)
         self.build_navlist()
         self.sectionChanged.connect(self.on_screen_changed)
@@ -29,6 +31,7 @@ class ControlPanel(NavList):
     def build_stack_widget(self):
         """Собирает стек страниц: порядок страниц = порядок пунктов навигации."""
         self._pages = {_ITEMS_NAVLIST[0]: self.power_panel,
+                       _ITEMS_NAVLIST[1]: self.event_log,
                        _ITEMS_NAVLIST[2]: self.frame_viewer}
         for item in _ITEMS_NAVLIST:
             # пункт без своей страницы — пустая заглушка, чтобы индексы стека
