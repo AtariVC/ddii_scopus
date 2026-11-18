@@ -109,27 +109,27 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.viewer._tasks.get_active_tasks(), [])
         self.command.read_system_frame.assert_not_awaited()
         self.command.read_ddii_frame.assert_not_awaited()
-        self.card().button_continuous.setChecked(True)
-        self.card().button_refresh.click()
+        self.card().controls.button_continuous.setChecked(True)
+        self.card().controls.button_refresh.click()
         await self.settle()
         self.viewer._on_disconnected()
         await self.settle()
-        self.assertFalse(self.card().button_refresh.isChecked())
-        self.assertFalse(self.card().button_refresh.isEnabled())
+        self.assertFalse(self.card().controls.button_refresh.isChecked())
+        self.assertFalse(self.card().controls.button_refresh.isEnabled())
         self.viewer._on_device_ready(self.command)
         await self.settle()
         self.assertEqual(self.viewer._tasks.get_active_tasks(), [])
-        self.assertFalse(self.card().button_refresh.isChecked())
-        self.assertTrue(self.card().button_refresh.isEnabled())
+        self.assertFalse(self.card().controls.button_refresh.isChecked())
+        self.assertTrue(self.card().controls.button_refresh.isEnabled())
         self.command.read_system_frame.assert_awaited_once()
 
     async def test_each_button_reads_only_its_frame_once(self):
         for key in ("system", "ddii"):
             with self.subTest(key=key):
                 card = self.card(key)
-                self.assertFalse(card.button_refresh.isCheckable())
-                card.button_refresh.click()
-                self.assertFalse(card.button_refresh.isChecked())
+                self.assertFalse(card.controls.button_refresh.isCheckable())
+                card.controls.button_refresh.click()
+                self.assertFalse(card.controls.button_refresh.isChecked())
                 await self.settle()
                 self.assertTrue(card._rows)
         self.command.read_system_frame.assert_awaited_once()
@@ -138,17 +138,17 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_mode_toggle_alone_does_not_start_polling(self):
         card = self.card()
-        card.button_continuous.click()
-        self.assertTrue(card.button_refresh.isCheckable())
-        self.assertFalse(card.button_refresh.isChecked())
-        self.assertTrue(card.lineEdit_interval.isEnabled())
+        card.controls.button_continuous.click()
+        self.assertTrue(card.controls.button_refresh.isCheckable())
+        self.assertFalse(card.controls.button_refresh.isChecked())
+        self.assertTrue(card.controls.lineEdit_interval.isEnabled())
         await self.settle()
         self.command.read_system_frame.assert_not_awaited()
 
     async def test_continuous_polling_uses_committed_interval_and_stops(self):
         card = self.card()
-        card.button_continuous.setChecked(True)
-        card.lineEdit_interval.setText("3")
+        card.controls.button_continuous.setChecked(True)
+        card.controls.lineEdit_interval.setText("3")
         real_sleep = asyncio.sleep
         delays = []
         next_poll = asyncio.Event()
@@ -159,19 +159,19 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
             next_poll.clear()
 
         with patch("app.widgets.controls.frame_viewer.asyncio.sleep", side_effect=sleep_interval):
-            card.button_refresh.click()
+            card.controls.button_refresh.click()
             await real_sleep(0)
-            self.assertTrue(card.button_refresh.isChecked())
-            self.assertFalse(card.lineEdit_interval.isEnabled())
+            self.assertTrue(card.controls.button_refresh.isChecked())
+            self.assertFalse(card.controls.lineEdit_interval.isEnabled())
             self.command.read_system_frame.assert_awaited_once()
             self.assertEqual(delays, [3])
             next_poll.set()
             await real_sleep(0)
             self.assertEqual(self.command.read_system_frame.await_count, 2)
-            card.button_refresh.click()
+            card.controls.button_refresh.click()
             await real_sleep(0)
-            self.assertFalse(card.button_refresh.isChecked())
-            self.assertTrue(card.lineEdit_interval.isEnabled())
+            self.assertFalse(card.controls.button_refresh.isChecked())
+            self.assertTrue(card.controls.lineEdit_interval.isEnabled())
             self.assertEqual(self.viewer._tasks.get_active_tasks(), [])
         self.command.read_ddii_frame.assert_not_awaited()
 
@@ -179,16 +179,16 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
         for key, seconds in (("system", 1), ("ddii", 2)):
             card = self.card(key)
             card.set_interval(seconds)
-            card.button_continuous.setChecked(True)
-            card.button_refresh.click()
+            card.controls.button_continuous.setChecked(True)
+            card.controls.button_refresh.click()
         await self.settle()
         self.assertEqual(set(self.viewer._tasks.get_active_tasks()), {"frame_system", "frame_ddii"})
-        self.card().button_continuous.setChecked(False)
+        self.card().controls.button_continuous.setChecked(False)
         await self.settle()
         self.assertEqual(self.viewer._tasks.get_active_tasks(), ["frame_ddii"])
-        self.assertFalse(self.card().button_refresh.isCheckable())
-        self.assertFalse(self.card().button_refresh.isChecked())
-        self.assertTrue(self.card("ddii").button_refresh.isChecked())
+        self.assertFalse(self.card().controls.button_refresh.isCheckable())
+        self.assertFalse(self.card().controls.button_refresh.isChecked())
+        self.assertTrue(self.card("ddii").controls.button_refresh.isChecked())
 
     async def test_disconnect_cancels_inflight_read_and_other_poll(self):
         pending = asyncio.Event()
@@ -199,8 +199,8 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
 
         self.command.read_system_frame.side_effect = blocked_read
         for key in ("system", "ddii"):
-            self.card(key).button_continuous.setChecked(True)
-            self.card(key).button_refresh.click()
+            self.card(key).controls.button_continuous.setChecked(True)
+            self.card(key).controls.button_refresh.click()
         await self.settle()
         tasks = list(self.viewer._tasks.tasks.values())
         self.viewer._on_disconnected()
@@ -211,23 +211,23 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.viewer._tasks.get_active_tasks(), [])
         self.assertFalse(self.card()._rows)
         for key in ("system", "ddii"):
-            self.assertFalse(self.card(key).button_refresh.isChecked())
-            self.assertFalse(self.card(key).button_refresh.isEnabled())
+            self.assertFalse(self.card(key).controls.button_refresh.isChecked())
+            self.assertFalse(self.card(key).controls.button_refresh.isEnabled())
 
     async def test_fast_stop_start_keeps_new_poll_and_button_active(self):
         card = self.card()
-        card.button_continuous.setChecked(True)
-        card.button_refresh.click()
+        card.controls.button_continuous.setChecked(True)
+        card.controls.button_refresh.click()
         await self.settle()
         old_task = self.viewer._tasks.tasks["frame_system"]
-        card.button_refresh.click()
-        card.button_refresh.click()
+        card.controls.button_refresh.click()
+        card.controls.button_refresh.click()
         new_task = self.viewer._tasks.tasks["frame_system"]
         self.assertIsNot(old_task, new_task)
         await self.settle()
         self.assertTrue(old_task.cancelled())
         self.assertIs(self.viewer._tasks.tasks["frame_system"], new_task)
-        self.assertTrue(card.button_refresh.isChecked())
+        self.assertTrue(card.controls.button_refresh.isChecked())
         self.assertEqual(self.command.read_system_frame.await_count, 2)
 
     async def test_repeated_single_clicks_do_not_duplicate_inflight_request(self):
@@ -238,8 +238,8 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
             return bytes(64)
 
         self.command.read_system_frame.side_effect = blocked_read
-        self.card().button_refresh.click()
-        self.card().button_refresh.click()
+        self.card().controls.button_refresh.click()
+        self.card().controls.button_refresh.click()
         await self.settle()
         self.command.read_system_frame.assert_awaited_once()
         pending.set()
@@ -255,40 +255,40 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
 
         self.command.read_system_frame.side_effect = blocked_read
         card = self.card()
-        card.button_refresh.click()
+        card.controls.button_refresh.click()
         await self.settle()
         old_task = self.viewer._tasks.tasks["frame_system"]
-        card.button_continuous.setChecked(True)
-        card.button_refresh.click()
+        card.controls.button_continuous.setChecked(True)
+        card.controls.button_refresh.click()
         await self.settle()
         self.assertTrue(old_task.cancelled())
-        self.assertTrue(card.button_refresh.isChecked())
+        self.assertTrue(card.controls.button_refresh.isChecked())
         self.assertEqual(self.command.read_system_frame.await_count, 2)
         pending.set()
         await self.settle()
-        self.assertTrue(card.button_refresh.isChecked())
+        self.assertTrue(card.controls.button_refresh.isChecked())
         self.assertEqual(self.viewer._tasks.get_active_tasks(), ["frame_system"])
 
     async def test_failed_read_resets_continuous_button(self):
         self.command.read_ddii_frame.return_value = b"-1"
         card = self.card("ddii")
-        card.button_continuous.setChecked(True)
-        card.button_refresh.click()
+        card.controls.button_continuous.setChecked(True)
+        card.controls.button_refresh.click()
         await self.settle()
-        self.assertFalse(card.button_refresh.isChecked())
+        self.assertFalse(card.controls.button_refresh.isChecked())
         self.assertEqual(self.viewer._tasks.get_active_tasks(), [])
 
     async def test_interval_is_validated_and_normalized(self):
         card = self.card()
-        self.assertEqual(card.lineEdit_interval.validator().bottom(), 1)
-        self.assertEqual(card.lineEdit_interval.validator().top(), 60)
+        self.assertEqual(card.controls.lineEdit_interval.validator().bottom(), 1)
+        self.assertEqual(card.controls.lineEdit_interval.validator().top(), 60)
         for text, expected in (("25", 25), ("", 25), ("0", 1), ("999", 60)):
             with self.subTest(text=text):
-                card.lineEdit_interval.setText(text)
-                card.button_refresh.click()
+                card.controls.lineEdit_interval.setText(text)
+                card.controls.button_refresh.click()
                 await self.settle()
                 self.assertEqual(card.interval(), expected)
-                self.assertEqual(card.lineEdit_interval.text(), str(expected))
+                self.assertEqual(card.controls.lineEdit_interval.text(), str(expected))
 
     async def test_new_frame_replaces_display_without_history(self):
         raw = bytearray(ddii_frame(25))

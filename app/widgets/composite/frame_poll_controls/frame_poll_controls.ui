@@ -2,6 +2,9 @@
 <ui version="4.0">
  <class>FramePollControls</class>
  <widget class="QWidget" name="FramePollControls">
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy>
+  </property>
   <layout class="QHBoxLayout" name="layout_controls">
    <property name="leftMargin"><number>3</number></property>
    <property name="topMargin"><number>3</number></property>
@@ -37,7 +40,7 @@
   <customwidget>
    <class>_IntervalEdit</class>
    <extends>QLineEdit</extends>
-   <header>app.widgets.controls.frame_table</header>
+   <header>app.widgets.composite.frame_poll_controls.frame_poll_controls</header>
   </customwidget>
  </customwidgets>
  <resources/>
