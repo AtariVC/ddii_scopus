@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FramePollControls</class>
+ <widget class="QWidget" name="FramePollControls">
+  <layout class="QHBoxLayout" name="layout_controls">
+   <property name="leftMargin"><number>0</number></property>
+   <property name="topMargin"><number>0</number></property>
+   <property name="rightMargin"><number>0</number></property>
+   <property name="bottomMargin"><number>0</number></property>
+   <property name="spacing"><number>8</number></property>
+   <item><layout class="QHBoxLayout" name="layout_continuous"/></item>
+   <item><layout class="QHBoxLayout" name="layout_interval"/></item>
+   <item><widget class="QLabel" name="label_seconds"><property name="text"><string>с</string></property></widget></item>
+   <item><layout class="QHBoxLayout" name="layout_refresh"/></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

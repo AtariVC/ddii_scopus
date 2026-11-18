@@ -29,7 +29,7 @@ class AsyncTaskManager:
         :param task_name: уникальное имя задачи
         """
         existing_task = self.tasks.get(task_name)
-        if existing_task and not existing_task.done():
+        if existing_task and not existing_task.done() and not existing_task.cancelling():
             self.logger.warning(f"Задача '{task_name}' уже выполняется")
             coroutine.close()   # иначе брошенная корутина даст RuntimeWarning "was never awaited"
             return
