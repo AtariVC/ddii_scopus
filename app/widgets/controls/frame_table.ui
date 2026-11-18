@@ -9,11 +9,31 @@
    <property name="bottomMargin"><number>0</number></property>
    <property name="spacing"><number>8</number></property>
    <item><layout class="QHBoxLayout" name="layout_continuous"/></item>
-   <item><layout class="QHBoxLayout" name="layout_interval"/></item>
-   <item><widget class="QLabel" name="label_seconds"><property name="text"><string>с</string></property></widget></item>
+   <item>
+    <widget class="_IntervalEdit" name="lineEdit_interval">
+     <layout class="QHBoxLayout" name="layout_interval_suffix">
+      <property name="leftMargin"><number>0</number></property>
+      <property name="topMargin"><number>0</number></property>
+      <property name="rightMargin"><number>9</number></property>
+      <property name="bottomMargin"><number>0</number></property>
+      <item alignment="Qt::AlignRight|Qt::AlignVCenter">
+       <widget class="QLabel" name="label_seconds">
+        <property name="text"><string>с</string></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
    <item><layout class="QHBoxLayout" name="layout_refresh"/></item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>_IntervalEdit</class>
+   <extends>QLineEdit</extends>
+   <header>app.widgets.controls.frame_table</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
