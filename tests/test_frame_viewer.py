@@ -109,7 +109,7 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.viewer._tasks.get_active_tasks(), [])
         self.command.read_system_frame.assert_not_awaited()
         self.command.read_ddii_frame.assert_not_awaited()
-        self.card().checkbox_continuous.setChecked(True)
+        self.card().button_continuous.setChecked(True)
         self.card().button_refresh.click()
         await self.settle()
         self.viewer._on_disconnected()
@@ -136,9 +136,9 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
         self.command.read_ddii_frame.assert_awaited_once()
         self.assertEqual(self.viewer._tasks.get_active_tasks(), [])
 
-    async def test_checkbox_alone_does_not_start_polling(self):
+    async def test_mode_toggle_alone_does_not_start_polling(self):
         card = self.card()
-        card.checkbox_continuous.setChecked(True)
+        card.button_continuous.click()
         self.assertTrue(card.button_refresh.isCheckable())
         self.assertFalse(card.button_refresh.isChecked())
         self.assertTrue(card.lineEdit_interval.isEnabled())
@@ -147,7 +147,7 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_continuous_polling_uses_committed_interval_and_stops(self):
         card = self.card()
-        card.checkbox_continuous.setChecked(True)
+        card.button_continuous.setChecked(True)
         card.lineEdit_interval.setText("3")
         real_sleep = asyncio.sleep
         delays = []
@@ -175,15 +175,15 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.viewer._tasks.get_active_tasks(), [])
         self.command.read_ddii_frame.assert_not_awaited()
 
-    async def test_cards_poll_independently_and_unchecking_stops_one(self):
+    async def test_cards_poll_independently_and_disabling_repeat_stops_one(self):
         for key, seconds in (("system", 1), ("ddii", 2)):
             card = self.card(key)
             card.set_interval(seconds)
-            card.checkbox_continuous.setChecked(True)
+            card.button_continuous.setChecked(True)
             card.button_refresh.click()
         await self.settle()
         self.assertEqual(set(self.viewer._tasks.get_active_tasks()), {"frame_system", "frame_ddii"})
-        self.card().checkbox_continuous.setChecked(False)
+        self.card().button_continuous.setChecked(False)
         await self.settle()
         self.assertEqual(self.viewer._tasks.get_active_tasks(), ["frame_ddii"])
         self.assertFalse(self.card().button_refresh.isCheckable())
@@ -199,7 +199,7 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
 
         self.command.read_system_frame.side_effect = blocked_read
         for key in ("system", "ddii"):
-            self.card(key).checkbox_continuous.setChecked(True)
+            self.card(key).button_continuous.setChecked(True)
             self.card(key).button_refresh.click()
         await self.settle()
         tasks = list(self.viewer._tasks.tasks.values())
@@ -216,7 +216,7 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_fast_stop_start_keeps_new_poll_and_button_active(self):
         card = self.card()
-        card.checkbox_continuous.setChecked(True)
+        card.button_continuous.setChecked(True)
         card.button_refresh.click()
         await self.settle()
         old_task = self.viewer._tasks.tasks["frame_system"]
@@ -258,7 +258,7 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
         card.button_refresh.click()
         await self.settle()
         old_task = self.viewer._tasks.tasks["frame_system"]
-        card.checkbox_continuous.setChecked(True)
+        card.button_continuous.setChecked(True)
         card.button_refresh.click()
         await self.settle()
         self.assertTrue(old_task.cancelled())
@@ -272,7 +272,7 @@ class FrameViewerTests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_read_resets_continuous_button(self):
         self.command.read_ddii_frame.return_value = b"-1"
         card = self.card("ddii")
-        card.checkbox_continuous.setChecked(True)
+        card.button_continuous.setChecked(True)
         card.button_refresh.click()
         await self.settle()
         self.assertFalse(card.button_refresh.isChecked())

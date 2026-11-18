@@ -15,7 +15,10 @@ from PyQt6.QtGui import QIntValidator
 from PyQt6.QtWidgets import QWidget
 from qtpy.uic import loadUi
 
-from dark_pro_widgets import CheckBox, IconButton, LineEdit, StatTable, theme
+from dark_pro_widgets import IconButton, LineEdit, StatTable, theme
+
+
+_CONTROL_HEIGHT = 28
 
 
 class _IntervalEdit(LineEdit):
@@ -29,7 +32,7 @@ class FrameTable(StatTable):
     """Карточка с разовым обновлением или фиксируемой кнопкой непрерывного опроса."""
 
     controls: QWidget
-    checkbox_continuous: CheckBox
+    button_continuous: IconButton
     lineEdit_interval: LineEdit
     button_refresh: IconButton
 
@@ -46,39 +49,65 @@ class FrameTable(StatTable):
     def _build_controls(self) -> None:
         self.controls = QWidget(self)
         loadUi(Path(__file__).with_suffix(".ui"), self.controls)
-        self.checkbox_continuous = CheckBox()
-        self.checkbox_continuous.setToolTip("Непрерывный опрос: выберите и нажмите «Обновить кадр»")
-        self.button_refresh = IconButton(glyph="refresh", size=32)
+        self.controls.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+        self.controls.setStyleSheet(
+            f"#FramePollControls {{ background: {theme.FIELD_BG}; "
+            f"border: 1px solid {theme.BORDER}; border-radius: 8px; }}"
+        )
+        self.button_continuous = self._icon_button("repeat", "Непрерывный опрос")
+        self.button_continuous.setCheckable(True)
+        self.button_continuous.setToolTip("Непрерывный опрос. Для запуска нажмите «Обновить кадр»")
+        self.button_refresh = self._icon_button("update", "Обновить кадр")
         self.lineEdit_interval = self.controls.lineEdit_interval
-        self.lineEdit_interval.setFixedSize(62, self.button_refresh.height())
+        self.lineEdit_interval.setFixedSize(46, _CONTROL_HEIGHT)
         self.lineEdit_interval.setValidator(QIntValidator(1, 60, self.lineEdit_interval))
         self.lineEdit_interval.setToolTip("Интервал опроса, с (1–60)")
-        self.lineEdit_interval.setStyleSheet(self.lineEdit_interval.styleSheet() + "QLineEdit { padding: 4px 8px; }")
+        self.lineEdit_interval.setStyleSheet(self.lineEdit_interval.styleSheet() + f"""
+            QLineEdit {{
+                background: transparent; border: 1px solid transparent; border-radius: 5px;
+                padding: 0 5px; font-size: 13px;
+            }}
+            QLineEdit:focus {{ background: {theme.PANEL_BG}; border-color: {theme.ACCENT}; }}
+        """)
         suffix = self.controls.label_seconds
         suffix.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        suffix.setStyleSheet(f"color: {theme.TEXT_DIM}; background: transparent; border: none; font-size: 14px;")
-        self.lineEdit_interval.setTextMargins(0, 0, suffix.sizeHint().width() + 4, 0)
+        suffix.setStyleSheet(f"color: {theme.TEXT_DIM}; background: transparent; border: none; font-size: 13px;")
+        self.lineEdit_interval.setTextMargins(0, 0, suffix.sizeHint().width() + 1, 0)
         self.set_interval(self._interval)
-        self.button_refresh.setStyleSheet(self.button_refresh.styleSheet() + f"""
-            QPushButton:enabled:hover {{
-                background-color: {theme.rgba(theme.TEXT, 18)};
-                border-color: {theme.ACCENT};
+        self.controls.separator_refresh.setStyleSheet(f"background: {theme.BORDER}; border: none;")
+        self.controls.layout_continuous.addWidget(self.button_continuous)
+        self.controls.layout_refresh.addWidget(self.button_refresh)
+        # StatTable не предоставляет публичный слот шапки.
+        header = self._tags.parentWidget().layout()
+        margins = header.contentsMargins()
+        header.setContentsMargins(margins.left(), 8, margins.right(), 8)
+        header.addWidget(self.controls)
+
+    @staticmethod
+    def _icon_button(icon: str, name: str) -> IconButton:
+        button = IconButton(icon=icon, size=_CONTROL_HEIGHT, icon_size=20)
+        button.setAccessibleName(name)
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent; border: 1px solid transparent; border-radius: 5px;
+                padding: 0;
             }}
+            QPushButton:enabled:hover {{ background-color: {theme.rgba(theme.TEXT, 18)}; }}
             QPushButton:enabled:pressed {{ background-color: {theme.rgba(theme.TEXT, 34)}; }}
             QPushButton:enabled:checked {{
-                background-color: {theme.rgba(theme.ACCENT, 40)};
-                border-color: {theme.ACCENT};
+                background-color: {theme.rgba(theme.ACCENT, 64)};
+                border-color: {theme.rgba(theme.ACCENT, 172)};
             }}
-            QPushButton:enabled:checked:hover {{ background-color: {theme.rgba(theme.ACCENT, 62)}; }}
-            QPushButton:enabled:checked:pressed {{ background-color: {theme.rgba(theme.ACCENT, 84)}; }}
+            QPushButton:enabled:checked:hover {{ background-color: {theme.rgba(theme.ACCENT, 86)}; }}
+            QPushButton:enabled:checked:pressed {{ background-color: {theme.rgba(theme.ACCENT, 112)}; }}
         """)
-        self.controls.layout_continuous.addWidget(self.checkbox_continuous)
-        self.controls.layout_refresh.addWidget(self.button_refresh)
-        # У StatTable нет публичного слота шапки: расширяем её здесь, в одном месте.
-        self._tags.parentWidget().layout().addWidget(self.controls)
+        button.toggled.connect(
+            lambda checked: button.setIconColor(theme.TEXT_LABLE if checked else theme.TEXT_DIM, theme.TEXT)
+        )
+        return button
 
     def _wire(self) -> None:
-        self.checkbox_continuous.toggled.connect(self._on_continuous_changed)
+        self.button_continuous.toggled.connect(self._on_continuous_changed)
         self.lineEdit_interval.editingFinished.connect(self._commit_interval)
         self.button_refresh.clicked.connect(self._on_refresh_clicked)
 
@@ -103,7 +132,7 @@ class FrameTable(StatTable):
     def set_polling(self, active: bool) -> None:
         """Обновить кнопку и поле интервала без запуска запросов."""
         self.button_refresh.setChecked(active)
-        self.lineEdit_interval.setEnabled(self.checkbox_continuous.isChecked() and not active)
+        self.lineEdit_interval.setEnabled(self.button_continuous.isChecked() and not active)
         tooltip = "Остановить опрос" if active else "Обновить кадр"
         if not self.button_refresh.isEnabled():
             tooltip = "Подключите ЦМ, чтобы обновить кадр"
@@ -116,7 +145,7 @@ class FrameTable(StatTable):
         self.set_polling(False)
 
     def _on_refresh_clicked(self, checked: bool) -> None:
-        continuous = self.checkbox_continuous.isChecked()
+        continuous = self.button_continuous.isChecked()
         if continuous and not checked:
             self.set_polling(False)
             self.stopRequested.emit()

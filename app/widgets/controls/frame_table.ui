@@ -3,18 +3,18 @@
  <class>FramePollControls</class>
  <widget class="QWidget" name="FramePollControls">
   <layout class="QHBoxLayout" name="layout_controls">
-   <property name="leftMargin"><number>0</number></property>
-   <property name="topMargin"><number>0</number></property>
-   <property name="rightMargin"><number>0</number></property>
-   <property name="bottomMargin"><number>0</number></property>
-   <property name="spacing"><number>8</number></property>
+   <property name="leftMargin"><number>3</number></property>
+   <property name="topMargin"><number>3</number></property>
+   <property name="rightMargin"><number>3</number></property>
+   <property name="bottomMargin"><number>3</number></property>
+   <property name="spacing"><number>2</number></property>
    <item><layout class="QHBoxLayout" name="layout_continuous"/></item>
    <item>
     <widget class="_IntervalEdit" name="lineEdit_interval">
      <layout class="QHBoxLayout" name="layout_interval_suffix">
       <property name="leftMargin"><number>0</number></property>
       <property name="topMargin"><number>0</number></property>
-      <property name="rightMargin"><number>9</number></property>
+      <property name="rightMargin"><number>6</number></property>
       <property name="bottomMargin"><number>0</number></property>
       <item alignment="Qt::AlignRight|Qt::AlignVCenter">
        <widget class="QLabel" name="label_seconds">
@@ -22,6 +22,12 @@
        </widget>
       </item>
      </layout>
+    </widget>
+   </item>
+   <item alignment="Qt::AlignVCenter">
+    <widget class="QWidget" name="separator_refresh">
+     <property name="minimumSize"><size><width>1</width><height>16</height></size></property>
+     <property name="maximumSize"><size><width>1</width><height>16</height></size></property>
     </widget>
    </item>
    <item><layout class="QHBoxLayout" name="layout_refresh"/></item>
