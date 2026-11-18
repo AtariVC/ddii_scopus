@@ -3,6 +3,7 @@
 API:
 * ``EventLogWidget(parent=None)`` — поток консольного лога с фильтрами уровней.
 * ``EventLogView(parent=None, max_entries=1000)`` — LogView с ограничением истории.
+* ``EventLogView.set_filters(levels)`` — выбранные уровни; ``None`` включает все.
 Базовые LogView и log_init не изменяются; фильтры обновляются из конфигурации Loguru.
 """
 
@@ -28,6 +29,7 @@ class EventLogView(LogView):
     def __init__(self, parent=None, max_entries: int = 1000) -> None:
         super().__init__(parent)
         self._max_entries = max(1, max_entries)
+        self._selected_levels: frozenset[str] | None = None
 
     def _build_row(self, time: str, level: str, message: str) -> QWidget:
         row = super()._build_row(time, _LEVEL_LABELS.get(level, level), message)
@@ -37,10 +39,22 @@ class EventLogView(LogView):
 
     def add(self, time: str, level: str, message: str) -> None:
         super().add(time, level, message)
+        stored_level, row = self._rows[-1]
+        row.setVisible(self._selected_levels is None or stored_level in self._selected_levels)
         while len(self._rows) > self._max_entries:
             _, row = self._rows.pop(0)
             self._vbox.removeWidget(row)
             row.deleteLater()
+
+    def set_filters(self, levels: set[str] | None) -> None:
+        """Показать выбранные уровни; None — все, пустое множество — ни одного."""
+        self._selected_levels = None if levels is None else frozenset(level.upper() for level in levels)
+        for level, row in self._rows:
+            row.setVisible(self._selected_levels is None or level in self._selected_levels)
+
+    def set_filter(self, level: str) -> None:
+        """Сохранить совместимость с одиночным фильтром LogView."""
+        self.set_filters(None if level.upper() == "ALL" else {level})
 
     def clear(self) -> None:
         """Очистить историю и освободить виджеты строк."""
@@ -71,7 +85,7 @@ class EventLogWidget(QWidget):
         self.log_view = EventLogView()
         self.layout_log.addWidget(self.log_view)
         self._filters = QButtonGroup(self)
-        self._filters.setExclusive(True)
+        self._filters.setExclusive(False)
         self._filters.buttonClicked.connect(self._on_filter_changed)
         self.sink = ConsoleLogSink(log_init(), self)
         self.sink.entriesReady.connect(self.log_view.load)
@@ -79,13 +93,14 @@ class EventLogWidget(QWidget):
         self._set_levels(self.sink.levels())
 
     def _set_levels(self, levels: tuple[str, ...]) -> None:
-        selected = self._filters.checkedButton()
-        current = selected.property("log_level") if selected else "ALL"
+        buttons = self._filters.buttons()
+        select_all = not buttons or any(button.property("log_level") == "ALL" and button.isChecked()
+                                        for button in buttons)
+        selected = {button.property("log_level") for button in buttons if button.isChecked()}
         for button in self._filters.buttons():
             self._filters.removeButton(button)
             self.layout_filters.removeWidget(button)
             button.deleteLater()
-        current = current if current in ("ALL", *levels) else "ALL"
         for level in ("ALL", *levels):
             button = PrimaryButton("Все" if level == "ALL" else _LEVEL_LABELS.get(level, level),
                                    variant="neutral", compact=True)
@@ -101,11 +116,26 @@ class EventLogWidget(QWidget):
             )
             self._filters.addButton(button)
             self.layout_filters.addWidget(button)
-            button.setChecked(level == current)
-        self.log_view.set_filter(current)
+            button.setChecked(select_all or level in selected)
+        self._sync_filters()
 
     def _on_filter_changed(self, button) -> None:
-        self.log_view.set_filter(button.property("log_level"))
+        if button.property("log_level") == "ALL":
+            for level_button in self._filters.buttons():
+                level_button.setChecked(button.isChecked())
+        self._sync_filters()
+
+    def _sync_filters(self) -> None:
+        buttons = self._filters.buttons()
+        levels = {button.property("log_level") for button in buttons
+                  if button.property("log_level") != "ALL"}
+        selected = {button.property("log_level") for button in buttons
+                    if button.property("log_level") != "ALL" and button.isChecked()}
+        select_all = bool(levels) and selected == levels
+        for button in buttons:
+            if button.property("log_level") == "ALL":
+                button.setChecked(select_all)
+        self.log_view.set_filters(None if select_all else selected)
 
     def closeEvent(self, event) -> None:  # noqa: N802
         self.sink.close()

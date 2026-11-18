@@ -95,26 +95,68 @@ class EventLogWidgetTests(unittest.TestCase):
         self.widget = EventLogWidget()
         self.addCleanup(self.widget.close)
 
+    def button(self, level):
+        return next(button for button in self.widget._filters.buttons()
+                    if button.property("log_level") == level)
+
+    def selected_levels(self):
+        return {button.property("log_level") for button in self.widget._filters.buttons()
+                if button.isChecked()}
+
     def test_configured_console_levels_have_buttons_without_live_label(self):
         levels = {button.property("log_level") for button in self.widget._filters.buttons()}
         self.assertTrue({"ALL", "DEBUG", "INFO", "WARNING", "ERROR", "RX", "TX", "EMULATOR"} <= levels)
         self.assertNotIn("tail · live", [label.text() for label in self.widget.findChildren(QLabel)])
 
-    def test_level_filter_uses_original_names(self):
+    def test_individual_levels_can_be_disabled_and_restored(self):
         view = self.widget.log_view
         view.add("12:00:00", "INFO", "one")
         view.add("12:00:01", "WARNING", "two")
-        button = next(button for button in self.widget._filters.buttons()
-                      if button.property("log_level") == "WARNING")
-        button.click()
+        self.button("INFO").click()
         self.assertTrue(view._rows[0][1].isHidden())
         self.assertFalse(view._rows[1][1].isHidden())
         self.assertEqual(view._rows[1][1].findChildren(QLabel)[1].text(), "WARN")
+        self.assertFalse(self.button("ALL").isChecked())
+        self.button("INFO").click()
+        self.assertTrue(self.button("ALL").isChecked())
+        self.assertFalse(view._rows[0][1].isHidden())
+
+    def test_all_starts_selected_and_toggles_every_level(self):
+        self.assertTrue(all(button.isChecked() for button in self.widget._filters.buttons()))
+        self.widget.log_view.add("12:00:00", "INFO", "one")
+        self.button("ALL").click()
+        self.assertEqual(self.selected_levels(), set())
+        self.assertTrue(self.widget.log_view._rows[0][1].isHidden())
+        self.button("ALL").click()
+        self.assertTrue(all(button.isChecked() for button in self.widget._filters.buttons()))
+        self.assertFalse(self.widget.log_view._rows[0][1].isHidden())
+
+    def test_multiple_filters_apply_to_history_and_new_entries(self):
+        view = self.widget.log_view
+        view.add("12:00:00", "ERROR", "old error")
+        self.button("ALL").click()
+        self.button("INFO").click()
+        self.button("WARNING").click()
+        self.assertEqual(self.selected_levels(), {"INFO", "WARNING"})
+        view.load([("12:00:01", "INFO", "new info"),
+                   ("12:00:02", "WARNING", "new warning"),
+                   ("12:00:03", "ERROR", "new error")])
+        self.assertEqual([row.isHidden() for _, row in view._rows], [True, False, False, True])
+        self.button("ALL").click()
+        self.assertTrue(all(not row.isHidden() for _, row in view._rows))
+
+    def test_disabling_every_level_keeps_new_entries_hidden(self):
+        for button in self.widget._filters.buttons():
+            if button.property("log_level") != "ALL":
+                button.click()
+        self.assertEqual(self.selected_levels(), set())
+        self.widget.log_view.add("12:00:00", "INFO", "hidden")
+        self.assertTrue(self.widget.log_view._rows[-1][1].isHidden())
 
     def test_new_level_button_is_added_without_losing_selection(self):
-        info = next(button for button in self.widget._filters.buttons()
-                    if button.property("log_level") == "INFO")
-        info.click()
+        self.button("ALL").click()
+        self.button("INFO").click()
+        self.button("WARNING").click()
         level = "EVENT_LOG_DYNAMIC"
         try:
             logger.level(level)
@@ -125,7 +167,28 @@ class EventLogWidgetTests(unittest.TestCase):
         self.addCleanup(logger.remove, console_id)
         self.widget.sink.flush()
         self.assertIn(level, [button.property("log_level") for button in self.widget._filters.buttons()])
-        self.assertEqual(self.widget._filters.checkedButton().property("log_level"), "INFO")
+        self.assertEqual(self.selected_levels(), {"INFO", "WARNING"})
+
+    def test_new_levels_follow_all_selection(self):
+        self.widget._set_levels(("INFO", "WARNING", "EVENT_LOG_NEW"))
+        self.assertEqual(self.selected_levels(), {"ALL", "INFO", "WARNING", "EVENT_LOG_NEW"})
+        self.button("ALL").click()
+        self.widget._set_levels(("INFO", "WARNING", "EVENT_LOG_NEW", "EVENT_LOG_NEWER"))
+        self.assertEqual(self.selected_levels(), set())
+
+    def test_removing_levels_updates_all_indicator(self):
+        self.widget._set_levels(("INFO", "WARNING", "ERROR"))
+        self.button("ERROR").click()
+        self.widget._set_levels(("INFO", "WARNING"))
+        self.assertEqual(self.selected_levels(), {"ALL", "INFO", "WARNING"})
+
+    def test_single_filter_api_remains_supported(self):
+        view = self.widget.log_view
+        view.set_filter("warning")
+        view.load([("12:00:00", "INFO", "hidden"), ("12:00:01", "WARNING", "visible")])
+        self.assertEqual([row.isHidden() for _, row in view._rows], [True, False])
+        view.set_filter("ALL")
+        self.assertTrue(all(not row.isHidden() for _, row in view._rows))
 
     def test_messages_remain_plain_text(self):
         self.widget.log_view.add("12:00:00", "INFO", "<b>literal</b>")
