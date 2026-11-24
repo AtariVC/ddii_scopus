@@ -1,4 +1,4 @@
-"""Доставка консольного лога в Qt, фильтры и освобождение обработчиков."""
+"""Доставка событий в Qt, фильтры и управление трассировкой Modbus."""
 
 import io
 import sys
@@ -8,8 +8,9 @@ from threading import Thread
 from loguru import logger
 from PyQt6.QtCore import QCoreApplication, QEvent, Qt
 from PyQt6.QtWidgets import QApplication, QLabel
+from pymodbus.logging import Log
 
-from app.src.components.log.config import log_init
+from app.src.components.log.config import log_init, modbus_capture_levels, set_modbus_capture_levels
 from app.src.components.log.qt_sink import ConsoleLogSink
 from app.widgets.controls.event_log import EventLogView, EventLogWidget
 
@@ -92,7 +93,9 @@ class EventLogWidgetTests(unittest.TestCase):
         log_init()
 
     def setUp(self):
+        set_modbus_capture_levels(set())
         self.widget = EventLogWidget()
+        self.addCleanup(set_modbus_capture_levels, set())
         self.addCleanup(self.widget.close)
 
     def button(self, level):
@@ -103,9 +106,10 @@ class EventLogWidgetTests(unittest.TestCase):
         return {button.property("log_level") for button in self.widget._filters.buttons()
                 if button.isChecked()}
 
-    def test_configured_console_levels_have_buttons_without_live_label(self):
+    def test_normal_levels_and_capture_buttons_are_available(self):
         levels = {button.property("log_level") for button in self.widget._filters.buttons()}
-        self.assertTrue({"ALL", "DEBUG", "INFO", "WARNING", "ERROR", "RX", "TX", "EMULATOR"} <= levels)
+        self.assertTrue({"ALL", "DEBUG", "INFO", "WARNING", "ERROR", "RX", "TX"} <= levels)
+        self.assertNotIn("EMULATOR", levels)
         self.assertNotIn("tail · live", [label.text() for label in self.widget.findChildren(QLabel)])
 
     def test_individual_levels_can_be_disabled_and_restored(self):
@@ -121,14 +125,16 @@ class EventLogWidgetTests(unittest.TestCase):
         self.assertTrue(self.button("ALL").isChecked())
         self.assertFalse(view._rows[0][1].isHidden())
 
-    def test_all_starts_selected_and_toggles_every_level(self):
-        self.assertTrue(all(button.isChecked() for button in self.widget._filters.buttons()))
+    def test_all_starts_selected_and_toggles_only_normal_levels(self):
+        default_selection = {button.property("log_level") for button in self.widget._filters.buttons()}
+        default_selection -= {"RX", "TX"}
+        self.assertEqual(self.selected_levels(), default_selection)
         self.widget.log_view.add("12:00:00", "INFO", "one")
         self.button("ALL").click()
         self.assertEqual(self.selected_levels(), set())
         self.assertTrue(self.widget.log_view._rows[0][1].isHidden())
         self.button("ALL").click()
-        self.assertTrue(all(button.isChecked() for button in self.widget._filters.buttons()))
+        self.assertEqual(self.selected_levels(), default_selection)
         self.assertFalse(self.widget.log_view._rows[0][1].isHidden())
 
     def test_multiple_filters_apply_to_history_and_new_entries(self):
@@ -147,7 +153,7 @@ class EventLogWidgetTests(unittest.TestCase):
 
     def test_disabling_every_level_keeps_new_entries_hidden(self):
         for button in self.widget._filters.buttons():
-            if button.property("log_level") != "ALL":
+            if button.property("log_level") != "ALL" and button.isChecked():
                 button.click()
         self.assertEqual(self.selected_levels(), set())
         self.widget.log_view.add("12:00:00", "INFO", "hidden")
@@ -195,6 +201,48 @@ class EventLogWidgetTests(unittest.TestCase):
         message = self.widget.log_view._rows[-1][1].findChildren(QLabel)[-1]
         self.assertEqual(message.text(), "<b>literal</b>")
         self.assertEqual(message.textFormat(), Qt.TextFormat.PlainText)
+
+    def test_capture_is_independent_per_direction_and_ignores_old_data(self):
+        def exchange():
+            Log.debug("send: {}", b"\x01\x2f", ":hex")
+            Log.debug("recv: {} old_data: {} addr={}", b"\x03\x0a", ":hex", b"\x77", ":hex", None)
+            self.widget.sink.flush()
+
+        view = self.widget.log_view
+        exchange()
+        self.assertEqual(view._rows, [])
+
+        self.button("RX").click()
+        exchange()
+        self.assertEqual(modbus_capture_levels(), {"RX"})
+        self.assertEqual([level for level, _ in view._rows], ["RX"])
+        _, _, message = view._rows[-1][1].findChildren(QLabel)
+        self.assertEqual(message.text(), "03 0A")
+
+        self.button("ALL").click()
+        self.assertTrue(self.button("RX").isChecked())
+        self.button("TX").click()
+        self.button("RX").click()
+        exchange()
+        self.assertEqual(modbus_capture_levels(), {"TX"})
+        self.assertEqual([level for level, _ in view._rows], ["RX", "TX"])
+        self.assertTrue(view._rows[0][1].isHidden())
+        _, _, message = view._rows[-1][1].findChildren(QLabel)
+        self.assertEqual(message.text(), "01 2F")
+
+        self.button("TX").click()
+        exchange()
+        self.assertEqual(modbus_capture_levels(), set())
+        self.assertEqual(len(view._rows), 2)
+
+    def test_pymodbus_diagnostics_are_available_with_capture_off(self):
+        Log.debug("Frame check failed, short frame {} >= {} !!", 3, 8)
+        Log.debug("Frame check failed, ignoring!!")
+        Log.error("Cancel send, because not connected!")
+        self.widget.sink.flush()
+        rows = self.widget.log_view._rows
+        self.assertEqual([level for level, _ in rows], ["WARNING", "ERROR"])
+        self.assertIn("Frame check failed, ignoring!!", rows[0][1].findChildren(QLabel)[-1].text())
 
     def test_history_is_bounded_and_can_be_cleared(self):
         view = EventLogView(max_entries=2)

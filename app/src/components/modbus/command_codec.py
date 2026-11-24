@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import Any, Optional, ParamSpec, overload
+from typing import Any, ParamSpec
 
 from pymodbus.pdu import ModbusResponse
-
-from app.src.components.log.config import log_s
 
 
 class ModbusCommandError(Exception):
@@ -25,35 +23,20 @@ _Command = Callable[P, Awaitable[ModbusResponse]]
 _Encoded = Callable[P, Awaitable[bytes]]
 
 
-@overload
-def mb_encode(func: _Command[P]) -> _Encoded[P]: ...
+def mb_encode(command: _Command[P]) -> _Encoded[P]:
+    @wraps(command)
+    async def wrapper(self: Any, *args: Any, **kwargs: Any) -> bytes:
+        try:
+            response = await command(self, *args, **kwargs)
+            _validate_response(response)
+            return _encode_payload(response)
+        except ConnectionClosedError:
+            return b"-1"
+        except Exception as ex:
+            _log_modbus_error(self, command.__name__, ex)
+            return b"-1"
 
-
-@overload
-def mb_encode(*, log_serial_exchange: Optional[bool] = None) -> Callable[[_Command[P]], _Encoded[P]]: ...
-
-
-def mb_encode(func: Optional[Callable[..., Any]] = None, *, log_serial_exchange: Optional[bool] = None):
-    def decorator(command: Callable[..., Any]) -> Callable[..., Any]:
-        @wraps(command)
-        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> bytes:
-            try:
-                response = await command(self, *args, **kwargs)
-                _validate_response(response)
-                if _should_log_serial_exchange(self, log_serial_exchange):
-                    await log_s(self.mw.send_handler.mess)
-                return _encode_payload(response)
-            except ConnectionClosedError:
-                return b"-1"
-            except Exception as ex:
-                _log_modbus_error(self, command.__name__, ex)
-                return b"-1"
-
-        return wrapper  # type: ignore[return-value]
-
-    if func is not None:
-        return decorator(func)
-    return decorator
+    return wrapper  # type: ignore[return-value]
 
 
 def _validate_response(response: ModbusResponse) -> None:
@@ -65,12 +48,6 @@ def _validate_response(response: ModbusResponse) -> None:
 
 def _encode_payload(response: ModbusResponse) -> bytes:
     return response.encode()[1:]
-
-
-def _should_log_serial_exchange(command_owner: Any, override: Optional[bool]) -> bool:
-    if override is not None:
-        return override
-    return bool(getattr(command_owner, "log_serial_exchange", True))
 
 
 def _log_modbus_error(command_owner: Any, command_name: str, error: Exception) -> None:

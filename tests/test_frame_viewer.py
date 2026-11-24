@@ -66,7 +66,7 @@ class FrameCommandTests(unittest.IsolatedAsyncioTestCase):
             write_registers=AsyncMock(return_value=WriteMultipleRegistersResponse(3, 1)),
             read_holding_registers=AsyncMock(return_value=ReadHoldingRegistersResponse([0x1234] * 32)),
         )
-        self.command = ModbusCMCommand(self.client, log_enabled=False, log_serial_exchange=False)
+        self.command = ModbusCMCommand(self.client, log_enabled=False)
 
     async def test_interval_matches_firmware_limits_without_wrapping(self):
         for seconds, expected in ((-1, 1), (0, 1), (1, 1), (25, 25), (60, 60), (3600, 60), (65536, 60)):

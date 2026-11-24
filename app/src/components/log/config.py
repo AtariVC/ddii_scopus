@@ -1,155 +1,103 @@
-"""
-Лог конфиги.
-"DEBUG" - для записи отладочной информации
-"ERROR" - для записи ошибок в журнал ошибок
-"INFO" - для записи команд serial port как в DockLight
-"""
-import logging
-import loguru
-from loguru import logger
-from datetime import datetime
-import sys
-import re
-from PyQt6.QtCore import Qt, QTimer, QThread
-from pathlib import Path
+"""Консоль, файлы приложения и трассировка обмена PyModbus."""
 
-# from logger import logging
+import logging
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+from threading import Lock
+
+from loguru import logger
+
+MODBUS_TRACE_LEVELS = ("RX", "TX")
 
 _initialized = False
-# Global flags to enable/disable logging at runtime
-LOG_ENABLED = True           # General loguru logging
-LOG_SERIAL_EXCHANGE = True    # TX/RX serial hex stream logging (log_s)
+_init_lock = Lock()
+_modbus_capture: frozenset[str] = frozenset()
+_hex_byte = re.compile(r"0x([0-9a-f]{1,2})", re.IGNORECASE)
+# Обычная фрагментация TCP ("short frame", "missing part") остаётся вне журнала.
+_modbus_debug_warnings = (
+    "Frame check failed, ignoring",
+    "Not a valid slave id",
+    "Not in valid slave id",
+    "Connection lost ",
+    "Transaction failed.",
+    "-> error_received ",
+)
+
+
+def modbus_capture_levels() -> frozenset[str]:
+    """Вернуть включённые направления на время текущего запуска приложения."""
+    return _modbus_capture
+
+
+def set_modbus_capture_levels(levels: set[str]) -> None:
+    """Записывать только выбранные направления обмена."""
+    global _modbus_capture
+    _modbus_capture = frozenset(levels).intersection(MODBUS_TRACE_LEVELS)
+
+
+class _PyModbusHandler(logging.Handler):
+    """Маршрутизирует сообщения PyModbus 3.6.8 в Loguru при их появлении."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            message = record.getMessage()
+            if record.levelno == logging.DEBUG:
+                prefix, _, payload = message.partition(":")
+                direction = {"recv": "RX", "send": "TX"}.get(prefix.lower())
+                if direction:
+                    if direction in _modbus_capture:
+                        data = payload.partition(" old_data:")[0]
+                        hex_bytes = " ".join(byte.zfill(2).upper() for byte in _hex_byte.findall(data))
+                        if hex_bytes:
+                            logger.log(direction, hex_bytes)
+                    return
+
+            level = record.levelname
+            if record.levelno < logging.INFO:
+                if not message.startswith(_modbus_debug_warnings):
+                    return
+                level = "WARNING"
+            logger.opt(exception=record.exc_info).log(level, "PyModbus: {}", message)
+        except Exception:
+            self.handleError(record)
+
 
 def log_init():
-    """Инициализировать loguru один раз и вернуть общий logger.
-
-    Делает функцию идемпотентной: повторные вызовы не ломают обработчики
-    и не вызывают ошибок вида "There is no existing handler with id 0".
-    """
+    """Один раз настроить обработчики и вернуть общий логгер."""
     global _initialized
-    if _initialized:
+    with _init_lock:
+        if _initialized:
+            return logger
+
+        logger.remove()
+        logger.level("RX", no=0, color="<magenta>", icon="")
+        logger.level("TX", no=0, color="<green>", icon="")
+
+        filename = datetime.now().strftime("%Y-%m-%d %H_%M_%S.log")
+        log_dir = Path.cwd() / "log"
+        format_events = (
+            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <4}</level> | "
+            "<yellow>{file}:{line}</yellow> | <w>{message}</w>"
+        )
+        format_trace = "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}"
+
+        logger.add(sys.stderr, level="DEBUG", format=format_events, colorize=True)
+        logger.add(log_dir / "debug" / filename, level="DEBUG", format=format_events,
+                   rotation="100 MB", enqueue=True, encoding="utf-8")
+        logger.add(log_dir / "serial" / filename, level=0, format=format_trace,
+                   rotation="100 MB", enqueue=True, delay=True, encoding="utf-8",
+                   filter=lambda record: record["level"].name in _modbus_capture)
+
+        pymodbus_logger = logging.getLogger("pymodbus")
+        pymodbus_logger.setLevel(logging.DEBUG)
+        pymodbus_logger.propagate = False
+        pymodbus_logger.addHandler(_PyModbusHandler())
+        _initialized = True
         return logger
 
-    # Удаляем все существующие обработчики безопасно, без указания id
-    try:
-        logger.remove()
-    except Exception:
-        pass
-
-    rx_level= logger.level("RX", no=0, color="<red>", icon="")
-    tx_level= logger.level("TX", no=0, color="<green>", icon="")
-    emulator_level = logger.level("EMULATOR", no=0, color="<y>", icon="")
-
-    time_now = datetime.now()
-    form_time = time_now.strftime("%Y-%m-%d %H_%M_%S")
-    home_dir = str(Path().resolve())
-    log_path_debug =    home_dir + "/log/debug/" + str(form_time) + ".log"
-    log_path_serial =   home_dir + "/log/serial/" + str(form_time) + ".log"
-    log_path_emulator = home_dir + "/log/emulator/" + str(form_time) + ".log"
-    log_format_debug = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <4}</level> | \
-<yellow>{file}:{line}</yellow> | <w>{message}</w>"
-    log_format_tx = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <1}</level> | \
-<m>{message}</m>"
-    log_format_rx = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <1}</level> | \
-<c>{message}</c>"
-    log_format_emulator = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <1}</level> | \
-<w>{message}</w>"
-
-    logger.add(sys.stderr, level="WARNING", format=log_format_debug,
-            colorize=True, backtrace=True, diagnose=True, filter=warning_filter)
-    logger.add(sys.stderr, level="INFO", format=log_format_debug,
-            colorize=True, backtrace=True, diagnose=True, filter=info_filter)
-    logger.add(sys.stderr, level="DEBUG", format=log_format_debug,
-            colorize=True, backtrace=True, diagnose=True, filter=debug_filter)
-    logger.add(sys.stderr, level="ERROR", format=log_format_debug,
-            colorize=True, backtrace=True, diagnose=True, filter=error_filter)
-    # логирование serial rx
-    logger.add(sys.stdout,level=rx_level.name, format=log_format_rx,
-            colorize=True, backtrace=True, diagnose=True, filter=rx_filter)
-    # логирование serial tx
-    logger.add(sys.stdout,level=tx_level.name, format=log_format_tx,
-            colorize=True, backtrace=True, diagnose=True, filter=tx_filter)
-    # эмулятор
-    logger.add(sys.stdout,level=emulator_level.name, format=log_format_emulator,
-            colorize=True, backtrace=True, diagnose=True, filter=emulator_filter)
-    # логирование в файл
-    logger.add(log_path_debug, level="DEBUG", format=log_format_debug, rotation="100 MB", enqueue=True, filter=debug_filter)
-    logger.add(log_path_debug, level="ERROR", format=log_format_debug, rotation="100 MB", enqueue=True, filter=error_filter)
-    logger.add(log_path_debug, level="INFO", format=log_format_debug, rotation="100 MB", enqueue=True, filter=error_filter)
-    # logger.add(log_path_serial, level=rx_level.name, format=log_format_rx, enqueue=True, filter=rx_filter)
-    # logger.add(log_path_serial, level=tx_level.name, format=log_format_tx, enqueue=True, filter=tx_filter)
-    # logger.add(log_path_emulator, level=emulator_level.name, format=log_format_emulator, enqueue=True, filter=emulator_filter)
-    # логирование в файл
-    # logger.add(log_path_debug, level=log_level, format=log_format, colorize=False, backtrace=True, diagnose=True)
-    _initialized = True
-    return logger
 
 def get_logger(name: str | None = None):
-    """Получить общий логгер"""
-    if not _initialized:
-        log_init()
-    # В loguru имя логгера не используется так же, как в logging,
-    # возвращаем глобальный экземпляр
-    return logger
-
-def emulator_filter(record):
-    return record["level"].name == "EMULATOR"
-
-def tx_filter(record):
-    return record["level"].name == "TX"
-
-def rx_filter(record):
-    return record["level"].name == "RX"
-
-def debug_filter(record):
-    return record["level"].name == "DEBUG"
-
-def error_filter(record):
-    return record["level"].name == "ERROR"
-
-def warning_filter(record):
-    return record["level"].name == "WARNING"
-
-def info_filter(record):
-    return record["level"].name == "INFO"
-
-async def log_s(message: list):
-    # Respect global switch for serial TX/RX logging
-    if not LOG_SERIAL_EXCHANGE:
-        message.clear()
-        return 0
-    mess: list[str]= [r'']
-    for item in message:
-        try:
-            if item[:4] == "send":
-                mess = item[6:].replace("0x", "")
-                mode = "TX"
-            if item[:4] == "recv":
-                mode = "RX"
-                mess = item[6:].replace("0x", "")
-        except IndexError as e:
-            logger.debug("Нет ответа от устройства")
-            logger.debug("pymodus.send_handler.mass: IndexError")
-            return 0
-        mess: list[str] = re.findall(r'\b[a-f0-9]{1,2}\b', mess)  # type: ignore
-        # ''.join(mess)
-        new_mess = ""
-        for i in range(0, len(mess)):
-            if len(mess[i]) == 1:
-                mess[i] = "0" + mess[i]
-            new_mess = new_mess + mess[i] + " "
-        if mode == "RX":
-            logger.log("RX", new_mess.upper())
-        elif mode == "TX":
-            logger.log("TX", new_mess.upper())
-    message.clear()
-
-def set_log_enabled(flag: bool) -> None:
-    """Enable/disable general logging (loguru handlers still exist, but callers may check this)."""
-    global LOG_ENABLED
-    LOG_ENABLED = bool(flag)
-
-def apply_glob_serial_log_flag(flag: bool) -> None:
-    """Enable/disable serial TX/RX exchange logging performed by log_s()."""
-    global LOG_SERIAL_EXCHANGE
-    LOG_SERIAL_EXCHANGE = bool(flag)
+    """Получить общий логгер."""
+    return logger if _initialized else log_init()

@@ -6,12 +6,10 @@ from pymodbus.pdu import ModbusResponse
 from loguru import logger
 
 from app.src.components.frames import HVIP
-from app.src.components.log.config import apply_glob_serial_log_flag
 from app.src.components.modbus.command_codec import mb_encode
 from app.src.components.modbus.modbus_reg import (
     CM_FRAME_INTERVAL_MAX_S, CM_FRAME_INTERVAL_MIN_S, ModbusReg,
 )
-from app.src.components.modbus.worker import ModbusWorker
 
 
 class _NoopLogger:
@@ -22,17 +20,12 @@ class _NoopLogger:
 
 class ModbusCMCommand(ModbusReg):
     device_name = "ЦМ"
-    log_serial_exchange = True
 
-    def __init__(self, client, *, log_enabled: bool = True, log_serial_exchange: bool = True, **kwargs):
+    def __init__(self, client, *, log_enabled: bool = True, **kwargs):
         super().__init__()
-        self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
         # Swap to no-op logger if disabled
         self.logger = logger if log_enabled else _NoopLogger()
-        self.log_serial_exchange = log_serial_exchange
-        # Apply global serial log flag for TX/RX dumps
-        apply_glob_serial_log_flag(log_serial_exchange)
     
     @mb_encode
     async def set_gpio_impact_autotest(self) -> ModbusResponse:
@@ -188,7 +181,6 @@ class ModbusCMCommand(ModbusReg):
 
 class ModbusMPPCommand(ModbusReg):
     device_name = "МПП"
-    log_serial_exchange = True
 
     """Регистр 0x00 ..... 0x00 0x01
                             |    |—команда МПП
@@ -197,13 +189,10 @@ class ModbusMPPCommand(ModbusReg):
     Args:
         ModbusReg (_type_): внутренние постоянные окружения
     """
-    def __init__(self, client, *args, log_enabled: bool = True, log_serial_exchange: bool = False):
+    def __init__(self, client, *args, log_enabled: bool = True):
         super().__init__()
-        self.mw = ModbusWorker()
         self.client: AsyncModbusSerialClient = client
         self.logger = logger if log_enabled else _NoopLogger()
-        self.log_serial_exchange = log_serial_exchange
-        apply_glob_serial_log_flag(log_serial_exchange)
         self.MPP_ID = args[0] if args else ModbusReg.MPP_ID
 
     async def read_oscill(self, ch: int = 0):

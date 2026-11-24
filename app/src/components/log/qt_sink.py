@@ -1,8 +1,8 @@
-"""ConsoleLogSink — дополнительный приёмник Loguru для Qt, без изменения log_init.
+"""ConsoleLogSink — приёмник консольных и опциональных уровней Loguru для Qt.
 
 API:
-* ``ConsoleLogSink(logger, parent=None, max_entries=1000, streams=None)``.
-* ``levels()`` — уровни, пропускаемые обработчиками stdout/stderr.
+* ``ConsoleLogSink(logger, parent=None, max_entries=1000, streams=None, extra_levels=())``.
+* ``levels()`` — консольные уровни и явно добавленные уровни журнала.
 * ``flush()`` — передать накопленные записи в GUI; автоматически каждые 100 мс.
 * ``close()`` — отключить только этот приёмник.
 Signals: ``entriesReady(list)`` · ``levelsChanged(tuple)``.
@@ -32,10 +32,11 @@ class ConsoleLogSink(QObject):
     entriesReady = pyqtSignal(list)
     levelsChanged = pyqtSignal(tuple)
 
-    def __init__(self, logger, parent=None, max_entries: int = 1000, streams=None) -> None:
+    def __init__(self, logger, parent=None, max_entries: int = 1000, streams=None, *, extra_levels=()) -> None:
         super().__init__(parent)
         self._logger = logger
         self._streams = tuple(streams) if streams is not None else (sys.stdout, sys.stderr)
+        self._extra_levels = frozenset(extra_levels)
         self._pending = deque(maxlen=max(1, max_entries))
         self._lock = Lock()
         self._seen_levels: set[str] = set()
@@ -71,15 +72,18 @@ class ConsoleLogSink(QObject):
 
     def _write(self, message) -> None:
         record = message.record
-        if not any(self._accepts(handler, record) for handler in self._console_handlers()):
+        level = record["level"].name
+        if level not in self._extra_levels and not any(
+            self._accepts(handler, record) for handler in self._console_handlers()
+        ):
             return
-        entry = (record["time"].strftime("%H:%M:%S"), record["level"].name, str(message).rstrip("\n"))
+        entry = (record["time"].strftime("%H:%M:%S"), level, str(message).rstrip("\n"))
         with self._lock:
             self._pending.append(entry)
-            self._seen_levels.add(record["level"].name)
+            self._seen_levels.add(level)
 
     def levels(self) -> tuple[str, ...]:
-        """Имена доступных консольных уровней, без сокращений."""
+        """Имена доступных уровней, без сокращений."""
         return self._levels
 
     def flush(self) -> None:
@@ -87,7 +91,7 @@ class ConsoleLogSink(QObject):
         handlers = self._console_handlers()
         registered = tuple(self._logger._core.levels.values())
         with self._lock:
-            levels = self._seen_levels.copy()
+            levels = self._seen_levels | self._extra_levels
             entries = [self._pending.popleft() for _ in range(min(len(self._pending), 200))]
         levels.update(level.name for level in registered
                       if any(self._accepts(handler, {"level": level}) for handler in handlers))

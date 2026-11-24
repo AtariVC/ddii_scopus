@@ -95,9 +95,6 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         self.relay_server: ModbusRelayServer | None = None
         # что уже сообщали в лог — гасит повтор одинаковых сообщений (см. _log_state)
         self._log_state_cache: dict[str, str | None] = {}
-        # Дамп обмена по serial (TX/RX хексом, как в DockLight). По умолчанию выключен —
-        # иначе каждая команда сыплет в терминал. Включается: bar.log_serial_exchange = True
-        self.log_serial_exchange = False
 
         # SVG-иконка ⚙ залита чёрным — перекрашиваем под тему (иконку ставит владелец UI)
         self.settings_btn.setIcon(load_svg_icon("settings", theme.TEXT_DIM))
@@ -615,15 +612,14 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         if any(command is not None for command in self._commands):
             return self._commands
         cli = self._session
-        slog = self.log_serial_exchange
         cm = None
         if self.settings.poll_cm:
-            cm = ModbusCMCommand(cli, log_serial_exchange=slog)
+            cm = ModbusCMCommand(cli)
             cm.CM_ID = self.cm_id
 
         mpp = None
         if self.settings.poll_mpp:
-            mpp = ModbusMPPCommand(cli, self.mpp_id, log_serial_exchange=slog)
+            mpp = ModbusMPPCommand(cli, self.mpp_id)
         self._commands = (cm, mpp)
         return self._commands
 

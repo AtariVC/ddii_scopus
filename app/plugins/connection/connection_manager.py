@@ -15,17 +15,11 @@ from pymodbus.datastore import (
 
 try:
     from app.src.components.modbus.modbus_reg import ModbusReg
-    from app.src.components.log.config import log_s
-    from app.src.components.modbus.worker import ModbusWorker
 except Exception:
     class ModbusReg:
         CM_ID = 1
         DDII_SWITCH_MODE = 0x0001
         SILENT_MODE = 0x0000
-
-    async def log_s(_): ...
-    class ModbusWorker:
-        def __init__(self): self.send_handler = type("X", (), {"mess": b""})()
 
 
 class ConnectionMode(Enum):
@@ -52,7 +46,6 @@ class DDIIConnectionManager(QtCore.QObject, ModbusReg):
     def __init__(self, logger, parent=None):
         super().__init__(parent)
         self.logger = logger
-        self.mw = ModbusWorker()
 
         self._mode: Optional[ConnectionMode] = None
         self._serial: Optional[AsyncModbusSerialClient] = None
@@ -142,7 +135,6 @@ class DDIIConnectionManager(QtCore.QObject, ModbusReg):
         try:
             if check_cm:
                 rr = await client.write_registers(self.DDII_SWITCH_MODE, [self.SILENT_MODE], unit=self.CM_ID)
-                await log_s(self.mw.send_handler.mess)
                 if rr.isError():
                     raise ModbusException("Ошибка CM")
         except Exception as e:
@@ -152,7 +144,6 @@ class DDIIConnectionManager(QtCore.QObject, ModbusReg):
         try:
             if check_mpp:
                 rr = await client.read_holding_registers(0x0000, 4, unit=self._mpp_id)
-                await log_s(self.mw.send_handler.mess)
                 if rr.isError():
                     raise ModbusException("Ошибка MPP")
         except Exception as e:
