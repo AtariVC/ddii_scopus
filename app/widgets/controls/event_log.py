@@ -22,7 +22,7 @@ from app.src.components.log.qt_sink import ConsoleLogSink
 
 _LEVEL_LABELS = {"WARNING": "WARN", "ERROR": "ERR", "CRITICAL": "CRIT", "SUCCESS": "OK"}
 _LEVEL_COLORS = {
-    "DEBUG": theme.PINK,
+    "DEBUG": theme.TEXT_DIM,
     "INFO": theme.TEXT_LABLE,
     "WARN": theme.WARN,
     "ERR": theme.ERR,
@@ -39,12 +39,15 @@ _FILTER_TOOLTIPS = {
 
 
 def _checked_filter_color(label: str) -> str:
-    color = QColor(_LEVEL_COLORS.get(label, theme.TEXT))
-    neutral = QColor(theme.TEXT)
+    level_color = _LEVEL_COLORS.get(label)
+    if level_color is None:
+        return theme.TEXT_LABLE
+    color = QColor(level_color)
+    neutral = QColor(theme.TEXT_DIM)
     return QColor.fromRgbF(
-        color.redF() * 0.7 + neutral.redF() * 0.3,
-        color.greenF() * 0.7 + neutral.greenF() * 0.3,
-        color.blueF() * 0.7 + neutral.blueF() * 0.3,
+        (color.redF() + neutral.redF()) / 2,
+        (color.greenF() + neutral.greenF()) / 2,
+        (color.blueF() + neutral.blueF()) / 2,
     ).name()
 
 
@@ -149,8 +152,8 @@ class EventLogWidget(QWidget):
                 f"QPushButton {{ color: {theme.TEXT_DIM}; background: transparent; border: 1px solid {theme.BORDER}; "
                 "border-radius: 14px; min-height: 18px; padding: 4px 10px; font-size: 12px; }"
                 f"QPushButton:hover {{ border-color: {theme.ACCENT}; background: {theme.SEPARATOR}; }}"
-                f"QPushButton:checked {{ color: {_checked_filter_color(label)}; border-color: {theme.ACCENT}; "
-                f"background: {theme.rgba(theme.ACCENT, 54)}; }}"
+                f"QPushButton:checked {{ color: {_checked_filter_color(label)}; "
+                f"border-color: {theme.rgba(theme.ACCENT, 178)}; background: {theme.rgba(theme.ACCENT, 40)}; }}"
             )
             self._filters.addButton(button)
             self.layout_filters.addWidget(button)
