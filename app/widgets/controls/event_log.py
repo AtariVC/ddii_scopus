@@ -9,6 +9,7 @@ API:
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QButtonGroup, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qtpy.uic import loadUi
 
@@ -35,6 +36,16 @@ _FILTER_TOOLTIPS = {
     "RX": "Записывать входящие данные Modbus в журнал и файл",
     "TX": "Записывать исходящие данные Modbus в журнал и файл",
 }
+
+
+def _checked_filter_color(label: str) -> str:
+    color = QColor(_LEVEL_COLORS.get(label, theme.TEXT))
+    neutral = QColor(theme.TEXT)
+    return QColor.fromRgbF(
+        color.redF() * 0.7 + neutral.redF() * 0.3,
+        color.greenF() * 0.7 + neutral.greenF() * 0.3,
+        color.blueF() * 0.7 + neutral.blueF() * 0.3,
+    ).name()
 
 
 class EventLogView(LogView):
@@ -134,12 +145,12 @@ class EventLogWidget(QWidget):
             button.setCheckable(True)
             button.setProperty("log_level", level)
             button.setToolTip(_FILTER_TOOLTIPS.get(level, ""))
-            color = _LEVEL_COLORS.get(label, theme.TEXT)
             button.setStyleSheet(
-                f"QPushButton {{ color: {color}; background: transparent; border: 1px solid {theme.BORDER}; "
+                f"QPushButton {{ color: {theme.TEXT_DIM}; background: transparent; border: 1px solid {theme.BORDER}; "
                 "border-radius: 14px; min-height: 18px; padding: 4px 10px; font-size: 12px; }"
                 f"QPushButton:hover {{ border-color: {theme.ACCENT}; background: {theme.SEPARATOR}; }}"
-                f"QPushButton:checked {{ border-color: {theme.ACCENT}; background: {theme.rgba(theme.ACCENT, 28)}; }}"
+                f"QPushButton:checked {{ color: {_checked_filter_color(label)}; border-color: {theme.ACCENT}; "
+                f"background: {theme.rgba(theme.ACCENT, 54)}; }}"
             )
             self._filters.addButton(button)
             self.layout_filters.addWidget(button)
