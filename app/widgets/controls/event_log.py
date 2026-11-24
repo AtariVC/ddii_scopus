@@ -36,6 +36,7 @@ _FILTER_TOOLTIPS = {
     "RX": "Записывать входящие данные Modbus в журнал и файл",
     "TX": "Записывать исходящие данные Modbus в журнал и файл",
 }
+_UNCHECKED_FILTER_COLOR = QColor(theme.TEXT_DIM).lighter(120).name()
 
 
 def _checked_filter_color(label: str) -> str:
@@ -43,7 +44,7 @@ def _checked_filter_color(label: str) -> str:
     if level_color is None:
         return theme.TEXT_LABLE
     color = QColor(level_color)
-    neutral = QColor(theme.TEXT_DIM)
+    neutral = QColor(theme.TEXT)
     return QColor.fromRgbF(
         (color.redF() + neutral.redF()) / 2,
         (color.greenF() + neutral.greenF()) / 2,
@@ -149,11 +150,12 @@ class EventLogWidget(QWidget):
             button.setProperty("log_level", level)
             button.setToolTip(_FILTER_TOOLTIPS.get(level, ""))
             button.setStyleSheet(
-                f"QPushButton {{ color: {theme.TEXT_DIM}; background: transparent; border: 1px solid {theme.BORDER}; "
+                f"QPushButton {{ color: {_UNCHECKED_FILTER_COLOR}; background: transparent; "
+                f"border: 1px solid {theme.BORDER}; "
                 "border-radius: 14px; min-height: 18px; padding: 4px 10px; font-size: 12px; }"
                 f"QPushButton:hover {{ border-color: {theme.ACCENT}; background: {theme.SEPARATOR}; }}"
                 f"QPushButton:checked {{ color: {_checked_filter_color(label)}; "
-                f"border-color: {theme.rgba(theme.ACCENT, 178)}; background: {theme.rgba(theme.ACCENT, 40)}; }}"
+                f"border-color: {theme.ACCENT}; background: {theme.rgba(theme.ACCENT, 48)}; }}"
             )
             self._filters.addButton(button)
             self.layout_filters.addWidget(button)
