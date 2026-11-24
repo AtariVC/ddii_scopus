@@ -5,6 +5,7 @@ import sys
 import unittest
 from threading import Thread
 
+from dark_pro_widgets import theme
 from loguru import logger
 from PyQt6.QtCore import QCoreApplication, QEvent, Qt
 from PyQt6.QtWidgets import QApplication, QLabel
@@ -216,7 +217,8 @@ class EventLogWidgetTests(unittest.TestCase):
         exchange()
         self.assertEqual(modbus_capture_levels(), {"RX"})
         self.assertEqual([level for level, _ in view._rows], ["RX"])
-        _, _, message = view._rows[-1][1].findChildren(QLabel)
+        _, badge, message = view._rows[-1][1].findChildren(QLabel)
+        self.assertIn(theme.VIOLET, badge.styleSheet())
         self.assertEqual(message.text(), "03 0A")
 
         self.button("ALL").click()
@@ -227,7 +229,8 @@ class EventLogWidgetTests(unittest.TestCase):
         self.assertEqual(modbus_capture_levels(), {"TX"})
         self.assertEqual([level for level, _ in view._rows], ["RX", "TX"])
         self.assertTrue(view._rows[0][1].isHidden())
-        _, _, message = view._rows[-1][1].findChildren(QLabel)
+        _, badge, message = view._rows[-1][1].findChildren(QLabel)
+        self.assertIn(theme.OK, badge.styleSheet())
         self.assertEqual(message.text(), "01 2F")
 
         self.button("TX").click()

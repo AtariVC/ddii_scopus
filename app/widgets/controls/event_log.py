@@ -20,8 +20,16 @@ from app.src.components.log.config import (
 from app.src.components.log.qt_sink import ConsoleLogSink
 
 _LEVEL_LABELS = {"WARNING": "WARN", "ERROR": "ERR", "CRITICAL": "CRIT", "SUCCESS": "OK"}
-_LEVEL_COLORS = {"WARNING": theme.WARN, "ERROR": theme.ERR,
-                 "CRITICAL": theme.ERR, "SUCCESS": theme.OK}
+_LEVEL_COLORS = {
+    "DEBUG": theme.PINK,
+    "INFO": theme.TEXT_LABLE,
+    "WARN": theme.WARN,
+    "ERR": theme.ERR,
+    "CRIT": theme.ERR,
+    "OK": theme.OK,
+    "RX": theme.VIOLET,
+    "TX": theme.OK,
+}
 _FILTER_TOOLTIPS = {
     "ALL": "Показать или скрыть все обычные уровни журнала",
     "RX": "Записывать входящие данные Modbus в журнал и файл",
@@ -38,10 +46,22 @@ class EventLogView(LogView):
         self._selected_levels: frozenset[str] | None = None
 
     def _build_row(self, time: str, level: str, message: str) -> QWidget:
-        row = super()._build_row(time, _LEVEL_LABELS.get(level, level), message)
+        level_label = _LEVEL_LABELS.get(level, level)
+        row = super()._build_row(time, level_label, message)
+        if level_label in _LEVEL_COLORS and not hasattr(LogView, "_level_style"):
+            # Совместимость с текущей версией dark_pro_widgets.
+            badge = row.layout().itemAt(1).widget()
+            color, fill = self._level_style(level_label)
+            badge.setStyleSheet(badge.styleSheet() + f"\ncolor: {color}; background-color: {fill};")
         for label in row.findChildren(QLabel):
             label.setTextFormat(Qt.TextFormat.PlainText)
         return row
+
+    def _level_style(self, level: str) -> tuple[str, str]:
+        color = _LEVEL_COLORS.get(level)
+        if color is None:
+            return super()._level_style(level)
+        return color, theme.rgba(color, 34)
 
     def add(self, time: str, level: str, message: str) -> None:
         super().add(time, level, message)
@@ -114,13 +134,12 @@ class EventLogWidget(QWidget):
             button.setCheckable(True)
             button.setProperty("log_level", level)
             button.setToolTip(_FILTER_TOOLTIPS.get(level, ""))
-            color = _LEVEL_COLORS.get(level, theme.TEXT_DIM)
+            color = _LEVEL_COLORS.get(label, theme.TEXT)
             button.setStyleSheet(
                 f"QPushButton {{ color: {color}; background: transparent; border: 1px solid {theme.BORDER}; "
                 "border-radius: 14px; min-height: 18px; padding: 4px 10px; font-size: 12px; }"
-                f"QPushButton:hover {{ border-color: {theme.ACCENT}; }}"
-                f"QPushButton:checked {{ color: {theme.ACCENT}; border-color: {theme.ACCENT}; "
-                f"background: {theme.rgba(theme.ACCENT, 28)}; }}"
+                f"QPushButton:hover {{ border-color: {theme.ACCENT}; background: {theme.SEPARATOR}; }}"
+                f"QPushButton:checked {{ border-color: {theme.ACCENT}; background: {theme.rgba(theme.ACCENT, 28)}; }}"
             )
             self._filters.addButton(button)
             self.layout_filters.addWidget(button)
