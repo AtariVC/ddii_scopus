@@ -17,6 +17,7 @@ import getpass
 import os
 import socket
 import time
+import traceback
 
 import qasync
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
@@ -266,7 +267,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         except ConnectionClosedError:
             pass  # сессия уже выполнила отключение и сообщила причину
         except Exception as error:
-            self._disconnect(f"Ошибка подключения: {error}")
+            self._disconnect(f"Ошибка подключения: {error}", error)
         finally:
             if self._connect_task is asyncio.current_task():
                 self._connect_task = None
@@ -278,8 +279,15 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
     def _on_transport_changed(self, _transport: str) -> None:
         self._disconnect()
 
-    def _disconnect(self, reason: str | None = None) -> None:
-        """Единая остановка: запрет запросов, закрытие транспорта, сброс UI и задач."""
+    def _disconnect(self, reason: str | None = None,
+                    exc: BaseException | None = None) -> None:
+        """Единая остановка: запрет запросов, закрытие транспорта, сброс UI и задач.
+
+        Args:
+            reason (str | None): причина отключения для лога и поля State.
+            exc (BaseException | None): исходное исключение (если отключение
+                вызвано сбоем) — попадёт в лог вместе с трейсбеком.
+        """
         session, self._session = self._session, None
         was_active = session is not None or self.client is not None or self.tcp_client is not None
         self._commands = (None, None)
@@ -304,11 +312,15 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         self._close_serial_client()
         if reason:
             self._set_status("Нет связи", theme.ERR)
-            self.logger.error(reason)
+            caller = " <- ".join(
+                f"{os.path.basename(frame.filename)}:{frame.lineno}"
+                for frame in traceback.extract_stack()[-3:-1])
+            self.logger.opt(exception=exc).error(f"{reason} [caller: {caller}]")
 
-    def _on_session_failure(self, session: ConnectionSession, reason: str) -> None:
+    def _on_session_failure(self, session: ConnectionSession, reason: str,
+                            exc: BaseException | None = None) -> None:
         if session is self._session:
-            self._disconnect(reason)
+            self._disconnect(reason, exc)
 
     def bind_device(self, owner, device: str, tasks, on_ready, on_stop) -> DeviceBinding:
         """Связать задачи виджета с сессией ЦМ/МПП без собственного опроса связи."""
@@ -324,7 +336,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
 
         self.client = AsyncModbusSerialClient(
             port,
-            timeout=1,
+            timeout=3,
             baudrate=baudrate,
             bytesize=8,
             parity="N",
@@ -334,7 +346,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
             # же таймаут запроса поднимал фоновую задачу переподключения, которая
             # молча открывала порт заново уже после нашего close().
             reconnect_delay=0,
-            retries=0,
+            retries=3,
         )
         connected: bool = await self.client.connect()
         if not connected:
@@ -369,6 +381,10 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
                 continue
             response = await session.read_holding_registers(address, count, slave=slave)
             if response.isError():
+                self.logger.error(
+                    f"{name} (id={slave}) addr={address} cnt={count}: {response} "
+                    f"exc_code={getattr(response, 'exception_code', None)} "
+                    f"function={getattr(response, 'function_code', None)}")
                 self._disconnect(f"{name} (id={slave}): проверка подключения отклонена: {response}")
                 return False
             if name == "ЦМ":
@@ -467,7 +483,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         except ConnectionClosedError:
             return
         except Exception as e:
-            self._disconnect(f"Ошибка TCP подключения: {e}")
+            self._disconnect(f"Ошибка TCP подключения: {e}", e)
             self.tcp_status_changed.emit(f"Ошибка подключения: {e}", False)
 
     def disconnect_tcp_client(self) -> None:

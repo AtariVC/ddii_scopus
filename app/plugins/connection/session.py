@@ -61,20 +61,20 @@ class ConnectionSession:
                 raise
             except (ConnectionException, ModbusIOException, OSError, TimeoutError) as error:
                 slave = kwargs.get("slave", kwargs.get("unit", "—"))
-                self.fail(f"Ошибка связи (id={slave}, {method}): {error}")
+                self.fail(f"Ошибка связи (id={slave}, {method}): {error}", error)
                 self._ensure_active()
             finally:
                 self._requests.discard(request)
 
     def _transport_lost(self, error) -> None:
         self._disconnected(error)
-        self.fail(f"Соединение потеряно: {error or 'транспорт закрыт'}")
+        self.fail(f"Соединение потеряно: {error or 'транспорт закрыт'}", error)
 
-    def fail(self, reason: str) -> None:
+    def fail(self, reason: str, exc: BaseException | None = None) -> None:
         """Сообщить владельцу о первой ошибке сессии."""
         if self.active:
             self.close()
-            self._on_failure(self, reason)
+            self._on_failure(self, reason, exc)
 
     def close(self) -> None:
         """Запретить новые запросы и отменить выполняющийся обмен."""

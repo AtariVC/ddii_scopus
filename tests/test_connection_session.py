@@ -115,7 +115,7 @@ class ConnectionSessionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await cm.read_registers(100, 1), b"-1")
         self.assertEqual(client.read_holding_registers.call_count, 1)
         self.disconnected.assert_called_once()
-        self.bar.logger.error.assert_called_once()
+        self.bar.logger.opt.return_value.error.assert_called_once()
         self.assertEqual(self.bar.get_commands_interface(), (None, None))
         self.assertFalse(self.bar.cm_ready or self.bar.mpp_ready)
 
