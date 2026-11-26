@@ -75,6 +75,28 @@ class CmHvipReg():
     NUMBER                             = 17
 
 
+class CmDbgReg_ve8t_R():
+    CM_DBG_CMD_SWITCH_MODE             = 1
+    CMD_DBG_UPDATE_DATA                = 2
+    CM_DBG_CMD_CM_RESET                = 3
+    CM_DBG_CMD_CSA_TEST_ENABLE         = 4
+    CM_DBG_UPDATE_CFG                  = 5
+    CM_DBG_SET_VOLTAGE                 = 6
+    SET_DEFAULT_CFG                    = 8
+    CMD_HVIP_ON_OFF                    = 11
+    CM_DBG_SET_HVIP_AB                 = 13
+    SET_VOLTAGE_CORRECTION_MODE        = 16
+
+class CmDbgRegW_ve8t_W():
+    CMD_DBG_GET_TELEMETRIA             = 0
+    CM_DBG_GET_CFG_VOLTAGE             = 7
+    CM_DBG_GET_VOLTAGE                 = 9
+    CM_DBG_GET_CFG_PWM                 = 10
+    CMD_DBG_GET_CFG                    = 12
+    CM_DBG_GET_HVIP_AB                 = 14
+    CM_GET_TERM                        = 15
+    CM_DBG_GET_DESIRED_HVIP            = 17
+
 class MppReg():
     MPP_CTRL                           = 0x0000
     MPP_CTRL_ISSUE_WAVEFORM            = 0x0009
