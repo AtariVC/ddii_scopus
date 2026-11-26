@@ -179,6 +179,17 @@ class ModbusCMCommand(ModbusReg):
         """
         return await self.write_hvip(ch, {"mode": int(bool(state))})
 
+class ModbusCMCommand_ve8t(ModbusReg):
+    device_name = "ЦМ_ve8t"
+
+    def __init__(self, client, *, log_enabled: bool = True, **kwargs):
+        super().__init__()
+        self.client: AsyncModbusSerialClient = client
+        # Swap to no-op logger if disabled
+        self.logger = logger if log_enabled else _NoopLogger()
+
+    
+
 class ModbusMPPCommand(ModbusReg):
     device_name = "МПП"
 

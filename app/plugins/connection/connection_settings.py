@@ -1,6 +1,5 @@
 """Настройки соединения ДДИИ: модель + диалог.
 
-Здесь живёт всё, что раньше было разбросано по бару и константам:
 порт, baudrate, адреса ЦМ/МПП и режим опроса (какие устройства спрашивать).
 Значения сохраняются между запусками через ``QSettings`` — без новых
 зависимостей и без лишних файлов в репозитории.
@@ -15,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from loguru import logger
 
 import serial.tools.list_ports
 from PyQt6 import QtWidgets
@@ -66,6 +66,7 @@ class ConnectionSettings:
     """Параметры соединения. ``load()``/``save()`` работают через QSettings."""
 
     poll_mode: str = POLL_BOTH
+    legacy: bool = False
     serial_port: str = ""
     baudrate: int = BAUDRATE_DEFAULT
     tcp_host: str = ""
@@ -100,8 +101,15 @@ class ConnectionSettings:
             except (TypeError, ValueError):
                 return default
 
+        def _bool(key: str, default: bool) -> bool:
+            try:
+                return bool(s.value(key, default))
+            except (TypeError, ValueError):
+                return default
+
         obj = cls(
             poll_mode=str(s.value("poll_mode", defaults.poll_mode)),
+            legacy =_bool("legacy", defaults.legacy),
             serial_port=str(s.value("serial_port", defaults.serial_port)),
             baudrate=_int("baudrate", defaults.baudrate),
             tcp_host=str(s.value("tcp_host", defaults.tcp_host)),
@@ -118,6 +126,7 @@ class ConnectionSettings:
         s = QSettings(_ORG, _APP)
         s.beginGroup(_GROUP)
         s.setValue("poll_mode", self.poll_mode)
+        s.setValue("legacy", self.legacy)
         s.setValue("serial_port", self.serial_port)
         s.setValue("baudrate", int(self.baudrate))
         s.setValue("tcp_host", self.tcp_host)
@@ -134,6 +143,7 @@ class ConnectionSettingsDialog(QtWidgets.QDialog):
     radio_both: QtWidgets.QRadioButton
     radio_cm: QtWidgets.QRadioButton
     radio_mpp: QtWidgets.QRadioButton
+    radio_legacy: QtWidgets.QRadioButton
     combo_port: QtWidgets.QComboBox
     button_refresh: QtWidgets.QPushButton
     combo_baudrate: QtWidgets.QComboBox
@@ -149,7 +159,7 @@ class ConnectionSettingsDialog(QtWidgets.QDialog):
 
         self._settings = settings
         self._apply_theme()
-
+        self.logger = logger
         self.edit_tcp_port.setValidator(QIntValidator(1, 65535, self))
         self.edit_cm_id.setValidator(QIntValidator(0, 247, self))
         self.edit_mpp_id.setValidator(QIntValidator(0, 247, self))
@@ -211,6 +221,12 @@ class ConnectionSettingsDialog(QtWidgets.QDialog):
             s.poll_mode, self.radio_both
         ).setChecked(True)
 
+        try:
+            self.radio_legacy.setChecked(s.legacy)
+        except Exception as e:
+            self.logger.error(f"radio_legacy set wit err: {e}")
+            self.radio_legacy.setChecked(False)
+
         if s.serial_port:
             if self.combo_port.findText(s.serial_port) < 0:
                 # порт мог отвалиться (кабель вынут) — показываем, но помечаем
@@ -240,8 +256,11 @@ class ConnectionSettingsDialog(QtWidgets.QDialog):
         else:
             poll_mode = POLL_BOTH
 
+        legacy_mode = self.radio_legacy.isChecked() 
+
         return ConnectionSettings(
             poll_mode=poll_mode,
+            legacy=legacy_mode,
             serial_port=self.combo_port.currentText().strip(),
             baudrate=_int(self.combo_baudrate.currentText(), BAUDRATE_DEFAULT),
             tcp_host=self.edit_host.text().strip(),
@@ -274,6 +293,7 @@ if __name__ == "__main__":
         result = dialog.result_settings()
         print(f"сохранено: {result.poll_label()}, порт={result.serial_port or '—'}, "
               f"baudrate={result.baudrate}, ЦМ={result.cm_id}, МПП={result.mpp_id}")
+        
     else:
         print("отменено")
     sys.exit(0)

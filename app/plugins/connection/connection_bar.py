@@ -165,6 +165,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         self.settings.save()
         self.logger.info(
             f"Настройки соединения: {self.settings.poll_label()}, "
+            f"Legasy: {self.settings.legacy}, "
             f"порт={self.settings.serial_port or '—'}, baudrate={self.settings.baudrate}, "
             f"ЦМ={self.settings.cm_id}, МПП={self.settings.mpp_id}"
         )
