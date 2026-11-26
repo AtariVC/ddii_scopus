@@ -12,7 +12,7 @@ from PyQt6.QtCore import pyqtSignal
 
 from dark_pro_widgets import StatTable, theme
 
-from app.widgets.composite.frame_poll_controls import FramePollControls
+from app.widgets.composite_frame.poll_controls import FramePollControls
 
 
 class FrameTable(StatTable):

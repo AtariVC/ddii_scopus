@@ -40,7 +40,7 @@
   <customwidget>
    <class>_IntervalEdit</class>
    <extends>QLineEdit</extends>
-   <header>app.widgets.composite.frame_poll_controls.frame_poll_controls</header>
+   <header>app.widgets.composite_frame.poll_controls.frame_poll_controls</header>
   </customwidget>
  </customwidgets>
  <resources/>
