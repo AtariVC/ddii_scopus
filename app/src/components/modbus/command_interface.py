@@ -188,7 +188,27 @@ class ModbusCMCommand_ve8t(ModbusReg):
         # Swap to no-op logger if disabled
         self.logger = logger if log_enabled else _NoopLogger()
 
-    
+    @mb_encode
+    async def read_registers(self, address: int, count: int) -> ModbusResponse:
+        return await self.client.read_holding_registers(
+            address,
+            count,
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
+    async def write_registers(self, address: int, values: list[int]) -> ModbusResponse:
+        """Записать значения в регистры ЦМ подряд, начиная с адреса.
+
+        Args:
+            address (int): адрес первого регистра.
+            values (list[int]): значения регистров (по 16 бит).
+        """
+        return await self.client.write_registers(
+            address,
+            values,
+            slave=self.CM_ID,
+        )
 
 class ModbusMPPCommand(ModbusReg):
     device_name = "МПП"

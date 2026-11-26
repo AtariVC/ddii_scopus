@@ -75,7 +75,7 @@ class CmHvipReg():
     NUMBER                             = 17
 
 
-class CmDbgReg_ve8t_R():
+class CmDbgReg_ve8t_W():
     CM_DBG_CMD_SWITCH_MODE             = 1
     CMD_DBG_UPDATE_DATA                = 2
     CM_DBG_CMD_CM_RESET                = 3
@@ -87,7 +87,7 @@ class CmDbgReg_ve8t_R():
     CM_DBG_SET_HVIP_AB                 = 13
     SET_VOLTAGE_CORRECTION_MODE        = 16
 
-class CmDbgRegW_ve8t_W():
+class CmDbgReg_ve8t_R():
     CMD_DBG_GET_TELEMETRIA             = 0
     CM_DBG_GET_CFG_VOLTAGE             = 7
     CM_DBG_GET_VOLTAGE                 = 9
@@ -131,6 +131,9 @@ class ModbusReg():
     hvip_reg = CmHvipReg()
     frame_reg = CmFrameReg()
     mpp_reg = MppReg()
+    dbg_reg_ve8t_w = CmDbgReg_ve8t_W()
+    dbg_reg_ve8t_r = CmDbgReg_ve8t_R()
+
 
     MB_F_CODE_16                       = 0x10
     MB_F_CODE_3                        = 0x03

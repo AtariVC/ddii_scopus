@@ -39,7 +39,7 @@ from app.plugins.connection.modbus_relay_server import ModbusRelayServer
 from app.plugins.connection.device_binding import DeviceBinding
 from app.plugins.connection.session import ConnectionSession
 from app.src.components.log.config import get_logger
-from app.src.components.modbus.command_interface import ModbusCMCommand, ModbusMPPCommand
+from app.src.components.modbus.command_interface import ModbusCMCommand, ModbusMPPCommand, ModbusCMCommand_ve8t
 from app.src.components.modbus.command_codec import ConnectionClosedError
 from app.src.components.modbus.modbus_reg import ModbusReg
 from app.src.components.modbus.worker import ModbusWorker
@@ -372,7 +372,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         if session is None:
             return False
         self.status_CM = self.status_MPP = 0
-        probes = ((self.settings.poll_cm, "ЦМ", self.cm_id, self.dbg_reg.CM_STATUS, 1),
+        probes = ((self.settings.poll_cm, "ЦМ", self.cm_id, self.dbg_reg.CM_STATUS if self.settings.legacy else self.dbg_reg_ve8t_r.CMD_DBG_GET_CFG, 1),
                   (self.settings.poll_mpp, "МПП", self.mpp_id, 0, 4))
         for enabled, name, slave, address, count in probes:
             if not enabled:
@@ -615,8 +615,12 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         cli = self._session
         cm = None
         if self.settings.poll_cm:
-            cm = ModbusCMCommand(cli)
+            if self.settings.legacy:
+                cm = ModbusCMCommand_ve8t(cli)
+            else:
+                cm = ModbusCMCommand(cli)
             cm.CM_ID = self.cm_id
+
 
         mpp = None
         if self.settings.poll_mpp:
