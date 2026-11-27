@@ -372,7 +372,7 @@ class ConnectionBar(ConnectionBarUI, ModbusReg):
         if session is None:
             return False
         self.status_CM = self.status_MPP = 0
-        probes = ((self.settings.poll_cm, "ЦМ", self.cm_id, self.dbg_reg.CM_STATUS if self.settings.legacy else self.dbg_reg_ve8t_r.CMD_DBG_GET_CFG, 1),
+        probes = ((self.settings.poll_cm, "ЦМ", self.cm_id, self.dbg_reg.CM_STATUS if not self.settings.legacy else self.dbg_reg_ve8t_r.CMD_DBG_GET_CFG, 1),
                   (self.settings.poll_mpp, "МПП", self.mpp_id, 0, 4))
         for enabled, name, slave, address, count in probes:
             if not enabled:

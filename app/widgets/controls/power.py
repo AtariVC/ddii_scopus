@@ -227,6 +227,8 @@ class PowerControlWidget(QWidget):
         """
         if self.cm_ib is None:
             return b"-1"
+        if self.cm_ib.device_name == "ЦМ_ve8t":
+            return await self.cm_ib.read_registers(9, 21) # читаем структуру typeDDII_HVIP_Data
         hvip = self.reg.hvip_reg
         address = hvip.BASE + ch * hvip.NUMBER + self._hvip_window_start
         # окно MODE … CURRENT_X100 — длину считаем от начала окна, иначе последний

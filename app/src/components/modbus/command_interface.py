@@ -188,6 +188,9 @@ class ModbusCMCommand_ve8t(ModbusReg):
         # Swap to no-op logger if disabled
         self.logger = logger if log_enabled else _NoopLogger()
 
+    
+
+
     @mb_encode
     async def read_registers(self, address: int, count: int) -> ModbusResponse:
         return await self.client.read_holding_registers(
@@ -207,6 +210,22 @@ class ModbusCMCommand_ve8t(ModbusReg):
         return await self.client.write_registers(
             address,
             values,
+            slave=self.CM_ID,
+        )
+
+    @mb_encode
+    async def read_hvip(self, ch: int) -> ModbusResponse:
+        """Прочитать блок регистров одного канала HVIP целиком (MODE … PID_ERROR).
+
+        Args:
+            ch (int): номер канала HVIP [0..HVIP_CH_NUM-1].
+
+        Returns:
+            Сырые байты блока (2 байта на регистр) или ``b"-1"`` при ошибке.
+        """
+        return await self.client.read_holding_registers(
+            self.hvip_reg.BASE + ch * self.hvip_reg.NUMBER,
+            self.hvip_reg.NUMBER,
             slave=self.CM_ID,
         )
 

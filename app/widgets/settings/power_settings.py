@@ -293,7 +293,8 @@ class PowerSettingsWidget(QWidget):
 
     def _on_device_ready(self, command: ModbusCMCommand) -> None:
         self.cm_ib = command
-        self.start_polling()
+        if self.cm_ib.device_name != "ЦМ_ve8t":
+            self.start_polling()
 
     def _on_disconnected(self) -> None:
         """Связь потеряна — остановить опрос и выбросить неотправленные правки."""
